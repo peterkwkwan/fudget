@@ -98,9 +98,24 @@ export function useAdjacentStatsMonthsReady(args: {
 
   useEffect(() => {
     if (!enabled || ready) return;
-    return queryClient.getQueryCache().subscribe(() => {
-      setCacheEpoch((n) => n + 1);
+    // QueryCache#notify can run during a child useQuery render (e.g.
+    // StatsMonthBody). Defer setState so we never update this hook while
+    // another component is rendering.
+    let cancelled = false;
+    let scheduled = false;
+    const unsub = queryClient.getQueryCache().subscribe(() => {
+      if (scheduled || cancelled) return;
+      scheduled = true;
+      queueMicrotask(() => {
+        scheduled = false;
+        if (cancelled) return;
+        setCacheEpoch((n) => n + 1);
+      });
     });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [queryClient, enabled, ready, focus.year, focus.month]);
 
   // cacheEpoch forces a re-read of the query cache after updates.
