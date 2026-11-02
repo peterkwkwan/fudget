@@ -52,8 +52,8 @@ export type PeriodSelectorProps = {
   onCustomStartChange?: (date: Date) => void;
   onCustomEndChange?: (date: Date) => void;
   /**
-   * When set (Monthly + card pager), animate the center label with the swipe
-   * instead of waiting for focus to commit after settle.
+   * When set (Monthly + card pager in the same screen tree), animate the
+   * center label with the swipe instead of waiting for focus after settle.
    */
   swipeMotion?: PeriodSwipeMotion | null;
   /**

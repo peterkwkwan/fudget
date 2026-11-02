@@ -41,10 +41,11 @@ function NavHeaderChrome({ children, trailing }: NavHeaderChromeProps) {
 }
 
 /**
- * Period nav replaces the page title on Transactions + Stats.
- * Full custom header so default titles cannot linger.
- * Period cluster (‹ Month ›) is centered in the row; optional `trailing`
- * (gear) stays right when present.
+ * Period nav chrome for Transactions + Stats.
+ * Rendered in the **screen body** (same React tree as MonthCardPager) so
+ * month-label rewrite and settle `translateX = 0` share one pre-paint commit.
+ * Stack header is hidden via {@link periodBodyScreenOptions}.
+ * Period cluster (‹ Month ›) is centered; optional `trailing` stays right.
  */
 export function PeriodNavHeader({
   children,
@@ -74,6 +75,18 @@ export function TitleNavHeader({
       </Text>
     </NavHeaderChrome>
   );
+}
+
+/**
+ * Transactions / Stats: hide the stack header. Period chrome lives in the
+ * screen tree next to MonthCardPager (avoids settle month-label flash).
+ */
+export function periodBodyScreenOptions() {
+  return {
+    title: '',
+    headerTitle: '',
+    headerShown: false as const,
+  };
 }
 
 /** Options that hide the default title and install our full header. */

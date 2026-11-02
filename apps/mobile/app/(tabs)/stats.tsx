@@ -1,8 +1,6 @@
-import { useNavigation } from 'expo-router';
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -26,10 +24,7 @@ import { usePartnerLink } from '@/hooks/usePartner';
 import { type StatsScope } from '@/hooks/useStats';
 import { useAuth } from '@/lib/auth';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
-import {
-  PeriodNavHeader,
-  periodNavScreenOptions,
-} from '@/lib/periodHeader';
+import { PeriodNavHeader } from '@/lib/periodHeader';
 import {
   currentPeriodFocus,
   resolvePeriodBounds,
@@ -41,7 +36,6 @@ import { STATS_PERSONAL_OFFLINE_BANNER } from '@/lib/offline/ux';
 import type { StatsMetric } from '@/lib/stats';
 
 export default function StatsScreen() {
-  const navigation = useNavigation();
   const { profile } = useAuth();
   const { formatWhole } = useFormatMoney();
   const formatSigned = useCallback(
@@ -69,7 +63,7 @@ export default function StatsScreen() {
   const [pieType, setPieType] = useState<TransactionType>('expense');
   const [trendMetric, setTrendMetric] = useState<StatsMetric>('expense');
 
-  // Shared with PeriodSelector so the header month tracks the card swipe.
+  // Shared with PeriodSelector so the month strip tracks the card swipe.
   const swipeTranslateX = useSharedValue(0);
   const swipePagerWidth = useSharedValue(0);
   const pagerRef = useRef<MonthCardPagerHandle>(null);
@@ -133,49 +127,17 @@ export default function StatsScreen() {
     pagerRef.current?.step(delta);
   }, []);
 
-  useLayoutEffect(() => {
-    navigation.setOptions(
-      periodNavScreenOptions(() => (
-        <PeriodNavHeader>
-          <PeriodSelector
-            preset={preset}
-            navLabel={period.navLabel}
-            focus={focus}
-            timeZone={timeZone}
-            customStart={customStart}
-            customEnd={customEnd}
-            showModeMenu
-            swipeMotion={swipeMotion}
-            onSwipeStep={preset === 'month' ? onSwipeStep : undefined}
-            onPresetChange={setPreset}
-            onFocusChange={setFocus}
-            onCustomStartChange={(date) => {
-              setCustomStart(date);
-              setCustomEnd((end) =>
-                date.getTime() > end.getTime() ? date : end
-              );
-            }}
-            onCustomEndChange={(date) => {
-              setCustomEnd(date);
-              setCustomStart((start) =>
-                date.getTime() < start.getTime() ? date : start
-              );
-            }}
-          />
-        </PeriodNavHeader>
-      ))
+  const onCustomStartChange = useCallback((date: Date) => {
+    setCustomStart(date);
+    setCustomEnd((end) => (date.getTime() > end.getTime() ? date : end));
+  }, []);
+
+  const onCustomEndChange = useCallback((date: Date) => {
+    setCustomEnd(date);
+    setCustomStart((start) =>
+      date.getTime() < start.getTime() ? date : start
     );
-  }, [
-    navigation,
-    preset,
-    period.navLabel,
-    focus,
-    timeZone,
-    customStart,
-    customEnd,
-    swipeMotion,
-    onSwipeStep,
-  ]);
+  }, []);
 
   const showPair = scope === 'pair' && isPaired;
   const pairLive = showPair && !pairStatsBlocked;
@@ -246,6 +208,25 @@ export default function StatsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Same tree as MonthCardPager — settle label rewrite + translateX=0. */}
+      <PeriodNavHeader>
+        <PeriodSelector
+          preset={preset}
+          navLabel={period.navLabel}
+          focus={focus}
+          timeZone={timeZone}
+          customStart={customStart}
+          customEnd={customEnd}
+          showModeMenu
+          swipeMotion={swipeMotion}
+          onSwipeStep={preset === 'month' ? onSwipeStep : undefined}
+          onPresetChange={setPreset}
+          onFocusChange={setFocus}
+          onCustomStartChange={onCustomStartChange}
+          onCustomEndChange={onCustomEndChange}
+        />
+      </PeriodNavHeader>
+
       <OfflineBanner
         message={offline ? STATS_PERSONAL_OFFLINE_BANNER : null}
       />

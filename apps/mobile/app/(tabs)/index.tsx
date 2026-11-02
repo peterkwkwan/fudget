@@ -1,4 +1,4 @@
-import { useNavigation, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import {
   useCallback,
   useEffect,
@@ -39,10 +39,7 @@ import {
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { useAuth } from '@/lib/auth';
 import { userFacingOfflineWriteError } from '@/lib/offline/writeError';
-import {
-  PeriodNavHeader,
-  periodNavScreenOptions,
-} from '@/lib/periodHeader';
+import { PeriodNavHeader } from '@/lib/periodHeader';
 import {
   currentPeriodFocus,
   resolvePeriodBounds,
@@ -61,7 +58,6 @@ import { zonedYmd } from '@/lib/dates';
 
 export default function TransactionsScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const { profile } = useAuth();
   const timeZone = profile?.timezone || 'UTC';
   const currency = profile?.currency ?? 'HKD';
@@ -75,7 +71,7 @@ export default function TransactionsScreen() {
     defaultSelectedDay(currentPeriodFocus(timeZone), timeZone)
   );
 
-  // Shared with PeriodSelector so the header month tracks the card swipe.
+  // Shared with PeriodSelector so the month strip tracks the card swipe.
   const swipeTranslateX = useSharedValue(0);
   const swipePagerWidth = useSharedValue(0);
   const pagerRef = useRef<MonthCardPagerHandle>(null);
@@ -271,52 +267,6 @@ export default function TransactionsScreen() {
     pagerRef.current?.step(delta);
   }, []);
 
-  useLayoutEffect(() => {
-    if (selectionMode) {
-      navigation.setOptions(
-        periodNavScreenOptions(() => (
-          <TxnSelectionHeader
-            count={selectedIds.size}
-            busy={busy}
-            onCancel={exitSelection}
-            onDelete={confirmDelete}
-            onOverflow={() => setOverflowOpen(true)}
-          />
-        ))
-      );
-      return;
-    }
-
-    navigation.setOptions(
-      periodNavScreenOptions(() => (
-        <PeriodNavHeader>
-          <PeriodSelector
-            preset="month"
-            navLabel={period.navLabel}
-            focus={focus}
-            timeZone={timeZone}
-            showModeMenu={false}
-            swipeMotion={swipeMotion}
-            onSwipeStep={onSwipeStep}
-            onFocusChange={setFocus}
-          />
-        </PeriodNavHeader>
-      ))
-    );
-  }, [
-    navigation,
-    selectionMode,
-    selectedIds.size,
-    busy,
-    exitSelection,
-    confirmDelete,
-    period.navLabel,
-    focus,
-    timeZone,
-    swipeMotion,
-    onSwipeStep,
-  ]);
-
   const onRowPress = useCallback(
     (item: Transaction) => {
       if (selectionMode) {
@@ -389,6 +339,30 @@ export default function TransactionsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Same tree as MonthCardPager — settle label rewrite + translateX=0. */}
+      {selectionMode ? (
+        <TxnSelectionHeader
+          count={selectedIds.size}
+          busy={busy}
+          onCancel={exitSelection}
+          onDelete={confirmDelete}
+          onOverflow={() => setOverflowOpen(true)}
+        />
+      ) : (
+        <PeriodNavHeader>
+          <PeriodSelector
+            preset="month"
+            navLabel={period.navLabel}
+            focus={focus}
+            timeZone={timeZone}
+            showModeMenu={false}
+            swipeMotion={swipeMotion}
+            onSwipeStep={onSwipeStep}
+            onFocusChange={setFocus}
+          />
+        </PeriodNavHeader>
+      )}
+
       <OfflineBanner message={banner} />
       <MonthCardPager
         ref={pagerRef}
