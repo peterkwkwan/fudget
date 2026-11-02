@@ -152,14 +152,10 @@ function formatRangeLabel(start: Date, endExclusive: Date, timeZone: string): st
   }
 }
 
-function monthNavLabel(focus: PeriodFocus, timeZone: string, now: Date): string {
+/** Monthly nav strip label — always `December 2026` (month + year). */
+function monthNavLabel(focus: PeriodFocus): string {
   const name = MONTH_NAMES[focus.month - 1] ?? `M${focus.month}`;
-  const current = zonedParts(now, timeZone);
-  // Include year when the focused month is outside the current calendar year.
-  if (focus.year !== current.year) {
-    return `${name} ${focus.year}`;
-  }
-  return name;
+  return `${name} ${focus.year}`;
 }
 
 /** Current calendar month/year in the account timezone. */
@@ -270,7 +266,7 @@ export function resolvePeriodBounds(
     start,
     end,
     label: formatRangeLabel(start, end, timeZone),
-    navLabel: monthNavLabel(focus, timeZone, now),
+    navLabel: monthNavLabel(focus),
   };
 }
 

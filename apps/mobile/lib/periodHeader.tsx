@@ -45,7 +45,7 @@ function NavHeaderChrome({ children, trailing }: NavHeaderChromeProps) {
  * Rendered in the **screen body** (same React tree as MonthCardPager) so
  * month-label rewrite and settle `translateX = 0` share one pre-paint commit.
  * Stack header is hidden via {@link periodBodyScreenOptions}.
- * Period cluster (‹ Month ›) is centered; optional `trailing` stays right.
+ * Period cluster (‹ Month Year ›) is left-aligned; optional `trailing` stays right.
  */
 export function PeriodNavHeader({
   children,

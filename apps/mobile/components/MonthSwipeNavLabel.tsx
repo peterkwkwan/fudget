@@ -8,8 +8,11 @@ import Animated, {
 
 import { colors, fonts } from '@/constants/theme';
 
-/** Longest English month name — fixed slot so ‹ › do not shift (May vs September). */
-export const LONGEST_MONTH_NAV_LABEL = 'September';
+/**
+ * Longest Monthly nav label — fixed slot so ‹ › do not shift
+ * (May 2026 vs September 2026). Year is always four digits.
+ */
+export const LONGEST_MONTH_NAV_LABEL = 'September 2026';
 
 type Props = {
   prevLabel: string;
@@ -26,8 +29,8 @@ type FixedLabelProps = {
 };
 
 /**
- * Single month/year label in a September-width slot (static path when there is
- * no swipe motion — Yearly, or Monthly before the pager mounts).
+ * Single month/year label in a longest-label-width slot (static path when
+ * there is no swipe motion — Yearly, or Monthly before the pager mounts).
  */
 export function FixedMonthNavLabel({ label }: FixedLabelProps) {
   const [slotW, setSlotW] = useState(0);
@@ -43,7 +46,7 @@ export function FixedMonthNavLabel({ label }: FixedLabelProps) {
       style={[styles.wrap, slotW > 0 ? { width: slotW } : null]}
       collapsable={false}
     >
-      <SeptemberWidthProbe onLayout={onMeasure} />
+      <LongestNavLabelProbe onLayout={onMeasure} />
       <Text
         style={[styles.label, slotW > 0 ? { width: slotW } : null]}
         numberOfLines={1}
@@ -58,10 +61,10 @@ export function FixedMonthNavLabel({ label }: FixedLabelProps) {
 
 /**
  * Month title strip that tracks the card pager’s translateX so
- * ‹ November › slides toward October with the swipe (not after settle).
+ * ‹ November 2026 › slides toward October with the swipe (not after settle).
  *
- * Slot width is locked to “September” (longest English month) so chevrons
- * stay put when swiping May ↔ September. Labels are centered in that slot.
+ * Slot width is locked to “September 2026” so chevrons stay put when
+ * swiping May ↔ September. Labels are centered in that slot.
  *
  * Shared values are only written from layout/effects (never during render).
  */
@@ -108,7 +111,7 @@ export function MonthSwipeNavLabel({
       // Content-sized — never grow into the header leftover (that pushed › away).
       collapsable={false}
     >
-      <SeptemberWidthProbe onLayout={onMeasure} />
+      <LongestNavLabelProbe onLayout={onMeasure} />
 
       {slotW <= 0 ? (
         <Text
@@ -155,7 +158,7 @@ export function MonthSwipeNavLabel({
   );
 }
 
-function SeptemberWidthProbe({
+function LongestNavLabelProbe({
   onLayout,
 }: {
   onLayout: (event: LayoutChangeEvent) => void;

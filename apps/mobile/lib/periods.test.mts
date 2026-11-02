@@ -26,16 +26,21 @@ describe('periods', () => {
     assert.deepEqual(focus, { year: 2026, month: 10 });
     const bounds = resolvePeriodBounds('month', tz, { focus, now });
     assert.equal(bounds.preset, 'month');
-    assert.equal(bounds.navLabel, 'October');
+    assert.equal(bounds.navLabel, 'October 2026');
     assert.ok(bounds.start < bounds.end);
   });
 
-  it('includes year in Monthly nav when focus crosses year boundary', () => {
-    const bounds = resolvePeriodBounds('month', tz, {
+  it('Monthly nav always includes the year', () => {
+    const sameYear = resolvePeriodBounds('month', tz, {
+      focus: { year: 2026, month: 12 },
+      now,
+    });
+    assert.equal(sameYear.navLabel, 'December 2026');
+    const priorYear = resolvePeriodBounds('month', tz, {
       focus: { year: 2025, month: 12 },
       now,
     });
-    assert.equal(bounds.navLabel, 'December 2025');
+    assert.equal(priorYear.navLabel, 'December 2025');
   });
 
   it('Yearly uses the focused year and steps into future years', () => {
@@ -62,7 +67,7 @@ describe('periods', () => {
       focus: { year: 2026, month: 11 },
       now,
     });
-    assert.equal(future.navLabel, 'November');
+    assert.equal(future.navLabel, 'November 2026');
   });
 
   it('Period (custom) formats compact dates and range bounds', () => {

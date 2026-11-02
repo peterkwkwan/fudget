@@ -346,11 +346,11 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   bar: {
-    // ‹ Month › (or Period dates) centered in the header row. Stats pins
-    // [Monthly] absolutely on the right so it does not shift the cluster.
+    // ‹ Month Year › left-aligned. Stats pins [Monthly] absolutely on the
+    // right so it does not shift the cluster.
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     flexWrap: 'nowrap',
     minHeight: 36,
     alignSelf: 'stretch',
@@ -360,9 +360,10 @@ const styles = StyleSheet.create({
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.xs,
-    // Hug ‹ label › — fixed September slot keeps chevrons from shifting.
+    justifyContent: 'flex-start',
+    // Slightly wider gap for the longer “September 2026” slot.
+    gap: space.sm,
+    // Hug ‹ label › — fixed longest-label slot keeps chevrons from shifting.
     flexGrow: 0,
     flexShrink: 0,
   },
