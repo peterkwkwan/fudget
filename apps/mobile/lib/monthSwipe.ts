@@ -1,7 +1,7 @@
 /**
- * Month card swipe.
+ * Month card swipe — blank-then-fill.
  * Left (negative X) moves forward one month; right moves back one month.
- * During the drag, full prev/next month UIs slide in from the sides.
+ * Neighbors are paper-white blanks; only the focused month body is live.
  */
 
 /** Horizontal travel before the pan claims the touch. */
@@ -22,17 +22,8 @@ export const MONTH_CARD_VELOCITY_PX = 700;
 /** Snap / chevron slide length. */
 export const MONTH_CARD_SNAP_MS = 240;
 
-/**
- * After a settle, lock swipe / header month input until M±1 neighbors are
- * ready (or this timeout elapses — then skeleton is allowed).
- */
-export const MONTH_NEIGHBOR_LOCK_MS = 480;
-
-/**
- * Calendar-month offsets to prefetch around focus for rapid swipes.
- * Visible slots stay M±1; ±2 is data-only warm cache.
- */
-export const MONTH_PREFETCH_OFFSETS = [-2, -1, 1, 2] as const;
+/** Blank → full/empty content fade after the focused month is ready. */
+export const MONTH_FILL_FADE_MS = 180;
 
 /**
  * Legacy short-drag threshold (tests + older call sites).
@@ -99,7 +90,7 @@ export function monthContentKey(focus: YearMonth): string {
   return `${focus.year}-${focus.month}`;
 }
 
-/** Previous and next calendar months around `focus` (visible pager slots). */
+/** Previous and next calendar months around `focus` (blank pager flanks). */
 export function adjacentMonthFocuses(focus: YearMonth): {
   prev: YearMonth;
   next: YearMonth;
@@ -108,11 +99,6 @@ export function adjacentMonthFocuses(focus: YearMonth): {
     prev: shiftYearMonth(focus, -1),
     next: shiftYearMonth(focus, 1),
   };
-}
-
-/** Focus months at {@link MONTH_PREFETCH_OFFSETS} (data warm for rapid swipes). */
-export function nearbyMonthFocuses(focus: YearMonth): YearMonth[] {
-  return MONTH_PREFETCH_OFFSETS.map((delta) => shiftYearMonth(focus, delta));
 }
 
 /**

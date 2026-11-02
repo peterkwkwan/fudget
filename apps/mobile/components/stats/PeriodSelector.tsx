@@ -57,10 +57,10 @@ export type PeriodSelectorProps = {
    */
   swipeMotion?: PeriodSwipeMotion | null;
   /**
-   * After a month settle, pager locks input until M±1 neighbors are ready.
-   * Disables ‹ › (swipe is locked separately on the pager).
+   * When set (Monthly + card pager), ‹ › use the same animate-then-commit path
+   * as a pan settle instead of jumping focus immediately.
    */
-  monthNavLocked?: boolean;
+  onSwipeStep?: (delta: -1 | 1) => void;
 };
 
 function startOfDay(d: Date): Date {
@@ -80,7 +80,7 @@ export function PeriodSelector({
   onCustomEndChange,
   showModeMenu = true,
   swipeMotion = null,
-  monthNavLocked = false,
+  onSwipeStep,
 }: PeriodSelectorProps) {
   const insets = useSafeAreaInsets();
   const modeTriggerRef = useRef<ComponentRef<typeof View>>(null);
@@ -143,8 +143,12 @@ export function PeriodSelector({
   const fromMaximum = toDay.getTime() < today.getTime() ? toDay : today;
   const toMinimum = fromDay;
 
-  const step = (delta: number) => {
-    if (effectivePreset === 'custom' || monthNavLocked) return;
+  const step = (delta: -1 | 1) => {
+    if (effectivePreset === 'custom') return;
+    if (effectivePreset === 'month' && onSwipeStep) {
+      onSwipeStep(delta);
+      return;
+    }
     onFocusChange(shiftPeriodFocus(focus, effectivePreset, delta));
   };
 
@@ -185,14 +189,11 @@ export function PeriodSelector({
           <View style={styles.stepper}>
             <Pressable
               onPress={() => step(-1)}
-              disabled={monthNavLocked}
               style={({ pressed }) => [
                 styles.chevronBtn,
-                monthNavLocked && styles.chevronLocked,
-                pressed && !monthNavLocked && styles.pressed,
+                pressed && styles.pressed,
               ]}
               accessibilityRole="button"
-              accessibilityState={{ disabled: monthNavLocked }}
               accessibilityLabel={
                 effectivePreset === 'month' ? 'Previous month' : 'Previous year'
               }
@@ -213,14 +214,11 @@ export function PeriodSelector({
             )}
             <Pressable
               onPress={() => step(1)}
-              disabled={monthNavLocked}
               style={({ pressed }) => [
                 styles.chevronBtn,
-                monthNavLocked && styles.chevronLocked,
-                pressed && !monthNavLocked && styles.pressed,
+                pressed && styles.pressed,
               ]}
               accessibilityRole="button"
-              accessibilityState={{ disabled: monthNavLocked }}
               accessibilityLabel={
                 effectivePreset === 'month' ? 'Next month' : 'Next year'
               }
@@ -382,9 +380,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-  },
-  chevronLocked: {
-    opacity: 0.35,
   },
   chevronGlyph: {
     color: colors.ink,

@@ -1,6 +1,6 @@
 /**
- * Warm React Query caches for months adjacent to the focused card.
- * Prev/current/next full month UIs read the same keys — no flash of wrong-month data.
+ * Warm React Query caches for month swipe fill.
+ * Adjacent months stay blank until focused — no ±N neighbor prefetch.
  */
 
 import type { QueryClient } from '@tanstack/react-query';
@@ -8,10 +8,6 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { TransactionType } from '@/constants/categories';
 import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
 import { listLocalTransactions } from '@/lib/offline/transactionsRepo';
-import {
-  adjacentMonthFocuses,
-  nearbyMonthFocuses,
-} from '@/lib/monthSwipe';
 import {
   resolvePeriodBounds,
   resolveTrendBounds,
@@ -50,7 +46,7 @@ export type PrefetchStatsMonthsArgs = {
   userId?: string;
   /** Prefetch partner aggregate RPCs when Pair scope is live. */
   pairLive?: boolean;
-  /** Also warm personal trend for the settled adjacent months. */
+  /** Also warm personal trend for the settled month. */
   trendMetric?: StatsMetric;
 };
 
@@ -190,16 +186,17 @@ export function prefetchStatsMonth(
 }
 
 /**
- * Whether one calendar month’s Stats totals are already in cache
- * (Quiet empty months count as ready — totals present with zero txns).
+ * Whether the focused Stats month can paint in one shot:
+ * totals + categories present (Quiet empty counts as ready — zero txns).
  */
-export function isStatsMonthCached(
+export function isStatsMonthContentReady(
   queryClient: QueryClient,
   args: Omit<PrefetchStatsMonthsArgs, 'trendMetric'> & { focus: PeriodFocus }
 ): boolean {
   const {
     focus,
     timeZone,
+    pieType,
     useLocal,
     pairLive = false,
   } = args;
@@ -211,7 +208,10 @@ export function isStatsMonthCached(
   if (pairLive && !useLocal) {
     return (
       queryClient.getQueryData(statsKeys.aggregateTotals(startIso, endIso)) !=
-      null
+        null &&
+      queryClient.getQueryData(
+        statsKeys.aggregateCategory(pieType, startIso, endIso)
+      ) != null
     );
   }
 
@@ -220,37 +220,11 @@ export function isStatsMonthCached(
       ...statsKeys.totals(startIso, endIso),
       source,
       timeZone,
+    ]) != null &&
+    queryClient.getQueryData([
+      ...statsKeys.category(pieType, startIso, endIso),
+      source,
+      timeZone,
     ]) != null
   );
-}
-
-/** True when both visible neighbors (M±1) have cached Stats totals. */
-export function areAdjacentStatsMonthsCached(
-  queryClient: QueryClient,
-  args: Omit<PrefetchStatsMonthsArgs, 'trendMetric' | 'pieType'> & {
-    pieType?: PrefetchStatsMonthsArgs['pieType'];
-  }
-): boolean {
-  const { prev, next } = adjacentMonthFocuses(args.focus);
-  const checkArgs = {
-    timeZone: args.timeZone,
-    pieType: args.pieType ?? ('expense' as const),
-    useLocal: args.useLocal,
-    userId: args.userId,
-    pairLive: args.pairLive,
-  };
-  return (
-    isStatsMonthCached(queryClient, { ...checkArgs, focus: prev }) &&
-    isStatsMonthCached(queryClient, { ...checkArgs, focus: next })
-  );
-}
-
-/** Prefetch M±1 and M±2 for the focused month card (rapid-swipe warm). */
-export function prefetchAdjacentStatsMonths(
-  queryClient: QueryClient,
-  args: PrefetchStatsMonthsArgs
-): void {
-  for (const focus of nearbyMonthFocuses(args.focus)) {
-    prefetchStatsMonth(queryClient, { ...args, focus });
-  }
 }

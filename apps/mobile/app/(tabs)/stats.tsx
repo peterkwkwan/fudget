@@ -4,6 +4,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -11,7 +12,7 @@ import { useSharedValue } from 'react-native-reanimated';
 
 import {
   MonthCardPager,
-  type MonthCardSlot,
+  type MonthCardPagerHandle,
 } from '@/components/MonthCardPager';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PeriodSelector } from '@/components/stats/PeriodSelector';
@@ -19,10 +20,7 @@ import { StatsMonthBody } from '@/components/stats/StatsMonthBody';
 import { CaptionText } from '@/components/StyledText';
 import type { TransactionType } from '@/constants/categories';
 import { colors, fonts, radius, space } from '@/constants/theme';
-import {
-  useAdjacentStatsMonthsReady,
-  usePrefetchAdjacentStatsMonths,
-} from '@/hooks/useMonthPrefetch';
+import { useStatsMonthContentReady } from '@/hooks/useMonthPrefetch';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePartnerLink } from '@/hooks/usePartner';
 import { type StatsScope } from '@/hooks/useStats';
@@ -74,7 +72,7 @@ export default function StatsScreen() {
   // Shared with PeriodSelector so the header month tracks the card swipe.
   const swipeTranslateX = useSharedValue(0);
   const swipePagerWidth = useSharedValue(0);
-  const [monthNavLocked, setMonthNavLocked] = useState(false);
+  const pagerRef = useRef<MonthCardPagerHandle>(null);
 
   // Unlink → Pair scope disappears immediately; fall back to personal.
   useEffect(() => {
@@ -131,6 +129,10 @@ export default function StatsScreen() {
     ]
   );
 
+  const onSwipeStep = useCallback((delta: -1 | 1) => {
+    pagerRef.current?.step(delta);
+  }, []);
+
   useLayoutEffect(() => {
     navigation.setOptions(
       periodNavScreenOptions(() => (
@@ -144,7 +146,7 @@ export default function StatsScreen() {
             customEnd={customEnd}
             showModeMenu
             swipeMotion={swipeMotion}
-            monthNavLocked={monthNavLocked}
+            onSwipeStep={preset === 'month' ? onSwipeStep : undefined}
             onPresetChange={setPreset}
             onFocusChange={setFocus}
             onCustomStartChange={(date) => {
@@ -172,27 +174,19 @@ export default function StatsScreen() {
     customStart,
     customEnd,
     swipeMotion,
-    monthNavLocked,
+    onSwipeStep,
   ]);
 
   const showPair = scope === 'pair' && isPaired;
   const pairLive = showPair && !pairStatsBlocked;
   const pairBlocked = showPair && pairStatsBlocked;
 
-  // Warm M±1 / M±2 so rapid swipes hit cache (skeleton only past the window).
-  usePrefetchAdjacentStatsMonths({
+  const contentReady = useStatsMonthContentReady({
     focus,
     timeZone,
     pieType,
     pairLive,
-    trendMetric,
-    enabled: preset === 'month',
-  });
-
-  const neighborsReady = useAdjacentStatsMonthsReady({
-    focus,
-    timeZone,
-    pairLive,
+    // Non-month presets still mount one body; gate only Monthly blank-fill.
     enabled: preset === 'month',
   });
 
@@ -210,7 +204,7 @@ export default function StatsScreen() {
   }, [partnerLink]);
 
   const renderPage = useCallback(
-    (pageFocus: PeriodFocus, slot: MonthCardSlot) => (
+    (pageFocus: PeriodFocus) => (
       <StatsMonthBody
         focus={pageFocus}
         preset={preset}
@@ -226,7 +220,7 @@ export default function StatsScreen() {
         partnerLoading={partnerLink.isLoading}
         onPartnerRefetch={onPartnerRefetch}
         formatSigned={formatSigned}
-        active={slot === 'current'}
+        active
         onGoToThisMonth={goToThisMonth}
         customStart={customStart}
         customEnd={customEnd}
@@ -301,14 +295,16 @@ export default function StatsScreen() {
       ) : null}
 
       <MonthCardPager
+        ref={pagerRef}
         focus={focus}
         enabled={preset === 'month'}
         onStep={onMonthStep}
         renderPage={renderPage}
+        contentReady={
+          preset !== 'month' || pairBlocked || contentReady
+        }
         translateX={swipeTranslateX}
         pagerWidth={swipePagerWidth}
-        neighborsReady={neighborsReady}
-        onInputLockChange={setMonthNavLocked}
       />
     </View>
   );

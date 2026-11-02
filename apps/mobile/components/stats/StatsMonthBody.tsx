@@ -63,7 +63,7 @@ export type StatsMonthBodyProps = {
   partnerLoading: boolean;
   onPartnerRefetch: () => void;
   formatSigned: (n: number) => string;
-  /** Current (center) slot — refresh + CTAs + category drill-down. */
+  /** Focused month — refresh + CTAs + category drill-down. */
   active: boolean;
   onGoToThisMonth: () => void;
   customStart?: Date;
@@ -72,7 +72,7 @@ export type StatsMonthBodyProps = {
 
 /**
  * Full Stats period UI for one focus (month card or non-month settled view).
- * Used for prev / current / next Monthly slots so settle never swaps trees.
+ * MonthCardPager mounts only the focused month (blank flanks during swipe).
  */
 export function StatsMonthBody({
   focus,
@@ -331,7 +331,6 @@ export function StatsMonthBody({
               <StatsEmptyState
                 periodLabel={period.navLabel}
                 preset={preset}
-                // Same Quiet chrome on all slots (pager disables adjacent hits).
                 onAddTransaction={() =>
                   guardedPush(router, ADD_TRANSACTION)
                 }

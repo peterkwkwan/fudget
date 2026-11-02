@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 
 import { MonthDayCalendar } from '@/components/MonthDayCalendar';
-import { MonthSwipeSkeleton } from '@/components/MonthSwipeSkeleton';
 import {
   ScrollEdgeHost,
   useScrollEdges,
@@ -59,9 +58,9 @@ export type TransactionsMonthBodyProps = {
   currency: string;
   pendingIds: Set<string>;
   categoryFixIds: Set<string>;
-  /** Current (center) slot — selection + navigation enabled. */
+  /** Focused month — selection + navigation enabled. */
   active: boolean;
-  /** Day to highlight — parent projects the same rule for all three slots. */
+  /** Day to highlight in calendar / day strip. */
   selectedDay: number;
   onSelectedDayChange?: (day: number) => void;
   selectionMode: boolean;
@@ -72,7 +71,7 @@ export type TransactionsMonthBodyProps = {
 
 /**
  * Full Transactions month UI for one calendar month.
- * Used for prev / current / next pager slots so settle never swaps trees.
+ * MonthCardPager mounts only the focused month (blank flanks during swipe).
  */
 export function TransactionsMonthBody({
   focus,
@@ -245,8 +244,9 @@ export function TransactionsMonthBody({
       )
     ) : undefined;
 
+  // Pager keeps opacity 0 until the shared list is ready (blank → fill).
   if (!ready) {
-    return <MonthSwipeSkeleton />;
+    return <View style={styles.blank} />;
   }
 
   if (isError) {
@@ -422,6 +422,10 @@ const styles = StyleSheet.create({
     ...typography.amount,
     fontSize: 13,
     lineHeight: 18,
+  },
+  blank: {
+    flex: 1,
+    backgroundColor: colors.canvas,
   },
   centered: {
     flex: 1,

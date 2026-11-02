@@ -5,13 +5,11 @@ import type { TransactionType } from '@/constants/categories';
 import { useAuth } from '@/lib/auth';
 import { useConnectivity } from '@/hooks/useConnectivity';
 import {
-  areAdjacentStatsMonthsCached,
-  prefetchAdjacentStatsMonths,
+  isStatsMonthContentReady,
   prefetchTransactionList,
 } from '@/lib/monthPrefetch';
 import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
 import type { PeriodFocus } from '@/lib/periods';
-import type { StatsMetric } from '@/lib/stats';
 
 /** Offline + flag: personal Stats from SQLite (mirrors usePersonalStats). */
 function usePersonalStatsLocal(): boolean {
@@ -22,75 +20,28 @@ function usePersonalStatsLocal(): boolean {
 }
 
 /**
- * While viewing month M, warm caches for M±1 and M±2 so rapid swipes hit
- * ready data (skeleton only when truly uncached past the prefetch window).
+ * True when the focused Stats month’s totals + categories are cached so the
+ * body can fill in one shot. Re-subscribes until ready; latest focus wins.
  */
-export function usePrefetchAdjacentStatsMonths(args: {
+export function useStatsMonthContentReady(args: {
   focus: PeriodFocus;
   timeZone: string;
   pieType: TransactionType;
-  pairLive: boolean;
-  trendMetric: StatsMetric;
-  enabled: boolean;
-}) {
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const useLocal = usePersonalStatsLocal();
-  const {
-    focus,
-    timeZone,
-    pieType,
-    pairLive,
-    trendMetric,
-    enabled,
-  } = args;
-
-  useEffect(() => {
-    if (!enabled) return;
-    prefetchAdjacentStatsMonths(queryClient, {
-      focus,
-      timeZone,
-      pieType,
-      useLocal,
-      userId: user?.id,
-      pairLive,
-      trendMetric: pairLive ? undefined : trendMetric,
-    });
-  }, [
-    queryClient,
-    enabled,
-    focus.year,
-    focus.month,
-    timeZone,
-    pieType,
-    useLocal,
-    user?.id,
-    pairLive,
-    trendMetric,
-  ]);
-}
-
-/**
- * True when Stats totals for the visible M±1 neighbors are already cached.
- * Re-subscribes to the query cache until both neighbors are warm.
- */
-export function useAdjacentStatsMonthsReady(args: {
-  focus: PeriodFocus;
-  timeZone: string;
   pairLive: boolean;
   enabled: boolean;
 }): boolean {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const useLocal = usePersonalStatsLocal();
-  const { focus, timeZone, pairLive, enabled } = args;
+  const { focus, timeZone, pieType, pairLive, enabled } = args;
   const [cacheEpoch, setCacheEpoch] = useState(0);
 
   const ready =
     !enabled ||
-    areAdjacentStatsMonthsCached(queryClient, {
+    isStatsMonthContentReady(queryClient, {
       focus,
       timeZone,
+      pieType,
       useLocal,
       userId: user?.id,
       pairLive,
@@ -98,9 +49,7 @@ export function useAdjacentStatsMonthsReady(args: {
 
   useEffect(() => {
     if (!enabled || ready) return;
-    // QueryCache#notify can run during a child useQuery render (e.g.
-    // StatsMonthBody). Defer setState so we never update this hook while
-    // another component is rendering.
+    // QueryCache#notify can run during a child useQuery render. Defer setState.
     let cancelled = false;
     let scheduled = false;
     const unsub = queryClient.getQueryCache().subscribe(() => {
@@ -116,7 +65,7 @@ export function useAdjacentStatsMonthsReady(args: {
       cancelled = true;
       unsub();
     };
-  }, [queryClient, enabled, ready, focus.year, focus.month]);
+  }, [queryClient, enabled, ready, focus.year, focus.month, pieType, pairLive]);
 
   // cacheEpoch forces a re-read of the query cache after updates.
   void cacheEpoch;
@@ -124,8 +73,7 @@ export function useAdjacentStatsMonthsReady(args: {
 }
 
 /**
- * Keep the shared transactions list warm. Adjacent months are filtered
- * client-side from the same cache (three full month bodies).
+ * Keep the shared transactions list warm. Month bodies filter client-side.
  */
 export function usePrefetchTransactionMonths(enabled: boolean) {
   const queryClient = useQueryClient();

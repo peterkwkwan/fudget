@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { adjacentMonthFocuses, nearbyMonthFocuses } from './monthSwipe.ts';
+import { adjacentMonthFocuses } from './monthSwipe.ts';
 import { resolvePeriodBounds } from './periods.ts';
 
 /**
- * Adjacent prefetch must target different period bounds than the focused month
- * so React Query keys for totals/categories do not collide.
+ * Adjacent blank flanks use distinct calendar bounds from the focused month
+ * (navbar labels / period math). No ±N neighbor data prefetch.
  */
 test('adjacent months resolve distinct period bounds', () => {
   const focus = { year: 2026, month: 11 };
@@ -31,27 +31,4 @@ test('adjacent months resolve distinct period bounds', () => {
   );
   assert.equal(prevPeriod.end.toISOString(), current.start.toISOString());
   assert.equal(current.end.toISOString(), nextPeriod.start.toISOString());
-});
-
-test('nearby ±2 months resolve distinct contiguous bounds', () => {
-  const focus = { year: 2026, month: 11 };
-  const timeZone = 'UTC';
-  const nearby = nearbyMonthFocuses(focus);
-  assert.equal(nearby.length, 4);
-
-  const starts = new Set(
-    nearby.map(
-      (m) =>
-        resolvePeriodBounds('month', timeZone, { focus: m }).start.toISOString()
-    )
-  );
-  assert.equal(starts.size, 4);
-
-  const mMinus2 = resolvePeriodBounds('month', timeZone, {
-    focus: nearby[0]!,
-  });
-  const mMinus1 = resolvePeriodBounds('month', timeZone, {
-    focus: nearby[1]!,
-  });
-  assert.equal(mMinus2.end.toISOString(), mMinus1.start.toISOString());
 });

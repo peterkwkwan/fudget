@@ -4,6 +4,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -21,7 +22,7 @@ import {
 } from '@/components/BulkEditSheet';
 import {
   MonthCardPager,
-  type MonthCardSlot,
+  type MonthCardPagerHandle,
 } from '@/components/MonthCardPager';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PeriodSelector } from '@/components/stats/PeriodSelector';
@@ -77,7 +78,7 @@ export default function TransactionsScreen() {
   // Shared with PeriodSelector so the header month tracks the card swipe.
   const swipeTranslateX = useSharedValue(0);
   const swipePagerWidth = useSharedValue(0);
-  const [monthNavLocked, setMonthNavLocked] = useState(false);
+  const pagerRef = useRef<MonthCardPagerHandle>(null);
 
   const period = useMemo(
     () => resolvePeriodBounds('month', timeZone, { focus }),
@@ -121,8 +122,10 @@ export default function TransactionsScreen() {
     isRefetching,
   } = useTransactionList(focus);
 
-  // Shared list feeds all three month slots; keep it warm.
+  // Shared list feeds the focused month; keep it warm.
   usePrefetchTransactionMonths(true);
+
+  const contentReady = !isLoading && allRows != null;
 
   const bulkDelete = useBulkSoftDeleteTransactions();
   const bulkPatch = useBulkPatchTransactions();
@@ -135,7 +138,7 @@ export default function TransactionsScreen() {
   const busy = bulkDelete.isPending || bulkPatch.isPending;
   const { pendingIds, categoryFixIds, banner } = useOfflineGates();
 
-  // Clamp before paint so settle matches the adjacent slot’s projected day.
+  // Clamp before paint so settle matches the projected day for the new month.
   useLayoutEffect(() => {
     setSelectedDay((prev) => {
       const today = zonedYmd(new Date(), timeZone);
@@ -264,6 +267,10 @@ export default function TransactionsScreen() {
     [selectedRows, bulkPatch, exitSelection]
   );
 
+  const onSwipeStep = useCallback((delta: -1 | 1) => {
+    pagerRef.current?.step(delta);
+  }, []);
+
   useLayoutEffect(() => {
     if (selectionMode) {
       navigation.setOptions(
@@ -290,7 +297,7 @@ export default function TransactionsScreen() {
             timeZone={timeZone}
             showModeMenu={false}
             swipeMotion={swipeMotion}
-            monthNavLocked={monthNavLocked}
+            onSwipeStep={onSwipeStep}
             onFocusChange={setFocus}
           />
         </PeriodNavHeader>
@@ -307,7 +314,7 @@ export default function TransactionsScreen() {
     focus,
     timeZone,
     swipeMotion,
-    monthNavLocked,
+    onSwipeStep,
   ]);
 
   const onRowPress = useCallback(
@@ -337,39 +344,29 @@ export default function TransactionsScreen() {
   }, [refetch]);
 
   const renderPage = useCallback(
-    (pageFocus: PeriodFocus, slot: MonthCardSlot) => {
-      // Same day rule as the focus effect — adjacent slots match settle.
-      const today = zonedYmd(new Date(), timeZone);
-      const pageDay =
-        today.year === pageFocus.year && today.month === pageFocus.month
-          ? today.day
-          : clampDayInMonth(pageFocus.year, pageFocus.month, selectedDay);
-      return (
-        <TransactionsMonthBody
-          focus={pageFocus}
-          allRows={allRows}
-          listLoading={isLoading}
-          isError={isError}
-          error={error}
-          isRefetching={isRefetching}
-          onRefetch={onRefetch}
-          timeZone={timeZone}
-          dateView={dateView}
-          currency={currency}
-          pendingIds={pendingIds}
-          categoryFixIds={categoryFixIds}
-          active={slot === 'current'}
-          selectedDay={slot === 'current' ? selectedDay : pageDay}
-          onSelectedDayChange={
-            slot === 'current' ? setSelectedDay : undefined
-          }
-          selectionMode={selectionMode}
-          selectedIds={selectedIds}
-          onRowPress={onRowPress}
-          onRowLongPress={onRowLongPress}
-        />
-      );
-    },
+    (pageFocus: PeriodFocus) => (
+      <TransactionsMonthBody
+        focus={pageFocus}
+        allRows={allRows}
+        listLoading={isLoading}
+        isError={isError}
+        error={error}
+        isRefetching={isRefetching}
+        onRefetch={onRefetch}
+        timeZone={timeZone}
+        dateView={dateView}
+        currency={currency}
+        pendingIds={pendingIds}
+        categoryFixIds={categoryFixIds}
+        active
+        selectedDay={selectedDay}
+        onSelectedDayChange={setSelectedDay}
+        selectionMode={selectionMode}
+        selectedIds={selectedIds}
+        onRowPress={onRowPress}
+        onRowLongPress={onRowLongPress}
+      />
+    ),
     [
       allRows,
       isLoading,
@@ -394,15 +391,14 @@ export default function TransactionsScreen() {
     <View style={styles.container}>
       <OfflineBanner message={banner} />
       <MonthCardPager
+        ref={pagerRef}
         focus={focus}
         enabled={!selectionMode}
         onStep={onMonthStep}
         renderPage={renderPage}
+        contentReady={contentReady}
         translateX={swipeTranslateX}
         pagerWidth={swipePagerWidth}
-        // Shared list feeds every month slot — ready once the list is warm.
-        neighborsReady={!isLoading && allRows != null}
-        onInputLockChange={setMonthNavLocked}
       />
 
       <Modal

@@ -1,10 +1,10 @@
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
-  useMemo,
   useRef,
-  useState,
   type ReactNode,
 } from 'react';
 import {
@@ -24,36 +24,35 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { colors } from '@/constants/theme';
 import {
   MONTH_CARD_SNAP_MS,
-  MONTH_NEIGHBOR_LOCK_MS,
+  MONTH_FILL_FADE_MS,
   MONTH_SWIPE_ACTIVATION_PX,
   MONTH_SWIPE_FAIL_Y_PX,
   monthContentKey,
   monthStepDirection,
   monthStepFromCardSwipe,
-  shiftYearMonth,
 } from '@/lib/monthSwipe';
 import type { PeriodFocus } from '@/lib/periods';
 
-export type MonthCardSlot = 'prev' | 'current' | 'next';
-
 type MonthCardPagerProps = {
-  /** Focused calendar month — drives prev/current/next full-month slots. */
+  /** Focused calendar month — only this month’s body is live. */
   focus: PeriodFocus;
   /**
-   * When false, render only the current page (no gesture / adjacent months).
+   * When false, render only the current page (no gesture / blank flanks).
    * Stats uses this outside Monthly mode.
    */
   enabled: boolean;
   onStep: (delta: -1 | 1) => void;
   style?: StyleProp<ViewStyle>;
+  /** Full month UI for the focused month only. */
+  renderPage: (focus: PeriodFocus) => ReactNode;
   /**
-   * Full month UI for a slot. Same component family for all three so settle
-   * never swaps trees (date-line / Trend / Quiet chrome stay isomorphic).
-   * `active` is true only for the center slot.
+   * True when the focused month body can paint in one shot (full or empty).
+   * Until then the center stays paper-white; then a short fade-in.
    */
-  renderPage: (focus: PeriodFocus, slot: MonthCardSlot) => ReactNode;
+  contentReady: boolean;
   /**
    * Optional shared motion (e.g. header month label). When omitted the pager
    * owns internal values; when provided, parent drives header sync from the
@@ -61,79 +60,80 @@ type MonthCardPagerProps = {
    */
   translateX?: SharedValue<number>;
   pagerWidth?: SharedValue<number>;
-  /**
-   * True when M±1 for the current focus can paint without a cold skeleton.
-   * After a settle, swipe + header stay locked until this is true (or the
-   * short neighbor-lock timeout). Omit to skip locking.
-   */
-  neighborsReady?: boolean;
-  /** Mirror of the settle input lock — disable header month chevrons. */
-  onInputLockChange?: (locked: boolean) => void;
+};
+
+export type MonthCardPagerHandle = {
+  /** Animate like a committed pan, then call `onStep` (header ‹ › path). */
+  step: (delta: -1 | 1) => void;
 };
 
 const easeOut = Easing.out(Easing.cubic);
 
-type PageSpec = {
-  focus: PeriodFocus;
-  slot: MonthCardSlot;
-};
-
 /**
- * Tinder-style horizontal month cards.
- * Drag left/right to peek the next/previous month; release to snap.
- * Pages are keyed by month content so settle promotes the warm adjacent
- * fiber instead of rewriting the center instance in place.
+ * Blank-then-fill month pager.
+ * Drag left/right: current body translates + fades out; paper-white blanks
+ * slide in. After settle, navbar already shows the new month; content fills
+ * only when ready (one-shot fade-in). Chevron ‹ › uses the same step path.
  */
-export function MonthCardPager({
-  focus,
-  enabled,
-  onStep,
-  style,
-  renderPage,
-  translateX: translateXProp,
-  pagerWidth: pagerWidthProp,
-  neighborsReady,
-  onInputLockChange,
-}: MonthCardPagerProps) {
+export const MonthCardPager = forwardRef<
+  MonthCardPagerHandle,
+  MonthCardPagerProps
+>(function MonthCardPager(
+  {
+    focus,
+    enabled,
+    onStep,
+    style,
+    renderPage,
+    contentReady,
+    translateX: translateXProp,
+    pagerWidth: pagerWidthProp,
+  },
+  ref
+) {
   const widthInternal = useSharedValue(0);
   const translateInternal = useSharedValue(0);
+  const fillOpacity = useSharedValue(contentReady ? 1 : 0);
   const widthSV = pagerWidthProp ?? widthInternal;
   const translateX = translateXProp ?? translateInternal;
 
   const ignoreFocusAnimRef = useRef(false);
-  const lockAfterStepRef = useRef(false);
   const prevFocusRef = useRef(focus);
   const onStepRef = useRef(onStep);
   onStepRef.current = onStep;
-  const onInputLockChangeRef = useRef(onInputLockChange);
-  onInputLockChangeRef.current = onInputLockChange;
-
-  const [inputLocked, setInputLocked] = useState(false);
-
-  const pages = useMemo<PageSpec[]>(
-    () => [
-      { focus: shiftYearMonth(focus, -1), slot: 'prev' },
-      { focus, slot: 'current' },
-      { focus: shiftYearMonth(focus, 1), slot: 'next' },
-    ],
-    [focus.year, focus.month]
-  );
-
-  useEffect(() => {
-    onInputLockChangeRef.current?.(inputLocked);
-  }, [inputLocked]);
+  const focusKey = monthContentKey(focus);
 
   const commitStep = useCallback((delta: -1 | 1) => {
     ignoreFocusAnimRef.current = true;
-    lockAfterStepRef.current = true;
     onStepRef.current(delta);
   }, []);
+
+  const animateStep = useCallback(
+    (delta: -1 | 1) => {
+      const w = widthSV.value;
+      if (!(w > 0)) {
+        commitStep(delta);
+        return;
+      }
+      translateX.value = withTiming(
+        -delta * w,
+        { duration: MONTH_CARD_SNAP_MS, easing: easeOut },
+        (finished) => {
+          'worklet';
+          if (!finished) return;
+          runOnJS(commitStep)(delta);
+        }
+      );
+    },
+    [commitStep, translateX, widthSV]
+  );
+
+  useImperativeHandle(ref, () => ({ step: animateStep }), [animateStep]);
 
   /**
    * Snap / commit on the JS thread (`monthStepFromCardSwipe` is not a worklet).
    * On a committed step, keep translateX at the page offset until focus updates,
-   * then reset to 0 in useLayoutEffect before paint — avoids a flash of the
-   * previous month’s current card after the snap.
+   * then reset to 0 in useLayoutEffect before paint.
    */
   const settleSwipe = useCallback(
     (translationXValue: number, velocityX: number, width: number) => {
@@ -164,21 +164,17 @@ export function MonthCardPager({
     [widthSV]
   );
 
-  // Chevron / header: slide in. Card-swipe settle: recenter before paint.
+  // Swipe settle: recenter before paint. External focus (rare): slide like chevron.
   useLayoutEffect(() => {
     const from = prevFocusRef.current;
     const step = monthStepDirection(from, focus);
     prevFocusRef.current = focus;
     if (ignoreFocusAnimRef.current) {
       ignoreFocusAnimRef.current = false;
-      // Promoted adjacent fiber is already under the viewport offset; show it
-      // centered before paint (content key recycle keeps that tree mounted).
       translateX.value = 0;
       return;
     }
     if (!enabled || step === 0 || widthSV.value <= 0) return;
-    // Header chevron / programmatic step — also arm neighbor lock.
-    lockAfterStepRef.current = true;
     translateX.value = -step * widthSV.value;
     translateX.value = withTiming(0, {
       duration: MONTH_CARD_SNAP_MS,
@@ -186,32 +182,20 @@ export function MonthCardPager({
     });
   }, [enabled, focus.year, focus.month, translateX, widthSV]);
 
-  // Lock swipe + header until new M±1 neighbors are ready (or short timeout).
+  // Blank until ready; one-shot fade-in. Focus change resets immediately.
   useEffect(() => {
-    if (!enabled || neighborsReady === undefined) {
-      lockAfterStepRef.current = false;
-      setInputLocked(false);
+    if (!contentReady) {
+      fillOpacity.value = 0;
       return;
     }
-    if (!lockAfterStepRef.current) {
-      setInputLocked(false);
-      return;
-    }
-    if (neighborsReady) {
-      lockAfterStepRef.current = false;
-      setInputLocked(false);
-      return;
-    }
-    setInputLocked(true);
-    const timer = setTimeout(() => {
-      lockAfterStepRef.current = false;
-      setInputLocked(false);
-    }, MONTH_NEIGHBOR_LOCK_MS);
-    return () => clearTimeout(timer);
-  }, [enabled, neighborsReady, focus.year, focus.month]);
+    fillOpacity.value = withTiming(1, {
+      duration: MONTH_FILL_FADE_MS,
+      easing: easeOut,
+    });
+  }, [contentReady, fillOpacity, focusKey]);
 
   const gesture = usePanGesture({
-    enabled: enabled && !inputLocked,
+    enabled,
     activeOffsetX: [-MONTH_SWIPE_ACTIVATION_PX, MONTH_SWIPE_ACTIVATION_PX],
     failOffsetY: [-MONTH_SWIPE_FAIL_Y_PX, MONTH_SWIPE_FAIL_Y_PX],
     onUpdate: (event) => {
@@ -239,9 +223,26 @@ export function MonthCardPager({
     transform: [{ translateX: translateX.value }],
   }));
 
+  // Exit fade while the current page leaves; fill fade when data is ready.
+  const currentStyle = useAnimatedStyle(() => {
+    const w = widthSV.value;
+    const exit =
+      w > 0 ? Math.min(1, Math.abs(translateX.value) / w) : 0;
+    return {
+      opacity: fillOpacity.value * (1 - exit),
+    };
+  });
+
   if (!enabled) {
     return (
-      <View style={[styles.clip, style]}>{renderPage(focus, 'current')}</View>
+      <View style={[styles.clip, style]}>
+        <Animated.View
+          style={[styles.fillHost, currentStyle]}
+          pointerEvents={contentReady ? 'box-none' : 'none'}
+        >
+          {renderPage(focus)}
+        </Animated.View>
+      </View>
     );
   }
 
@@ -249,46 +250,44 @@ export function MonthCardPager({
     <GestureDetector gesture={gesture} touchAction="pan-y">
       <View style={[styles.clip, style]} onLayout={onLayout}>
         <Animated.View style={[styles.track, trackStyle]}>
-          {pages.map((page) => {
-            const isCurrent = page.slot === 'current';
-            return (
-              <View
-                key={monthContentKey(page.focus)}
-                style={
-                  isCurrent
-                    ? styles.pageCurrent
-                    : [
-                        styles.page,
-                        page.slot === 'prev'
-                          ? styles.pagePrev
-                          : styles.pageNext,
-                      ]
-                }
-                pointerEvents={isCurrent ? 'box-none' : 'none'}
-                accessibilityElementsHidden={!isCurrent}
-                importantForAccessibility={
-                  isCurrent ? 'yes' : 'no-hide-descendants'
-                }
-              >
-                {renderPage(page.focus, page.slot)}
-              </View>
-            );
-          })}
+          <View
+            style={[styles.page, styles.pagePrev, styles.blank]}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+          <Animated.View
+            style={[styles.pageCurrent, currentStyle]}
+            pointerEvents={contentReady ? 'box-none' : 'none'}
+          >
+            {/* Mount while loading so queries run; opacity stays 0 until ready. */}
+            {renderPage(focus)}
+          </Animated.View>
+          <View
+            style={[styles.page, styles.pageNext, styles.blank]}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
         </Animated.View>
       </View>
     </GestureDetector>
   );
-}
+});
 
 const styles = StyleSheet.create({
   clip: {
     flex: 1,
     overflow: 'hidden',
+    backgroundColor: colors.canvas,
   },
   track: {
     flex: 1,
   },
   pageCurrent: {
+    flex: 1,
+  },
+  fillHost: {
     flex: 1,
   },
   page: {
@@ -302,5 +301,8 @@ const styles = StyleSheet.create({
   },
   pageNext: {
     left: '100%',
+  },
+  blank: {
+    backgroundColor: colors.canvas,
   },
 });
