@@ -116,6 +116,8 @@ function roundCents(n: number): number {
 }
 
 function signedAmount(row: Transaction): number {
+  // Transfers move money between accounts — not spent/earned.
+  if (row.type === 'transfer') return 0;
   return row.type === 'expense' ? -row.amount : row.amount;
 }
 

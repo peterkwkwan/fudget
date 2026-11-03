@@ -20,7 +20,7 @@ export type TransactionLocalRow = {
   id: string;
   user_id: string;
   amount: number;
-  type: 'expense' | 'income';
+  type: 'expense' | 'income' | 'transfer';
   category: string;
   note: string | null;
   currency: string;
@@ -28,6 +28,7 @@ export type TransactionLocalRow = {
   recurring_series_id: string | null;
   occurrence_key: string | null;
   vehicle_id: string | null;
+  transfer_to_vehicle_id: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;

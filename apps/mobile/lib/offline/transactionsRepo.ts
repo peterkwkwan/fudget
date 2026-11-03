@@ -7,12 +7,16 @@
 import { DEFAULT_CURRENCY } from '@/constants/currencies';
 import {
   inputFromBulkPatch,
+  normalizeTransactionInput,
   validateTransactionInput,
   type Transaction,
   type TransactionBulkPatch,
   type TransactionInput,
 } from '@/lib/transactionModel';
-import { balanceDeltasForTxnChange } from '@/lib/vehicleBalance';
+import {
+  balanceDeltasForTxnChange,
+  type LinkedTxnEffect,
+} from '@/lib/vehicleBalance';
 
 import { getOfflineDb } from './db';
 import { newClientId } from './ids';
@@ -65,27 +69,32 @@ export async function createLocalTransaction(
   currency: string = DEFAULT_CURRENCY,
   options?: TransactionsRepoOptions
 ): Promise<Transaction> {
-  const validationError = validateTransactionInput(input);
+  const normalized = normalizeTransactionInput(input);
+  const validationError = validateTransactionInput(normalized);
   if (validationError) throw new Error(validationError);
 
   const db = await resolveDb(options);
   const now = timestamp(options);
   const id = await nextId(options);
   const outboxId = await nextId(options);
-  const note = input.note?.trim() ? input.note.trim() : null;
-  const vehicle_id = normalizeVehicleId(input.vehicle_id);
+  const note = normalized.note?.trim() ? normalized.note.trim() : null;
+  const vehicle_id = normalizeVehicleId(normalized.vehicle_id);
+  const transfer_to_vehicle_id = normalizeVehicleId(
+    normalized.transfer_to_vehicle_id
+  );
   const row: TransactionLocalRow = {
     id,
     user_id: userId,
-    amount: input.amount,
-    type: input.type,
-    category: input.category.trim(),
+    amount: normalized.amount,
+    type: normalized.type,
+    category: normalized.category.trim(),
     note,
     currency,
-    occurred_at: input.occurred_at,
+    occurred_at: normalized.occurred_at,
     recurring_series_id: null,
     occurrence_key: null,
     vehicle_id,
+    transfer_to_vehicle_id,
     deleted_at: null,
     created_at: now,
     updated_at: now,
@@ -93,11 +102,12 @@ export async function createLocalTransaction(
   };
 
   await withSqlTransaction(db, async () => {
-    const snapshots = await applyBalanceChange(db, userId, null, {
-      vehicle_id,
-      type: row.type,
-      amount: row.amount,
-    });
+    const snapshots = await applyBalanceChange(
+      db,
+      userId,
+      null,
+      effectFromRow(row)
+    );
     const payload: TransactionLocalRow = {
       ...row,
       ...(snapshots.length > 0 ? { balance_snapshots: snapshots } : {}),
@@ -123,7 +133,8 @@ export async function updateLocalTransaction(
   input: TransactionInput,
   options?: TransactionsRepoOptions
 ): Promise<Transaction> {
-  const validationError = validateTransactionInput(input);
+  const normalized = normalizeTransactionInput(input);
+  const validationError = validateTransactionInput(normalized);
   if (validationError) throw new Error(validationError);
 
   const db = await resolveDb(options);
@@ -134,33 +145,29 @@ export async function updateLocalTransaction(
   await withSqlTransaction(db, async () => {
     const existing = await getTransactionLocal(db, userId, id);
     if (!existing) throw new Error('Transaction not found.');
-    const note = input.note?.trim() ? input.note.trim() : null;
-    const vehicle_id = normalizeVehicleId(input.vehicle_id);
+    const note = normalized.note?.trim() ? normalized.note.trim() : null;
+    const vehicle_id = normalizeVehicleId(normalized.vehicle_id);
+    const transfer_to_vehicle_id = normalizeVehicleId(
+      normalized.transfer_to_vehicle_id
+    );
     const next: TransactionLocalRow = {
       ...existing,
-      amount: input.amount,
-      type: input.type,
+      amount: normalized.amount,
+      type: normalized.type,
       // Match remote update: store category as entered after validation.
-      category: input.category,
+      category: normalized.category,
       note,
-      occurred_at: input.occurred_at,
+      occurred_at: normalized.occurred_at,
       vehicle_id,
+      transfer_to_vehicle_id,
       updated_at: now,
       pending_op: existing.pending_op === 'create' ? 'create' : 'update',
     };
     const snapshots = await applyBalanceChange(
       db,
       userId,
-      {
-        vehicle_id: existing.vehicle_id,
-        type: existing.type,
-        amount: existing.amount,
-      },
-      {
-        vehicle_id,
-        type: next.type,
-        amount: next.amount,
-      }
+      effectFromRow(existing),
+      effectFromRow(next)
     );
     const payload: TransactionLocalRow = {
       ...next,
@@ -199,11 +206,7 @@ export async function softDeleteLocalTransaction(
     const snapshots = await applyBalanceChange(
       db,
       userId,
-      {
-        vehicle_id: existing.vehicle_id,
-        type: existing.type,
-        amount: existing.amount,
-      },
+      effectFromRow(existing),
       null
     );
 
@@ -293,19 +296,25 @@ function normalizeVehicleId(
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function effectFromRow(row: {
+  vehicle_id: string | null;
+  transfer_to_vehicle_id: string | null;
+  type: Transaction['type'];
+  amount: number;
+}): LinkedTxnEffect {
+  return {
+    vehicle_id: row.vehicle_id,
+    transfer_to_vehicle_id: row.transfer_to_vehicle_id,
+    type: row.type,
+    amount: row.amount,
+  };
+}
+
 async function applyBalanceChange(
   db: SqlExecutor,
   userId: string,
-  prev: {
-    vehicle_id: string | null;
-    type: Transaction['type'];
-    amount: number;
-  } | null,
-  next: {
-    vehicle_id: string | null;
-    type: Transaction['type'];
-    amount: number;
-  } | null
+  prev: LinkedTxnEffect | null,
+  next: LinkedTxnEffect | null
 ): Promise<BalanceSnapshotPayload[]> {
   const deltas = balanceDeltasForTxnChange(prev, next);
   if (deltas.length === 0) return [];

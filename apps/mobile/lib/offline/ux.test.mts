@@ -269,6 +269,7 @@ describe('pending sync status', () => {
       occurrence_key: null,
 
       vehicle_id: null,
+    transfer_to_vehicle_id: null,
       deleted_at: null,
       created_at: '2026-10-27T12:00:00.000Z',
       updated_at: '2026-10-27T12:00:00.000Z',

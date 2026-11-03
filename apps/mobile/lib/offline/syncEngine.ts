@@ -727,6 +727,7 @@ function localFromRemote(remote: Transaction): TransactionLocalRow {
     recurring_series_id: remote.recurring_series_id,
     occurrence_key: remote.occurrence_key,
     vehicle_id: remote.vehicle_id ?? null,
+    transfer_to_vehicle_id: remote.transfer_to_vehicle_id ?? null,
     deleted_at: remote.deleted_at,
     created_at: remote.created_at,
     updated_at: remote.updated_at,
@@ -773,7 +774,11 @@ function requireLocalRow(
     throw new Error('Bad outbox payload.');
   }
   const payload = value as Partial<TransactionLocalRow>;
-  if (payload.type !== 'expense' && payload.type !== 'income') {
+  if (
+    payload.type !== 'expense' &&
+    payload.type !== 'income' &&
+    payload.type !== 'transfer'
+  ) {
     throw new Error('Bad outbox payload.');
   }
   if (typeof payload.amount !== 'number' || typeof payload.category !== 'string') {
@@ -798,6 +803,10 @@ function requireLocalRow(
     occurrence_key: payload.occurrence_key ?? null,
     vehicle_id:
       typeof payload.vehicle_id === 'string' ? payload.vehicle_id : null,
+    transfer_to_vehicle_id:
+      typeof payload.transfer_to_vehicle_id === 'string'
+        ? payload.transfer_to_vehicle_id
+        : null,
     deleted_at: payload.deleted_at ?? null,
     created_at:
       typeof payload.created_at === 'string' ? payload.created_at : updatedAt,

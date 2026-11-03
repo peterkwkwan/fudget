@@ -53,6 +53,7 @@ export default function EditTransactionScreen() {
         note: input.note,
         occurred_at: input.occurred_at,
         vehicle_id: input.vehicle_id ?? null,
+        transfer_to_vehicle_id: input.transfer_to_vehicle_id ?? null,
       });
       router.back();
     } catch (err) {
@@ -163,6 +164,7 @@ export default function EditTransactionScreen() {
           note: data.note ?? '',
           occurredAt: new Date(data.occurred_at),
           vehicleId: data.vehicle_id,
+          transferToVehicleId: data.transfer_to_vehicle_id,
         }}
         accounts={accounts}
         submitLabel="Save changes"

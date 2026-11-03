@@ -29,6 +29,7 @@ function txn(
     occurrence_key: null,
 
     vehicle_id: null,
+    transfer_to_vehicle_id: null,
     deleted_at: null,
     created_at: partial.occurred_at,
     updated_at: partial.occurred_at,
@@ -138,6 +139,32 @@ describe('aggregatePeriodTotals + category', () => {
       incomeCount: 1,
       net: 25,
     });
+  });
+
+  it('excludes transfers from spent and earned', () => {
+    const withTransfer = [
+      ...rows,
+      txn({
+        id: 't1',
+        amount: 200,
+        type: 'transfer',
+        category: 'Transfer',
+        occurred_at: '2026-10-15T12:00:00.000Z',
+        vehicle_id: 'a',
+        transfer_to_vehicle_id: 'b',
+      }),
+    ];
+    assert.deepEqual(aggregatePeriodTotals(withTransfer), {
+      expenseSum: 75,
+      incomeSum: 100,
+      expenseCount: 3,
+      incomeCount: 1,
+      net: 25,
+    });
+    assert.deepEqual(aggregateCategoryTotals(withTransfer, 'expense'), [
+      { category: 'Food', type: 'expense', sum: 50, count: 2 },
+      { category: 'Transport', type: 'expense', sum: 25, count: 1 },
+    ]);
   });
 
   it('groups pie rows by category descending sum', () => {

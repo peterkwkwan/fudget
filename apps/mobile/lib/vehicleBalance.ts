@@ -1,12 +1,14 @@
 /**
  * Shared Planner-account balance math for linked transactions.
- * Income adds; expense subtracts. Balance never goes below zero.
- * Used by online writes and the offline SQLite path.
+ * Income adds; expense subtracts. Transfer: From −amount, To +amount.
+ * Balance never goes below zero. Used by online writes and the offline SQLite path.
  */
 import type { TransactionType } from '@/constants/categories';
 
 export type LinkedTxnEffect = {
   vehicle_id: string | null | undefined;
+  /** To account for type=transfer; ignored for expense/income. */
+  transfer_to_vehicle_id?: string | null | undefined;
   type: TransactionType;
   amount: number;
 };
@@ -22,8 +24,35 @@ export type BalanceSnapshot = {
   balance: number;
 };
 
-/** Signed effect of one linked txn on its account. Unlinked → 0. */
+/**
+ * Per-account signed deltas for one txn effect.
+ * Unlinked expense/income → []. Transfer without both legs → [].
+ */
+export function linkedTxnBalanceDeltas(effect: LinkedTxnEffect): BalanceDelta[] {
+  if (!(effect.amount > 0) || Number.isNaN(effect.amount)) return [];
+
+  if (effect.type === 'transfer') {
+    const fromId = effect.vehicle_id?.trim() || null;
+    const toId = effect.transfer_to_vehicle_id?.trim() || null;
+    if (!fromId || !toId || fromId === toId) return [];
+    return [
+      { vehicle_id: fromId, delta: -effect.amount },
+      { vehicle_id: toId, delta: effect.amount },
+    ];
+  }
+
+  if (!effect.vehicle_id) return [];
+  const signed = effect.type === 'income' ? effect.amount : -effect.amount;
+  return [{ vehicle_id: effect.vehicle_id, delta: signed }];
+}
+
+/**
+ * Signed effect of one linked expense/income on its account.
+ * Transfers return 0 — use linkedTxnBalanceDeltas for both legs.
+ * @deprecated Prefer linkedTxnBalanceDeltas for new code.
+ */
 export function linkedTxnSignedDelta(effect: LinkedTxnEffect): number {
+  if (effect.type === 'transfer') return 0;
   if (!effect.vehicle_id) return 0;
   if (!(effect.amount > 0) || Number.isNaN(effect.amount)) return 0;
   return effect.type === 'income' ? effect.amount : -effect.amount;
@@ -50,11 +79,10 @@ export function balanceDeltasForTxnChange(
   const byId = new Map<string, number>();
 
   function add(effect: LinkedTxnEffect | null | undefined, sign: 1 | -1) {
-    if (!effect?.vehicle_id) return;
-    const signed = linkedTxnSignedDelta(effect);
-    if (signed === 0) return;
-    const id = effect.vehicle_id;
-    byId.set(id, roundMoney((byId.get(id) ?? 0) + sign * signed));
+    if (!effect) return;
+    for (const { vehicle_id, delta } of linkedTxnBalanceDeltas(effect)) {
+      byId.set(vehicle_id, roundMoney((byId.get(vehicle_id) ?? 0) + sign * delta));
+    }
   }
 
   // Reverse prior, then apply next.

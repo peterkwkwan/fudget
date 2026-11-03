@@ -29,6 +29,7 @@ function txn(
     occurrence_key: null,
 
     vehicle_id: null,
+    transfer_to_vehicle_id: null,
     deleted_at: null,
     created_at: partial.occurred_at,
     updated_at: partial.occurred_at,
@@ -89,6 +90,18 @@ describe('transactionsDateView', () => {
         txn({ type: 'income', amount: 0.2, occurred_at: '2026-10-24T16:00:00Z' }),
       ]),
       0.3
+    );
+    assert.equal(
+      netOfTransactions([
+        txn({
+          type: 'transfer',
+          amount: 50,
+          occurred_at: '2026-10-24T15:00:00Z',
+          category: 'Transfer',
+        }),
+        txn({ type: 'expense', amount: 5, occurred_at: '2026-10-24T16:00:00Z' }),
+      ]),
+      -5
     );
   });
 

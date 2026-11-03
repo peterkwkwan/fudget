@@ -73,6 +73,7 @@ export default function NewTransactionScreen() {
           note: input.note,
           occurred_at: input.occurred_at,
           vehicle_id: input.vehicle_id ?? null,
+          transfer_to_vehicle_id: input.transfer_to_vehicle_id ?? null,
         });
       }
       router.back();

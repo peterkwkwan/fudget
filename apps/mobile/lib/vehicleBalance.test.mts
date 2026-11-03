@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import {
   applyBalanceDelta,
   balanceDeltasForTxnChange,
+  linkedTxnBalanceDeltas,
   linkedTxnSignedDelta,
   snapshotsAfterDeltas,
 } from './vehicleBalance.ts';
@@ -82,6 +83,65 @@ describe('vehicleBalance', () => {
         amount: 9,
       }),
       []
+    );
+  });
+
+  it('transfer subtracts From and adds To', () => {
+    assert.deepEqual(
+      linkedTxnBalanceDeltas({
+        vehicle_id: 'from',
+        transfer_to_vehicle_id: 'to',
+        type: 'transfer',
+        amount: 50,
+      }),
+      [
+        { vehicle_id: 'from', delta: -50 },
+        { vehicle_id: 'to', delta: 50 },
+      ]
+    );
+  });
+
+  it('transfer edit reverses both legs then reapplies', () => {
+    const deltas = balanceDeltasForTxnChange(
+      {
+        vehicle_id: 'a',
+        transfer_to_vehicle_id: 'b',
+        type: 'transfer',
+        amount: 20,
+      },
+      {
+        vehicle_id: 'a',
+        transfer_to_vehicle_id: 'c',
+        type: 'transfer',
+        amount: 30,
+      }
+    );
+    assert.deepEqual(
+      new Map(deltas.map((d) => [d.vehicle_id, d.delta])),
+      new Map([
+        ['b', -20],
+        ['a', -10],
+        ['c', 30],
+      ])
+    );
+  });
+
+  it('transfer delete reverses both legs', () => {
+    const deltas = balanceDeltasForTxnChange(
+      {
+        vehicle_id: 'a',
+        transfer_to_vehicle_id: 'b',
+        type: 'transfer',
+        amount: 15,
+      },
+      null
+    );
+    assert.deepEqual(
+      new Map(deltas.map((d) => [d.vehicle_id, d.delta])),
+      new Map([
+        ['a', 15],
+        ['b', -15],
+      ])
     );
   });
 

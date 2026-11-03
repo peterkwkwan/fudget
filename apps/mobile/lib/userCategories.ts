@@ -46,6 +46,9 @@ export async function createUserCategory(
   type: TransactionType,
   name: string
 ): Promise<UserCategory> {
+  if (type !== 'expense' && type !== 'income') {
+    throw new Error('Categories are only for expense or income.');
+  }
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Enter a category name.');
   if (trimmed.length > 40) throw new Error('Name must be 40 characters or fewer.');

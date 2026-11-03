@@ -19,6 +19,7 @@ import { CaptionText, StrongText, TitleText } from '@/components/StyledText';
 import { Text } from '@/components/Themed';
 import {
   defaultCategory,
+  TRANSFER_CATEGORY,
   type TransactionType,
 } from '@/constants/categories';
 import {
@@ -50,8 +51,10 @@ export type TransactionFormValues = {
   category: string;
   note: string;
   occurredAt: Date;
-  /** Optional Planner account id; null = None. */
+  /** Optional Planner account id (expense/income) or From (transfer). */
   vehicleId: string | null;
+  /** To account for transfer; null otherwise. */
+  transferToVehicleId: string | null;
 };
 
 export type TransactionAccountOption = {
@@ -125,8 +128,15 @@ export function TransactionForm({
     }
     return null;
   });
+  const [transferToVehicleId, setTransferToVehicleId] = useState<string | null>(
+    () => initial?.transferToVehicleId ?? null
+  );
   const [showPicker, setShowPicker] = useState(false);
   const [showAccountSheet, setShowAccountSheet] = useState(false);
+  const [accountSheetKind, setAccountSheetKind] = useState<
+    'optional' | 'from' | 'to'
+  >('optional');
+  const canTransfer = accounts.length >= 2;
   const [repeatRule, setRepeatRule] = useState<RepeatRule | null>(null);
   const [showRepeatSheet, setShowRepeatSheet] = useState(false);
   const [showCustomSheet, setShowCustomSheet] = useState(false);
@@ -174,16 +184,32 @@ export function TransactionForm({
 
   // Drop a stale selection if the account list shrinks (e.g. deleted offline).
   useEffect(() => {
-    if (vehicleId == null) return;
-    if (!accounts.some((a) => a.id === vehicleId)) {
+    if (vehicleId != null && !accounts.some((a) => a.id === vehicleId)) {
       setVehicleId(null);
     }
-  }, [accounts, vehicleId]);
+    if (
+      transferToVehicleId != null &&
+      !accounts.some((a) => a.id === transferToVehicleId)
+    ) {
+      setTransferToVehicleId(null);
+    }
+  }, [accounts, vehicleId, transferToVehicleId]);
 
   // One-off only: recurring series do not carry an account link in MVP.
   useEffect(() => {
-    if (repeatRule != null) setVehicleId(null);
+    if (repeatRule != null) {
+      setVehicleId(null);
+      setTransferToVehicleId(null);
+    }
   }, [repeatRule]);
+
+  // Transfer needs ≥2 accounts; fall back if the list shrinks.
+  useEffect(() => {
+    if (type !== 'transfer' || canTransfer) return;
+    setType('expense');
+    setCategory(defaultCategory('expense'));
+    setTransferToVehicleId(null);
+  }, [type, canTransfer]);
 
   const applyVoiceDraft = useCallback((draft: VoiceDraft) => {
     setAmount(formatAmountInput(draft.amount));
@@ -212,9 +238,37 @@ export function TransactionForm({
   });
 
   function setTypeAndCategory(next: TransactionType) {
+    if (next === 'transfer' && !canTransfer) return;
     setType(next);
+    if (next === 'transfer') {
+      setCategory(TRANSFER_CATEGORY);
+      setRepeatRule(null);
+      // Prefill From/To when empty so save is one tap away when possible.
+      setVehicleId((prev) => {
+        if (prev && accounts.some((a) => a.id === prev)) return prev;
+        if (defaultAccountId && accounts.some((a) => a.id === defaultAccountId)) {
+          return defaultAccountId;
+        }
+        return accounts[0]?.id ?? null;
+      });
+      setTransferToVehicleId((prev) => {
+        const fromCandidate =
+          vehicleId && accounts.some((a) => a.id === vehicleId)
+            ? vehicleId
+            : defaultAccountId && accounts.some((a) => a.id === defaultAccountId)
+              ? defaultAccountId
+              : accounts[0]?.id ?? null;
+        if (prev && prev !== fromCandidate && accounts.some((a) => a.id === prev)) {
+          return prev;
+        }
+        const other = accounts.find((a) => a.id !== fromCandidate);
+        return other?.id ?? null;
+      });
+      return;
+    }
+    setTransferToVehicleId(null);
     const allowed = pickerCategories(next, customs);
-    if (!allowed.includes(category)) {
+    if (!allowed.includes(category) || category === TRANSFER_CATEGORY) {
       setCategory(defaultCategory(next));
     }
   }
@@ -239,28 +293,74 @@ export function TransactionForm({
       setLocalError('Note must be 500 characters or fewer.');
       return;
     }
+    if (type === 'transfer') {
+      if (!canTransfer) {
+        setLocalError('Add at least two Planner accounts to transfer.');
+        return;
+      }
+      if (!vehicleId || !transferToVehicleId) {
+        setLocalError('Pick From and To accounts.');
+        return;
+      }
+      if (vehicleId === transferToVehicleId) {
+        setLocalError('From and To must be different accounts.');
+        return;
+      }
+    }
 
     const repeat =
-      allowRepeat && !repeatBlocked ? repeatRule : null;
+      allowRepeat && !repeatBlocked && type !== 'transfer' ? repeatRule : null;
     onSubmit({
       amount: Math.round(parsed * 100) / 100,
       type,
-      category,
+      category: type === 'transfer' ? TRANSFER_CATEGORY : category,
       note: note.trim() || null,
       occurred_at: occurredAt.toISOString(),
       vehicle_id: repeat != null ? null : vehicleId,
+      transfer_to_vehicle_id:
+        type === 'transfer' && repeat == null ? transferToVehicleId : null,
       repeat,
     });
   }
 
-  const categories = pickerCategories(type, customs);
+  const categories = type === 'transfer' ? [] : pickerCategories(type, customs);
   const displayError = localError ?? error ?? (allowVoice ? voice.error : null);
   const highlightVoice = voiceFilled && allowVoice;
-  const showAccount = accounts.length > 0 && repeatRule == null;
+  const isTransfer = type === 'transfer';
+  const showOptionalAccount =
+    !isTransfer && accounts.length > 0 && repeatRule == null;
+  const showTransferAccounts = isTransfer && canTransfer && repeatRule == null;
   const selectedAccountName =
     vehicleId == null
       ? 'None'
       : (accounts.find((a) => a.id === vehicleId)?.name ?? 'None');
+  const fromAccountName =
+    vehicleId == null
+      ? 'Choose account'
+      : (accounts.find((a) => a.id === vehicleId)?.name ?? 'Choose account');
+  const toAccountName =
+    transferToVehicleId == null
+      ? 'Choose account'
+      : (accounts.find((a) => a.id === transferToVehicleId)?.name ??
+        'Choose account');
+
+  function openAccountSheet(kind: 'optional' | 'from' | 'to') {
+    setAccountSheetKind(kind);
+    setShowAccountSheet(true);
+  }
+
+  const accountSheetTitle =
+    accountSheetKind === 'from'
+      ? 'From'
+      : accountSheetKind === 'to'
+        ? 'To'
+        : 'Account';
+  const accountSheetSubtitle =
+    accountSheetKind === 'from'
+      ? 'Move money out of this Planner account.'
+      : accountSheetKind === 'to'
+        ? 'Move money into this Planner account.'
+        : 'Link this transaction to a Planner account, or leave None.';
 
   return (
     <View style={styles.root}>
@@ -301,15 +401,38 @@ export function TransactionForm({
 
         <CaptionText style={styles.label}>Type</CaptionText>
         <View style={styles.segment}>
-          {(['expense', 'income'] as const).map((option) => {
-            const selected = type === option;
+          {(
+            [
+              { id: 'expense' as const, label: 'Expense', disabled: false },
+              { id: 'income' as const, label: 'Income', disabled: false },
+              {
+                id: 'transfer' as const,
+                label: 'Transfer',
+                disabled: !canTransfer,
+              },
+            ] as const
+          ).map((option) => {
+            const selected = type === option.id;
             return (
               <Pressable
-                key={option}
-                style={[styles.segmentBtn, selected && styles.segmentBtnSelected]}
-                onPress={() => setTypeAndCategory(option)}
+                key={option.id}
+                style={[
+                  styles.segmentBtn,
+                  selected && styles.segmentBtnSelected,
+                  option.disabled && styles.disabled,
+                ]}
+                onPress={() => setTypeAndCategory(option.id)}
+                disabled={option.disabled}
                 accessibilityRole="button"
-                accessibilityState={{ selected }}
+                accessibilityState={{
+                  selected,
+                  disabled: option.disabled,
+                }}
+                accessibilityHint={
+                  option.id === 'transfer' && option.disabled
+                    ? 'Needs at least two Planner accounts'
+                    : undefined
+                }
               >
                 <StrongText
                   style={[
@@ -317,12 +440,17 @@ export function TransactionForm({
                     selected && styles.segmentTextSelected,
                   ]}
                 >
-                  {option === 'expense' ? 'Expense' : 'Income'}
+                  {option.label}
                 </StrongText>
               </Pressable>
             );
           })}
         </View>
+        {!canTransfer ? (
+          <CaptionText style={styles.hint}>
+            Transfer needs at least two Planner accounts.
+          </CaptionText>
+        ) : null}
 
         <CaptionText style={styles.label}>{amountLabel}</CaptionText>
         <TextInput
@@ -335,33 +463,49 @@ export function TransactionForm({
           accessibilityLabel={amountLabel}
         />
 
-        <View style={styles.categoryLabelRow}>
-          <CaptionText style={styles.categoryLabel}>Category</CaptionText>
-          {pendingSync ? <PendingSyncDot /> : null}
-        </View>
-        <View style={styles.chips}>
-          {categories.map((cat) => {
-            const selected = category === cat;
-            return (
-              <Pressable
-                key={cat}
-                style={[styles.chip, selected && styles.chipSelected]}
-                onPress={() => setCategory(cat)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-              >
-                <Text
-                  style={[styles.chipText, selected && styles.chipTextSelected]}
-                >
-                  {cat}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        {!isTransfer ? (
+          <>
+            <View style={styles.categoryLabelRow}>
+              <CaptionText style={styles.categoryLabel}>Category</CaptionText>
+              {pendingSync ? <PendingSyncDot /> : null}
+            </View>
+            <View style={styles.chips}>
+              {categories.map((cat) => {
+                const selected = category === cat;
+                return (
+                  <Pressable
+                    key={cat}
+                    style={[styles.chip, selected && styles.chipSelected]}
+                    onPress={() => setCategory(cat)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        selected && styles.chipTextSelected,
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        ) : pendingSync ? (
+          <View style={styles.categoryLabelRow}>
+            <CaptionText style={styles.categoryLabel}>Transfer</CaptionText>
+            <PendingSyncDot />
+          </View>
+        ) : null}
 
         <View style={styles.dateRepeatRow}>
-          <View style={allowRepeat ? styles.dateCol : styles.dateColFull}>
+          <View
+            style={
+              allowRepeat && !isTransfer ? styles.dateCol : styles.dateColFull
+            }
+          >
             <CaptionText style={styles.labelTight}>Date</CaptionText>
             <Pressable
               style={styles.input}
@@ -374,7 +518,7 @@ export function TransactionForm({
               </Text>
             </Pressable>
           </View>
-          {allowRepeat ? (
+          {allowRepeat && !isTransfer ? (
             <View style={styles.repeatCol}>
               <CaptionText style={styles.labelTight}>Repeat</CaptionText>
               <Pressable
@@ -427,12 +571,12 @@ export function TransactionForm({
           </CaptionText>
         ) : null}
 
-        {showAccount ? (
+        {showOptionalAccount ? (
           <>
             <CaptionText style={styles.label}>Account (optional)</CaptionText>
             <Pressable
               style={styles.input}
-              onPress={() => setShowAccountSheet(true)}
+              onPress={() => openAccountSheet('optional')}
               accessibilityRole="button"
               accessibilityLabel="Choose Planner account"
             >
@@ -441,6 +585,33 @@ export function TransactionForm({
             <CaptionText style={styles.hint}>
               Income adds to the account; expense subtracts. Leave as None to
               skip.
+            </CaptionText>
+          </>
+        ) : null}
+
+        {showTransferAccounts ? (
+          <>
+            <CaptionText style={styles.label}>From</CaptionText>
+            <Pressable
+              style={styles.input}
+              onPress={() => openAccountSheet('from')}
+              accessibilityRole="button"
+              accessibilityLabel="Choose From account"
+            >
+              <Text style={styles.dateText}>{fromAccountName}</Text>
+            </Pressable>
+            <CaptionText style={styles.label}>To</CaptionText>
+            <Pressable
+              style={styles.input}
+              onPress={() => openAccountSheet('to')}
+              accessibilityRole="button"
+              accessibilityLabel="Choose To account"
+            >
+              <Text style={styles.dateText}>{toAccountName}</Text>
+            </Pressable>
+            <CaptionText style={styles.hint}>
+              Moves this amount from one Planner account to another. Uses your
+              account currency.
             </CaptionText>
           </>
         ) : null}
@@ -585,47 +756,63 @@ export function TransactionForm({
               onPress={(e) => e.stopPropagation()}
               accessibilityViewIsModal
             >
-              <TitleText style={styles.sheetTitle}>Account</TitleText>
+              <TitleText style={styles.sheetTitle}>{accountSheetTitle}</TitleText>
               <CaptionText style={styles.sheetSubtitle}>
-                Link this transaction to a Planner account, or leave None.
+                {accountSheetSubtitle}
               </CaptionText>
               <ScrollView style={styles.sheetList}>
-                <Pressable
-                  style={[
-                    styles.sheetRow,
-                    vehicleId == null && styles.sheetRowSelected,
-                  ]}
-                  onPress={() => {
-                    setVehicleId(null);
-                    setShowAccountSheet(false);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: vehicleId == null }}
-                >
-                  <StrongText
+                {accountSheetKind === 'optional' ? (
+                  <Pressable
                     style={[
-                      styles.sheetRowText,
-                      vehicleId == null && styles.sheetRowTextSelected,
+                      styles.sheetRow,
+                      vehicleId == null && styles.sheetRowSelected,
                     ]}
+                    onPress={() => {
+                      setVehicleId(null);
+                      setShowAccountSheet(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: vehicleId == null }}
                   >
-                    None
-                  </StrongText>
-                </Pressable>
+                    <StrongText
+                      style={[
+                        styles.sheetRowText,
+                        vehicleId == null && styles.sheetRowTextSelected,
+                      ]}
+                    >
+                      None
+                    </StrongText>
+                  </Pressable>
+                ) : null}
                 {accounts.map((account) => {
-                  const selected = vehicleId === account.id;
+                  const selected =
+                    accountSheetKind === 'to'
+                      ? transferToVehicleId === account.id
+                      : vehicleId === account.id;
+                  const blocked =
+                    (accountSheetKind === 'from' &&
+                      transferToVehicleId === account.id) ||
+                    (accountSheetKind === 'to' && vehicleId === account.id);
                   return (
                     <Pressable
                       key={account.id}
                       style={[
                         styles.sheetRow,
                         selected && styles.sheetRowSelected,
+                        blocked && styles.disabled,
                       ]}
                       onPress={() => {
-                        setVehicleId(account.id);
+                        if (blocked) return;
+                        if (accountSheetKind === 'to') {
+                          setTransferToVehicleId(account.id);
+                        } else {
+                          setVehicleId(account.id);
+                        }
                         setShowAccountSheet(false);
                       }}
+                      disabled={blocked}
                       accessibilityRole="button"
-                      accessibilityState={{ selected }}
+                      accessibilityState={{ selected, disabled: blocked }}
                     >
                       <StrongText
                         style={[

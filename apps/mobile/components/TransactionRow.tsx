@@ -37,16 +37,25 @@ export function TransactionRow({
 }: Props) {
   const { format } = useFormatMoney();
   const formatAmount = (txn: Transaction): string => {
+    if (txn.type === 'transfer') return format(txn.amount);
     const sign = txn.type === 'expense' ? '−' : '+';
     return `${sign}${format(txn.amount)}`;
   };
   const { profile } = useAuth();
   const timeZone = profile?.timezone || deviceTimezone();
   const amountColor =
-    transaction.type === 'income' ? colors.income : colors.expense;
+    transaction.type === 'income'
+      ? colors.income
+      : transaction.type === 'expense'
+        ? colors.expense
+        : colors.ink;
   const dateLabel = formatDisplayDate(transaction.occurred_at, timeZone);
   const typeLabel =
-    transaction.type === 'income' ? 'Income' : 'Expense';
+    transaction.type === 'income'
+      ? 'Income'
+      : transaction.type === 'expense'
+        ? 'Expense'
+        : 'Transfer';
   const metaParts = [
     ...(hideDate ? [] : [dateLabel]),
     typeLabel,

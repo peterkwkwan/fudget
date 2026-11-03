@@ -123,7 +123,7 @@ export function BulkEditSheet({
     }
 
     if (field === 'category') {
-      if (!sharedType) {
+      if (!sharedType || sharedType === 'transfer') {
         setLocalError(
           'Select only expenses or only income to edit categories together.'
         );
@@ -205,10 +205,11 @@ export function BulkEditSheet({
 
           {field === 'category' ? (
             <View style={styles.block}>
-              {!sharedType ? (
+              {!sharedType || sharedType === 'transfer' ? (
                 <CaptionText style={styles.hint}>
-                  Your selection mixes income and expense. Clear one type, then
-                  try again.
+                  {sharedType === 'transfer'
+                    ? 'Transfers have no category to edit.'
+                    : 'Your selection mixes income and expense. Clear one type, then try again.'}
                 </CaptionText>
               ) : (
                 <ScrollView

@@ -91,6 +91,67 @@ function expense(partial: Partial<TransactionInput> = {}): TransactionInput {
 }
 
 describe('offline vehicle link', () => {
+  it('transfer subtracts From and adds To with both snapshots', async () => {
+    const db = await freshDb();
+    await upsertVehicleLocal(db, {
+      id: 'veh-a',
+      user_id: 'user-a',
+      name: 'Checking',
+      balance: 100,
+      is_default: 1,
+      deleted_at: null,
+      updated_at: '2026-11-01T00:00:00.000Z',
+    });
+    await upsertVehicleLocal(db, {
+      id: 'veh-b',
+      user_id: 'user-a',
+      name: 'Savings',
+      balance: 50,
+      is_default: 0,
+      deleted_at: null,
+      updated_at: '2026-11-01T00:00:00.000Z',
+    });
+    const options = optionsFor(db);
+
+    const created = await createLocalTransaction(
+      'user-a',
+      {
+        amount: 25,
+        type: 'transfer',
+        category: 'Transfer',
+        occurred_at: '2026-11-03T12:00:00.000Z',
+        vehicle_id: 'veh-a',
+        transfer_to_vehicle_id: 'veh-b',
+      },
+      'HKD',
+      options
+    );
+    assert.equal(created.type, 'transfer');
+    assert.equal(created.vehicle_id, 'veh-a');
+    assert.equal(created.transfer_to_vehicle_id, 'veh-b');
+
+    assert.equal((await getVehicleLocal(db, 'user-a', 'veh-a'))?.balance, 75);
+    assert.equal((await getVehicleLocal(db, 'user-a', 'veh-b'))?.balance, 75);
+
+    const pending = await listPendingOutbox(db, 'user-a', created.id);
+    const payload = JSON.parse(pending[0].payload_json) as {
+      balance_snapshots?: { vehicle_id: string; balance: number }[];
+    };
+    assert.deepEqual(
+      new Map(
+        (payload.balance_snapshots ?? []).map((s) => [s.vehicle_id, s.balance])
+      ),
+      new Map([
+        ['veh-a', 75],
+        ['veh-b', 75],
+      ])
+    );
+
+    await softDeleteLocalTransaction('user-a', created.id, options);
+    assert.equal((await getVehicleLocal(db, 'user-a', 'veh-a'))?.balance, 100);
+    assert.equal((await getVehicleLocal(db, 'user-a', 'veh-b'))?.balance, 50);
+  });
+
   it('expense subtracts local balance and stores absolute snapshot', async () => {
     const db = await freshDb();
     await seedVehicle(db, 100);
@@ -188,15 +249,16 @@ describe('offline vehicle link', () => {
     assert.equal((await listPendingOutbox(db, 'user-a')).length, 0);
   });
 
-  it('schema migrates to v3 with vehicles_local', async () => {
+  it('schema migrates to v4 with transfer_to_vehicle_id', async () => {
     const db = await freshDb();
     const version = await db.first<{ user_version: number }>(
       'PRAGMA user_version'
     );
-    assert.equal(Number(version?.user_version), 3);
+    assert.equal(Number(version?.user_version), 4);
     const cols = await db.all<{ name: string }>(
       'PRAGMA table_info(transactions_local)'
     );
     assert.ok(cols.some((c) => c.name === 'vehicle_id'));
+    assert.ok(cols.some((c) => c.name === 'transfer_to_vehicle_id'));
   });
 });

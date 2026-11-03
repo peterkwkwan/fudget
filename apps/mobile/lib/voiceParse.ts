@@ -306,7 +306,8 @@ function categoriesWithExtras(
   type: TransactionType,
   extras?: VoiceCategoryExtras
 ): string[] {
-  const custom = extras?.[type] ?? [];
+  const custom =
+    type === 'expense' || type === 'income' ? (extras?.[type] ?? []) : [];
   return [...categoriesForType(type), ...custom];
 }
 

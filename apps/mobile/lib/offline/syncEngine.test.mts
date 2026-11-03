@@ -97,6 +97,7 @@ function mirror(
     occurrence_key: null,
 
     vehicle_id: null,
+    transfer_to_vehicle_id: null,
     deleted_at: null,
     created_at: '2026-10-01T00:00:00.000Z',
     updated_at: '2026-10-01T00:00:00.000Z',
@@ -126,6 +127,7 @@ function asRemote(
     occurrence_key: null,
 
     vehicle_id: null,
+    transfer_to_vehicle_id: null,
     deleted_at: null,
     ...row,
   };

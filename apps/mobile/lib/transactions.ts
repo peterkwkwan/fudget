@@ -8,6 +8,7 @@
 import { DEFAULT_CURRENCY } from '@/constants/currencies';
 import {
   inputFromBulkPatch,
+  normalizeTransactionInput,
   validateTransactionInput,
   type Transaction,
   type TransactionBulkPatch,
@@ -25,6 +26,7 @@ export {
   filterTransactionsForMonth,
   filterTransactionsVisible,
   inputFromBulkPatch,
+  normalizeTransactionInput,
   summarizeUpcomingRepeatsThisMonth,
   validateTransactionInput,
 } from '@/lib/transactionModel';
@@ -48,9 +50,25 @@ function mapRow(row: Record<string, unknown>): Transaction {
     recurring_series_id: (row.recurring_series_id as string | null) ?? null,
     occurrence_key: (row.occurrence_key as string | null) ?? null,
     vehicle_id: (row.vehicle_id as string | null) ?? null,
+    transfer_to_vehicle_id:
+      (row.transfer_to_vehicle_id as string | null) ?? null,
     deleted_at: (row.deleted_at as string | null) ?? null,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
+  };
+}
+
+function effectFromTxn(txn: {
+  vehicle_id: string | null;
+  transfer_to_vehicle_id: string | null;
+  type: Transaction['type'];
+  amount: number;
+}): LinkedTxnEffect {
+  return {
+    vehicle_id: txn.vehicle_id,
+    transfer_to_vehicle_id: txn.transfer_to_vehicle_id,
+    type: txn.type,
+    amount: txn.amount,
   };
 }
 
@@ -98,25 +116,30 @@ export async function createTransaction(
   input: TransactionInput,
   currency: string = DEFAULT_CURRENCY
 ): Promise<Transaction> {
-  const validationError = validateTransactionInput(input);
+  const normalized = normalizeTransactionInput(input);
+  const validationError = validateTransactionInput(normalized);
   if (validationError) {
     throw new Error(validationError);
   }
 
-  const note = input.note?.trim() ? input.note.trim() : null;
-  const vehicle_id = normalizeVehicleId(input.vehicle_id);
+  const note = normalized.note?.trim() ? normalized.note.trim() : null;
+  const vehicle_id = normalizeVehicleId(normalized.vehicle_id);
+  const transfer_to_vehicle_id = normalizeVehicleId(
+    normalized.transfer_to_vehicle_id
+  );
 
   const { data, error } = await supabase
     .from('transactions')
     .insert({
       user_id: userId,
-      amount: input.amount,
-      type: input.type,
-      category: input.category.trim(),
+      amount: normalized.amount,
+      type: normalized.type,
+      category: normalized.category.trim(),
       note,
       currency,
-      occurred_at: input.occurred_at,
+      occurred_at: normalized.occurred_at,
       vehicle_id,
+      transfer_to_vehicle_id,
     })
     .select('*')
     .single();
@@ -126,11 +149,7 @@ export async function createTransaction(
   }
 
   const saved = mapRow(data as Record<string, unknown>);
-  await applyRemoteBalanceForChange(null, {
-    vehicle_id: saved.vehicle_id,
-    type: saved.type,
-    amount: saved.amount,
-  });
+  await applyRemoteBalanceForChange(null, effectFromTxn(saved));
   return saved;
 }
 
@@ -138,7 +157,8 @@ export async function updateTransaction(
   id: string,
   input: TransactionInput
 ): Promise<Transaction> {
-  const validationError = validateTransactionInput(input);
+  const normalized = normalizeTransactionInput(input);
+  const validationError = validateTransactionInput(normalized);
   if (validationError) {
     throw new Error(validationError);
   }
@@ -148,18 +168,22 @@ export async function updateTransaction(
     throw new Error('Transaction not found.');
   }
 
-  const note = input.note?.trim() ? input.note.trim() : null;
-  const vehicle_id = normalizeVehicleId(input.vehicle_id);
+  const note = normalized.note?.trim() ? normalized.note.trim() : null;
+  const vehicle_id = normalizeVehicleId(normalized.vehicle_id);
+  const transfer_to_vehicle_id = normalizeVehicleId(
+    normalized.transfer_to_vehicle_id
+  );
 
   const { data, error } = await supabase
     .from('transactions')
     .update({
-      amount: input.amount,
-      type: input.type,
-      category: input.category,
+      amount: normalized.amount,
+      type: normalized.type,
+      category: normalized.category,
       note,
-      occurred_at: input.occurred_at,
+      occurred_at: normalized.occurred_at,
       vehicle_id,
+      transfer_to_vehicle_id,
     })
     .eq('id', id)
     .is('deleted_at', null)
@@ -172,16 +196,8 @@ export async function updateTransaction(
 
   const saved = mapRow(data as Record<string, unknown>);
   await applyRemoteBalanceForChange(
-    {
-      vehicle_id: existing.vehicle_id,
-      type: existing.type,
-      amount: existing.amount,
-    },
-    {
-      vehicle_id: saved.vehicle_id,
-      type: saved.type,
-      amount: saved.amount,
-    }
+    effectFromTxn(existing),
+    effectFromTxn(saved)
   );
   return saved;
 }
@@ -201,14 +217,7 @@ export async function softDeleteTransaction(id: string): Promise<void> {
   }
 
   if (existing) {
-    await applyRemoteBalanceForChange(
-      {
-        vehicle_id: existing.vehicle_id,
-        type: existing.type,
-        amount: existing.amount,
-      },
-      null
-    );
+    await applyRemoteBalanceForChange(effectFromTxn(existing), null);
   }
 }
 
@@ -306,6 +315,7 @@ export type OwnTransactionInsert = {
   recurring_series_id?: string | null;
   occurrence_key?: string | null;
   vehicle_id?: string | null;
+  transfer_to_vehicle_id?: string | null;
 };
 
 /**
@@ -370,6 +380,7 @@ export async function insertOwnTransaction(
       recurring_series_id: row.recurring_series_id ?? null,
       occurrence_key: row.occurrence_key ?? null,
       vehicle_id: normalizeVehicleId(row.vehicle_id),
+      transfer_to_vehicle_id: normalizeVehicleId(row.transfer_to_vehicle_id),
     })
     .select('*')
     .single();
@@ -395,6 +406,7 @@ export async function updateOwnTransaction(
     note: row.note,
     occurred_at: row.occurred_at,
     vehicle_id: normalizeVehicleId(row.vehicle_id),
+    transfer_to_vehicle_id: normalizeVehicleId(row.transfer_to_vehicle_id),
     deleted_at: null as string | null,
   };
 

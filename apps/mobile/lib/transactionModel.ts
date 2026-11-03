@@ -3,7 +3,10 @@
  * Shared by the Supabase adapter and the offline repository.
  * No network and no SQLite.
  */
-import type { TransactionType } from '@/constants/categories';
+import {
+  TRANSFER_CATEGORY,
+  type TransactionType,
+} from '@/constants/categories';
 import {
   formatDisplayDate,
   isOnOrBeforeLocalToday,
@@ -26,8 +29,12 @@ export type Transaction = {
   occurred_at: string;
   recurring_series_id: string | null;
   occurrence_key: string | null;
-  /** Optional Planner account (`planner_vehicles.id`). */
+  /**
+   * Planner account: optional link for expense/income; From for transfer.
+   */
   vehicle_id: string | null;
+  /** To account for type=transfer; null otherwise. */
+  transfer_to_vehicle_id: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -39,8 +46,10 @@ export type TransactionInput = {
   category: string;
   note?: string | null;
   occurred_at: string;
-  /** Optional Planner account; null/omit = unlinked. */
+  /** Optional Planner account; From for transfer. */
   vehicle_id?: string | null;
+  /** To account for transfer; omit/null for expense/income. */
+  transfer_to_vehicle_id?: string | null;
 };
 
 export type TransactionBulkPatch = {
@@ -49,17 +58,24 @@ export type TransactionBulkPatch = {
   note?: string | null;
 };
 
+function normalizeOptionalId(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export function validateTransactionInput(input: TransactionInput): string | null {
   if (!(input.amount > 0) || Number.isNaN(input.amount)) {
     return 'Amount must be greater than zero.';
   }
-  if (input.type !== 'expense' && input.type !== 'income') {
-    return 'Type must be expense or income.';
+  if (
+    input.type !== 'expense' &&
+    input.type !== 'income' &&
+    input.type !== 'transfer'
+  ) {
+    return 'Type must be expense, income, or transfer.';
   }
-  const category = input.category?.trim() ?? '';
-  if (!category || category.length > 40) {
-    return 'Pick a category.';
-  }
+
   const note = input.note?.trim() ?? '';
   if (note.length > 500) {
     return 'Note must be 500 characters or fewer.';
@@ -67,7 +83,46 @@ export function validateTransactionInput(input: TransactionInput): string | null
   if (!input.occurred_at) {
     return 'Date is required.';
   }
+
+  if (input.type === 'transfer') {
+    const fromId = normalizeOptionalId(input.vehicle_id);
+    const toId = normalizeOptionalId(input.transfer_to_vehicle_id);
+    if (!fromId || !toId) {
+      return 'Pick From and To accounts.';
+    }
+    if (fromId === toId) {
+      return 'From and To must be different accounts.';
+    }
+    return null;
+  }
+
+  const category = input.category?.trim() ?? '';
+  if (!category || category.length > 40) {
+    return 'Pick a category.';
+  }
   return null;
+}
+
+/**
+ * Normalize transfer fields before insert/update.
+ * Forces category Transfer and clears To for non-transfers.
+ */
+export function normalizeTransactionInput(
+  input: TransactionInput
+): TransactionInput {
+  if (input.type === 'transfer') {
+    return {
+      ...input,
+      category: TRANSFER_CATEGORY,
+      vehicle_id: normalizeOptionalId(input.vehicle_id),
+      transfer_to_vehicle_id: normalizeOptionalId(input.transfer_to_vehicle_id),
+    };
+  }
+  return {
+    ...input,
+    vehicle_id: normalizeOptionalId(input.vehicle_id),
+    transfer_to_vehicle_id: null,
+  };
 }
 
 /**
@@ -89,6 +144,7 @@ export function inputFromBulkPatch(
     note: patch.note !== undefined ? patch.note : row.note,
     occurred_at: patch.occurred_at ?? row.occurred_at,
     vehicle_id: row.vehicle_id,
+    transfer_to_vehicle_id: row.transfer_to_vehicle_id,
   };
 }
 
@@ -176,7 +232,7 @@ export function summarizeUpcomingRepeatsThisMonth(
   const seen = new Set<string>();
   for (const t of items) {
     if (t.type === 'expense') expenseSum += t.amount;
-    else incomeSum += t.amount;
+    else if (t.type === 'income') incomeSum += t.amount;
     if (!seen.has(t.category)) {
       seen.add(t.category);
       nameOrder.push(t.category);
