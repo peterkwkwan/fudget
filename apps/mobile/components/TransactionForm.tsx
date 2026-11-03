@@ -243,7 +243,7 @@ export function TransactionForm({
     if (next === 'transfer') {
       setCategory(TRANSFER_CATEGORY);
       setRepeatRule(null);
-      // Prefill From/To when empty so save is one tap away when possible.
+      // From: keep selection or default. To: blank until the user picks (still required to save).
       setVehicleId((prev) => {
         if (prev && accounts.some((a) => a.id === prev)) return prev;
         if (defaultAccountId && accounts.some((a) => a.id === defaultAccountId)) {
@@ -251,19 +251,7 @@ export function TransactionForm({
         }
         return accounts[0]?.id ?? null;
       });
-      setTransferToVehicleId((prev) => {
-        const fromCandidate =
-          vehicleId && accounts.some((a) => a.id === vehicleId)
-            ? vehicleId
-            : defaultAccountId && accounts.some((a) => a.id === defaultAccountId)
-              ? defaultAccountId
-              : accounts[0]?.id ?? null;
-        if (prev && prev !== fromCandidate && accounts.some((a) => a.id === prev)) {
-          return prev;
-        }
-        const other = accounts.find((a) => a.id !== fromCandidate);
-        return other?.id ?? null;
-      });
+      setTransferToVehicleId(null);
       return;
     }
     setTransferToVehicleId(null);
@@ -419,7 +407,7 @@ export function TransactionForm({
                 style={[
                   styles.segmentBtn,
                   selected && styles.segmentBtnSelected,
-                  option.disabled && styles.disabled,
+                  option.disabled && styles.segmentBtnDisabled,
                 ]}
                 onPress={() => setTypeAndCategory(option.id)}
                 disabled={option.disabled}
@@ -438,6 +426,7 @@ export function TransactionForm({
                   style={[
                     styles.segmentText,
                     selected && styles.segmentTextSelected,
+                    option.disabled && styles.segmentTextDisabled,
                   ]}
                 >
                   {option.label}
@@ -951,11 +940,19 @@ const styles = StyleSheet.create({
   segmentBtnSelected: {
     backgroundColor: colors.green[700],
   },
+  /** Disabled Transfer chip: grey paper, not faded green. */
+  segmentBtnDisabled: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.chromeBorder,
+  },
   segmentText: {
     color: colors.green[700],
   },
   segmentTextSelected: {
     color: colors.inkInverse,
+  },
+  segmentTextDisabled: {
+    color: '#636366',
   },
   input: {
     minHeight: 48,
