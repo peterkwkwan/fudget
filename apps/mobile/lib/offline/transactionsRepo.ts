@@ -12,6 +12,7 @@ import {
   type TransactionBulkPatch,
   type TransactionInput,
 } from '@/lib/transactionModel';
+import { balanceDeltasForTxnChange } from '@/lib/vehicleBalance';
 
 import { getOfflineDb } from './db';
 import { newClientId } from './ids';
@@ -29,7 +30,8 @@ import {
   toTransaction,
   upsertTransactionLocal,
 } from './transactionsLocal';
-import type { TransactionLocalRow } from './types';
+import type { BalanceSnapshotPayload, TransactionLocalRow } from './types';
+import { applyLocalBalanceDeltas } from './vehiclesLocal';
 
 export type TransactionsRepoOptions = {
   /** Injected driver. Production uses the on-device database. */
@@ -71,6 +73,7 @@ export async function createLocalTransaction(
   const id = await nextId(options);
   const outboxId = await nextId(options);
   const note = input.note?.trim() ? input.note.trim() : null;
+  const vehicle_id = normalizeVehicleId(input.vehicle_id);
   const row: TransactionLocalRow = {
     id,
     user_id: userId,
@@ -82,6 +85,7 @@ export async function createLocalTransaction(
     occurred_at: input.occurred_at,
     recurring_series_id: null,
     occurrence_key: null,
+    vehicle_id,
     deleted_at: null,
     created_at: now,
     updated_at: now,
@@ -89,12 +93,21 @@ export async function createLocalTransaction(
   };
 
   await withSqlTransaction(db, async () => {
+    const snapshots = await applyBalanceChange(db, userId, null, {
+      vehicle_id,
+      type: row.type,
+      amount: row.amount,
+    });
+    const payload: TransactionLocalRow = {
+      ...row,
+      ...(snapshots.length > 0 ? { balance_snapshots: snapshots } : {}),
+    };
     await upsertTransactionLocal(db, row);
     await enqueueTransactionChange(db, {
       userId,
       entityId: id,
       op: 'create',
-      payload: row,
+      payload,
       baseUpdatedAt: null,
       now,
       outboxId,
@@ -122,6 +135,7 @@ export async function updateLocalTransaction(
     const existing = await getTransactionLocal(db, userId, id);
     if (!existing) throw new Error('Transaction not found.');
     const note = input.note?.trim() ? input.note.trim() : null;
+    const vehicle_id = normalizeVehicleId(input.vehicle_id);
     const next: TransactionLocalRow = {
       ...existing,
       amount: input.amount,
@@ -130,15 +144,34 @@ export async function updateLocalTransaction(
       category: input.category,
       note,
       occurred_at: input.occurred_at,
+      vehicle_id,
       updated_at: now,
       pending_op: existing.pending_op === 'create' ? 'create' : 'update',
+    };
+    const snapshots = await applyBalanceChange(
+      db,
+      userId,
+      {
+        vehicle_id: existing.vehicle_id,
+        type: existing.type,
+        amount: existing.amount,
+      },
+      {
+        vehicle_id,
+        type: next.type,
+        amount: next.amount,
+      }
+    );
+    const payload: TransactionLocalRow = {
+      ...next,
+      ...(snapshots.length > 0 ? { balance_snapshots: snapshots } : {}),
     };
     await upsertTransactionLocal(db, next);
     await enqueueTransactionChange(db, {
       userId,
       entityId: id,
       op: 'update',
-      payload: next,
+      payload,
       baseUpdatedAt: existing.updated_at,
       now,
       outboxId,
@@ -163,10 +196,22 @@ export async function softDeleteLocalTransaction(
     const existing = await getTransactionLocal(db, userId, id);
     if (!existing) return;
 
+    const snapshots = await applyBalanceChange(
+      db,
+      userId,
+      {
+        vehicle_id: existing.vehicle_id,
+        type: existing.type,
+        amount: existing.amount,
+      },
+      null
+    );
+
     const pending = await listPendingOutbox(db, userId, id);
     const neverSynced =
       existing.pending_op === 'create' || pending.some((row) => row.op === 'create');
     if (neverSynced) {
+      // Local balance already reversed; drop the never-pushed create.
       await deletePendingOutbox(db, userId, id);
       await removeTransactionLocal(db, userId, id);
       return;
@@ -177,7 +222,11 @@ export async function softDeleteLocalTransaction(
       userId,
       entityId: id,
       op: 'soft_delete',
-      payload: { id, deleted_at: now },
+      payload: {
+        id,
+        deleted_at: now,
+        ...(snapshots.length > 0 ? { balance_snapshots: snapshots } : {}),
+      },
       baseUpdatedAt: existing.updated_at,
       now,
       outboxId,
@@ -234,4 +283,31 @@ function timestamp(options?: TransactionsRepoOptions): string {
 async function nextId(options?: TransactionsRepoOptions): Promise<string> {
   if (options?.newId) return options.newId();
   return newClientId();
+}
+
+function normalizeVehicleId(
+  vehicleId: string | null | undefined
+): string | null {
+  if (vehicleId == null) return null;
+  const trimmed = vehicleId.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+async function applyBalanceChange(
+  db: SqlExecutor,
+  userId: string,
+  prev: {
+    vehicle_id: string | null;
+    type: Transaction['type'];
+    amount: number;
+  } | null,
+  next: {
+    vehicle_id: string | null;
+    type: Transaction['type'];
+    amount: number;
+  } | null
+): Promise<BalanceSnapshotPayload[]> {
+  const deltas = balanceDeltasForTxnChange(prev, next);
+  if (deltas.length === 0) return [];
+  return applyLocalBalanceDeltas(db, userId, deltas);
 }

@@ -37,6 +37,7 @@ export type VehicleFormValues = {
   plan_amount: string;
   plan_cadence: PlanCadence | null;
   notes: string;
+  is_default: boolean;
 };
 
 type Props = {
@@ -76,6 +77,7 @@ export function VehicleForm({
     initial?.plan_cadence ?? null
   );
   const [notes, setNotes] = useState(initial?.notes ?? '');
+  const [isDefault, setIsDefault] = useState(Boolean(initial?.is_default));
   const [localError, setLocalError] = useState<string | null>(null);
 
   const growth = defaultGrowthMode(vehicleType);
@@ -125,6 +127,7 @@ export function VehicleForm({
       plan_amount,
       plan_cadence: planCadence,
       notes: notes.trim() || null,
+      is_default: isDefault,
     });
   }
 
@@ -242,6 +245,27 @@ export function VehicleForm({
           maxLength={500}
         />
 
+        <Pressable
+          style={styles.defaultRow}
+          onPress={() => setIsDefault((v) => !v)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isDefault }}
+          accessibilityLabel="Use as default account for new transactions"
+        >
+          <View
+            style={[styles.checkbox, isDefault && styles.checkboxChecked]}
+          />
+          <View style={styles.defaultCopy}>
+            <StrongText style={styles.defaultTitle}>
+              Use as default for new transactions
+            </StrongText>
+            <CaptionText style={styles.hint}>
+              Preselects this account on Add Transaction. Only one default at a
+              time; turn off to start new ones unlinked.
+            </CaptionText>
+          </View>
+        </Pressable>
+
         {(localError || error) && (
           <CaptionText style={styles.error}>{localError || error}</CaptionText>
         )}
@@ -332,6 +356,28 @@ const styles = StyleSheet.create({
   },
   notes: { minHeight: 72, textAlignVertical: 'top' },
   hint: { color: colors.inkMuted, ...typography.caption },
+  defaultRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    marginTop: space.md,
+    paddingVertical: space.sm,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    marginTop: 2,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  checkboxChecked: {
+    borderColor: colors.green[700],
+    backgroundColor: colors.green[700],
+  },
+  defaultCopy: { flex: 1, gap: 2 },
+  defaultTitle: { color: colors.ink },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chip: {
     borderWidth: 1,

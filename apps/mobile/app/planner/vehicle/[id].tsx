@@ -102,6 +102,7 @@ export default function VehicleDetailScreen() {
             vehicle.plan_amount != null ? String(vehicle.plan_amount) : '',
           plan_cadence: vehicle.plan_cadence,
           notes: vehicle.notes ?? '',
+          is_default: vehicle.is_default,
         }}
         submitLabel="Save"
         busy={update.isPending}

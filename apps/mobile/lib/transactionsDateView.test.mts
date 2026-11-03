@@ -27,6 +27,8 @@ function txn(
     currency: 'USD',
     recurring_series_id: null,
     occurrence_key: null,
+
+    vehicle_id: null,
     deleted_at: null,
     created_at: partial.occurred_at,
     updated_at: partial.occurred_at,

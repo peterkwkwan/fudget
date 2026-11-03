@@ -10,9 +10,9 @@ import type { PendingOp, TransactionLocalRow } from './types';
 const UPSERT_SQL = `
 INSERT INTO transactions_local (
   id, user_id, amount, type, category, note, currency, occurred_at,
-  recurring_series_id, occurrence_key, deleted_at, created_at, updated_at,
-  pending_op
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  recurring_series_id, occurrence_key, vehicle_id, deleted_at, created_at,
+  updated_at, pending_op
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   user_id = excluded.user_id,
   amount = excluded.amount,
@@ -23,6 +23,7 @@ ON CONFLICT(id) DO UPDATE SET
   occurred_at = excluded.occurred_at,
   recurring_series_id = excluded.recurring_series_id,
   occurrence_key = excluded.occurrence_key,
+  vehicle_id = excluded.vehicle_id,
   deleted_at = excluded.deleted_at,
   created_at = excluded.created_at,
   updated_at = excluded.updated_at,
@@ -41,6 +42,7 @@ export function toTransaction(row: TransactionLocalRow): Transaction {
     occurred_at: row.occurred_at,
     recurring_series_id: row.recurring_series_id,
     occurrence_key: row.occurrence_key,
+    vehicle_id: row.vehicle_id,
     deleted_at: row.deleted_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -140,6 +142,7 @@ function rowParams(row: TransactionLocalRow): SqlValue[] {
     row.occurred_at,
     row.recurring_series_id,
     row.occurrence_key,
+    row.vehicle_id,
     row.deleted_at,
     row.created_at,
     row.updated_at,
@@ -160,6 +163,7 @@ function mapLocalRow(row: Record<string, unknown>): TransactionLocalRow {
     recurring_series_id:
       row.recurring_series_id == null ? null : String(row.recurring_series_id),
     occurrence_key: row.occurrence_key == null ? null : String(row.occurrence_key),
+    vehicle_id: row.vehicle_id == null ? null : String(row.vehicle_id),
     deleted_at: row.deleted_at == null ? null : String(row.deleted_at),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),

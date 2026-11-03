@@ -3,7 +3,7 @@
  * Versioned with SQLite `user_version`. No Supabase migration.
  */
 
-export const OFFLINE_SCHEMA_VERSION = 2;
+export const OFFLINE_SCHEMA_VERSION = 3;
 
 export type SqlValue = string | number | null;
 
@@ -79,6 +79,31 @@ CREATE TABLE IF NOT EXISTS category_cache (
 );
 `;
 
+/**
+ * Planner account link: vehicle_id on local txns + vehicles mirror for
+ * Account picker / balance / default preselect.
+ */
+export const OFFLINE_SCHEMA_V3_SQL = `
+ALTER TABLE transactions_local ADD COLUMN vehicle_id TEXT;
+
+CREATE TABLE IF NOT EXISTS vehicles_local (
+  id TEXT PRIMARY KEY NOT NULL,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  balance REAL NOT NULL DEFAULT 0,
+  is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+  deleted_at TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS vehicles_local_user_idx
+  ON vehicles_local (user_id);
+
+CREATE INDEX IF NOT EXISTS vehicles_local_default_idx
+  ON vehicles_local (user_id, is_default)
+  WHERE deleted_at IS NULL AND is_default = 1;
+`;
+
 export async function readUserVersion(db: SqlExecutor): Promise<number> {
   const row = await db.first<{ user_version: number }>('PRAGMA user_version');
   const version = Number(row?.user_version ?? 0);
@@ -97,6 +122,11 @@ export async function migrateOfflineSchema(db: SqlExecutor): Promise<void> {
   if (current < 2) {
     await db.exec(OFFLINE_SCHEMA_V2_SQL);
     await db.exec('PRAGMA user_version = 2');
+    current = 2;
+  }
+  if (current < 3) {
+    await db.exec(OFFLINE_SCHEMA_V3_SQL);
+    await db.exec('PRAGMA user_version = 3');
   }
 }
 

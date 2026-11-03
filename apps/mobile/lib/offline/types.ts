@@ -9,6 +9,12 @@ export type OutboxOp = 'create' | 'update' | 'soft_delete';
 
 export type OutboxStatus = 'pending' | 'acked' | 'failed';
 
+/** Absolute Planner balances to push after a linked txn outbox ack. */
+export type BalanceSnapshotPayload = {
+  vehicle_id: string;
+  balance: number;
+};
+
 /** Mirror of cloud `transactions` plus a denormalized pending hint for UI. */
 export type TransactionLocalRow = {
   id: string;
@@ -21,11 +27,17 @@ export type TransactionLocalRow = {
   occurred_at: string;
   recurring_series_id: string | null;
   occurrence_key: string | null;
+  vehicle_id: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /** Denormalized hint for pending badge; null when fully synced. */
   pending_op: PendingOp | null;
+  /**
+   * Optional absolute balances for linked accounts after this write.
+   * Stored on the outbox payload (not a SQLite column).
+   */
+  balance_snapshots?: BalanceSnapshotPayload[];
 };
 
 /** FIFO outbox row waiting to push to Supabase. */

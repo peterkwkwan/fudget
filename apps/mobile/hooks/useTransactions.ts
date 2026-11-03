@@ -25,6 +25,7 @@ import {
   type PeriodFocus,
 } from '@/lib/periods';
 import { deviceTimezone } from '@/lib/profile';
+import { plannerVehicleKeys } from '@/lib/plannerVehicles';
 import { statsKeys } from '@/lib/stats';
 import { supabase } from '@/lib/supabase';
 import {
@@ -48,6 +49,8 @@ function invalidateTransactionsAndStats(
 ) {
   void queryClient.invalidateQueries({ queryKey: transactionKeys.all });
   void queryClient.invalidateQueries({ queryKey: statsKeys.all });
+  // Linked txns adjust Planner account balances.
+  void queryClient.invalidateQueries({ queryKey: plannerVehicleKeys.all });
 }
 
 /** Online path only invalidates. Flag on: also push then pull. */

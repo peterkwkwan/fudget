@@ -10,6 +10,7 @@ import {
 } from '@/components/TransactionForm';
 import { colors } from '@/constants/theme';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
+import { usePlannerVehicles } from '@/hooks/usePlanner';
 import { useCreateRecurringSeries } from '@/hooks/useRecurring';
 import { useCreateTransaction } from '@/hooks/useTransactions';
 import { useAuth } from '@/lib/auth';
@@ -34,11 +35,18 @@ export default function NewTransactionScreen() {
   const { profile } = useAuth();
   const createTxn = useCreateTransaction();
   const createSeries = useCreateRecurringSeries();
+  const vehicles = usePlannerVehicles();
   const [error, setError] = useState<string | null>(null);
   const [initial] = useState(() => readVoiceInitial());
   const timezone = profile?.timezone || deviceTimezone();
   const { offline, banner } = useOfflineGates();
   const busy = createTxn.isPending || createSeries.isPending;
+  const accounts = (vehicles.data ?? []).map((v) => ({
+    id: v.id,
+    name: v.name,
+  }));
+  const defaultAccountId =
+    (vehicles.data ?? []).find((v) => v.is_default)?.id ?? null;
 
   async function onSubmit(input: TransactionFormSubmit) {
     setError(null);
@@ -64,6 +72,7 @@ export default function NewTransactionScreen() {
           category: input.category,
           note: input.note,
           occurred_at: input.occurred_at,
+          vehicle_id: input.vehicle_id ?? null,
         });
       }
       router.back();
@@ -82,6 +91,8 @@ export default function NewTransactionScreen() {
         allowRepeat
         allowVoice
         initial={initial}
+        accounts={accounts}
+        defaultAccountId={defaultAccountId}
         submitLabel="Save"
         busy={busy}
         error={error}

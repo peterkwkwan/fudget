@@ -95,6 +95,8 @@ function mirror(
     currency: 'HKD',
     recurring_series_id: null,
     occurrence_key: null,
+
+    vehicle_id: null,
     deleted_at: null,
     created_at: '2026-10-01T00:00:00.000Z',
     updated_at: '2026-10-01T00:00:00.000Z',
@@ -122,6 +124,8 @@ function asRemote(
     currency: 'HKD',
     recurring_series_id: null,
     occurrence_key: null,
+
+    vehicle_id: null,
     deleted_at: null,
     ...row,
   };

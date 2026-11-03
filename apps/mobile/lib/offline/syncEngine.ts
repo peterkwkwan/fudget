@@ -3,6 +3,7 @@
  * Tie on `updated_at` keeps the remote row. A failed push stays in the outbox.
  * DB / NetInfo / ids are static so offline settle does not need a Metro fetch.
  */
+import type { PlannerVehicle } from '@/lib/plannerVehicles';
 import type { Transaction } from '@/lib/transactionModel';
 
 import { getOfflineDb } from './db';
@@ -18,12 +19,18 @@ import {
   type SqlExecutor,
 } from './schema';
 import type {
+  BalanceSnapshotPayload,
   OutboxOp,
   OutboxRow,
   PendingOp,
   SyncMetaRow,
   TransactionLocalRow,
 } from './types';
+import {
+  removeVehiclesLocal,
+  replaceVehiclesLocal,
+  vehicleFromRemote,
+} from './vehiclesLocal';
 
 /** Full pull cursor. Every real `updated_at` is after this. */
 export const FULL_PULL_SINCE = '1970-01-01T00:00:00.000Z';
@@ -48,6 +55,12 @@ export type SyncRemote = {
   getTransaction(id: string): Promise<Transaction | null>;
   /** Includes soft-deleted tombstones, ordered by `updated_at`. */
   listTransactionsSince(since: string): Promise<Transaction[]>;
+  /** Push absolute Planner balances after a linked txn ack. */
+  applyBalanceSnapshots?(
+    snapshots: readonly BalanceSnapshotPayload[]
+  ): Promise<void>;
+  /** Refresh the on-device Planner account cache. */
+  listVehicles?(): Promise<PlannerVehicle[]>;
 };
 
 export type SyncEngineOptions = {
@@ -146,6 +159,7 @@ export async function clearOfflineUserData(
     await db.run('DELETE FROM transactions_local WHERE user_id = ?', [userId]);
     await db.run('DELETE FROM sync_meta WHERE user_id = ?', [userId]);
     await db.run('DELETE FROM category_cache WHERE user_id = ?', [userId]);
+    await removeVehiclesLocal(db, userId);
   });
 }
 
@@ -316,6 +330,7 @@ export async function syncNow(
   const remote = options?.remote ?? (await defaultRemote());
   const push = await pushOutbox(db, userId, remote, options);
   const pull = await pullRemote(db, userId, remote, options);
+  await pullVehicles(db, userId, remote);
   if (push.firstError) {
     const meta = await readSyncMeta(db, userId);
     await writeSyncMeta(db, {
@@ -334,6 +349,26 @@ export async function syncNow(
     keptLocal: pull.keptLocal,
     lastPulledAt: pull.lastPulledAt,
   };
+}
+
+/** Replace the Planner account cache from the server (best-effort). */
+export async function pullVehicles(
+  db: SqlExecutor,
+  userId: string,
+  remote: SyncRemote
+): Promise<void> {
+  if (!remote.listVehicles) return;
+  try {
+    const rows = await remote.listVehicles();
+    const own = rows
+      .filter((row) => row.user_id === userId)
+      .map(vehicleFromRemote);
+    await replaceVehiclesLocal(db, userId, own);
+  } catch (error) {
+    logOffline('vehicle pull failed', { op: 'pull' });
+    // Account picker can keep the last cache; txn sync still succeeded.
+    void error;
+  }
 }
 
 /**
@@ -375,16 +410,20 @@ async function pushOne(
 ): Promise<{ status: PushOneStatus; error: string | null }> {
   try {
     if (row.op === 'create') {
-      const payload = requireLocalRow(JSON.parse(row.payload_json), row);
+      const parsed = JSON.parse(row.payload_json);
+      const payload = requireLocalRow(parsed, row);
+      const snapshots = readBalanceSnapshots(parsed);
       try {
         const saved = await remote.createTransaction(payload);
         const acked = await ackOutbox(db, row, saved);
+        if (acked) await pushBalanceSnapshots(remote, snapshots);
         return acked
           ? { status: 'acked', error: null }
           : { status: 'stale', error: null };
       } catch (error) {
         if (!isUniqueViolation(error)) throw error;
         const acked = await ackOutbox(db, row, null);
+        if (acked) await pushBalanceSnapshots(remote, snapshots);
         return acked
           ? { status: 'acked', error: null }
           : { status: 'stale', error: null };
@@ -410,10 +449,13 @@ async function pushUpdate(
   remote: SyncRemote,
   options?: SyncEngineOptions
 ): Promise<{ status: PushOneStatus; error: string | null }> {
-  const payload = requireLocalRow(JSON.parse(row.payload_json), row);
+  const parsed = JSON.parse(row.payload_json);
+  const payload = requireLocalRow(parsed, row);
+  const snapshots = readBalanceSnapshots(parsed);
   const applied = await remote.updateTransaction(payload, row.base_updated_at);
   if (applied) {
     const acked = await ackOutbox(db, row, applied);
+    if (acked) await pushBalanceSnapshots(remote, snapshots);
     return acked
       ? { status: 'acked', error: null }
       : { status: 'stale', error: null };
@@ -448,6 +490,7 @@ async function pushUpdate(
       return { status: 'failed', error: message };
     }
     const acked = await ackOutbox(db, row, forced);
+    if (acked) await pushBalanceSnapshots(remote, snapshots);
     return acked
       ? { status: 'acked', error: null }
       : { status: 'stale', error: null };
@@ -478,7 +521,9 @@ async function pushSoftDelete(
   remote: SyncRemote,
   options?: SyncEngineOptions
 ): Promise<{ status: PushOneStatus; error: string | null }> {
-  const payload = requireDeletePayload(JSON.parse(row.payload_json));
+  const parsed = JSON.parse(row.payload_json);
+  const payload = requireDeletePayload(parsed);
+  const snapshots = readBalanceSnapshots(parsed);
   const applied = await remote.softDeleteTransaction(
     row.entity_id,
     payload.deleted_at,
@@ -486,6 +531,7 @@ async function pushSoftDelete(
   );
   if (applied) {
     const acked = await ackOutbox(db, row, null);
+    if (acked) await pushBalanceSnapshots(remote, snapshots);
     return acked
       ? { status: 'acked', error: null }
       : { status: 'stale', error: null };
@@ -503,6 +549,7 @@ async function pushSoftDelete(
   }
   if (current.deleted_at) {
     const acked = await ackOutbox(db, row, current);
+    if (acked) await pushBalanceSnapshots(remote, snapshots);
     return acked
       ? { status: 'acked', error: null }
       : { status: 'stale', error: null };
@@ -526,6 +573,7 @@ async function pushSoftDelete(
       return { status: 'failed', error: message };
     }
     const acked = await ackOutbox(db, row, null);
+    if (acked) await pushBalanceSnapshots(remote, snapshots);
     return acked
       ? { status: 'acked', error: null }
       : { status: 'stale', error: null };
@@ -535,6 +583,30 @@ async function pushSoftDelete(
   return merged === 'applied'
     ? { status: 'dropped', error: null }
     : { status: 'stale', error: null };
+}
+
+async function pushBalanceSnapshots(
+  remote: SyncRemote,
+  snapshots: BalanceSnapshotPayload[]
+): Promise<void> {
+  if (snapshots.length === 0 || !remote.applyBalanceSnapshots) return;
+  await remote.applyBalanceSnapshots(snapshots);
+}
+
+function readBalanceSnapshots(value: unknown): BalanceSnapshotPayload[] {
+  if (!value || typeof value !== 'object') return [];
+  const raw = (value as { balance_snapshots?: unknown }).balance_snapshots;
+  if (!Array.isArray(raw)) return [];
+  const out: BalanceSnapshotPayload[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const vehicle_id = (item as { vehicle_id?: unknown }).vehicle_id;
+    const balance = (item as { balance?: unknown }).balance;
+    if (typeof vehicle_id !== 'string' || typeof balance !== 'number') continue;
+    if (!(balance >= 0) || Number.isNaN(balance)) continue;
+    out.push({ vehicle_id, balance });
+  }
+  return out;
 }
 
 async function ackOutbox(
@@ -654,6 +726,7 @@ function localFromRemote(remote: Transaction): TransactionLocalRow {
     occurred_at: remote.occurred_at,
     recurring_series_id: remote.recurring_series_id,
     occurrence_key: remote.occurrence_key,
+    vehicle_id: remote.vehicle_id ?? null,
     deleted_at: remote.deleted_at,
     created_at: remote.created_at,
     updated_at: remote.updated_at,
@@ -723,6 +796,8 @@ function requireLocalRow(
     occurred_at: payload.occurred_at,
     recurring_series_id: payload.recurring_series_id ?? null,
     occurrence_key: payload.occurrence_key ?? null,
+    vehicle_id:
+      typeof payload.vehicle_id === 'string' ? payload.vehicle_id : null,
     deleted_at: payload.deleted_at ?? null,
     created_at:
       typeof payload.created_at === 'string' ? payload.created_at : updatedAt,
@@ -788,6 +863,7 @@ async function defaultRemote(): Promise<SyncRemote> {
   // Only used while online. Keep dynamic so syncEngine unit tests do not
   // need the full Supabase transactions module graph.
   const tx = await import('../transactions');
+  const vehicles = await import('../plannerVehicles');
   return {
     createTransaction(row) {
       return tx.insertOwnTransaction(row);
@@ -803,6 +879,12 @@ async function defaultRemote(): Promise<SyncRemote> {
     },
     listTransactionsSince(since) {
       return tx.listTransactionsSince(since);
+    },
+    applyBalanceSnapshots(snapshots) {
+      return tx.applyVehicleBalanceSnapshots(snapshots);
+    },
+    listVehicles() {
+      return vehicles.listPlannerVehicles();
     },
   };
 }

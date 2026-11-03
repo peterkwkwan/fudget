@@ -7,6 +7,15 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 
 import { useAuth } from '@/lib/auth';
+import { useConnectivity } from '@/hooks/useConnectivity';
+import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
+import { getOfflineDb } from '@/lib/offline/db';
+import {
+  listActiveVehiclesLocal,
+  replaceVehiclesLocal,
+  toPlannerVehicleLite,
+  vehicleFromRemote,
+} from '@/lib/offline/vehiclesLocal';
 import {
   createPlannerGoal,
   deleteContributionEvent,
@@ -27,6 +36,7 @@ import {
   plannerVehicleKeys,
   softDeletePlannerVehicle,
   updatePlannerVehicle,
+  type PlannerVehicle,
   type PlannerVehicleInput,
 } from '@/lib/plannerVehicles';
 
@@ -35,11 +45,75 @@ function invalidatePlanner(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: plannerVehicleKeys.all });
 }
 
+/** Online: fetch + cache. Offline: read the local vehicles mirror. */
+async function listVehiclesForUi(online: boolean): Promise<PlannerVehicle[]> {
+  if (!OFFLINE_TXNS_ENABLED) {
+    return listPlannerVehicles();
+  }
+  if (!online) {
+    const db = await getOfflineDb();
+    const { data: sessionData } = await (
+      await import('@/lib/supabase')
+    ).supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (!userId) return [];
+    const rows = await listActiveVehiclesLocal(db, userId);
+    // Lite rows are enough for Account picker / balances; fill defaults for type.
+    return rows.map((row) => ({
+      ...emptyVehicleShape(toPlannerVehicleLite(row)),
+    }));
+  }
+  const remote = await listPlannerVehicles();
+  try {
+    const db = await getOfflineDb();
+    const userId = remote[0]?.user_id;
+    if (userId) {
+      await replaceVehiclesLocal(
+        db,
+        userId,
+        remote.map(vehicleFromRemote)
+      );
+    } else {
+      const { data: sessionData } = await (
+        await import('@/lib/supabase')
+      ).supabase.auth.getSession();
+      const uid = sessionData.session?.user.id;
+      if (uid) await replaceVehiclesLocal(db, uid, []);
+    }
+  } catch {
+    // Cache miss is fine; remote list still returned.
+  }
+  return remote;
+}
+
+function emptyVehicleShape(
+  lite: ReturnType<typeof toPlannerVehicleLite>
+): PlannerVehicle {
+  return {
+    id: lite.id,
+    user_id: lite.user_id,
+    name: lite.name,
+    vehicle_type: 'other',
+    balance: lite.balance,
+    annual_rate: 0,
+    growth_mode: 'grow',
+    compound_period: 'yearly',
+    plan_amount: null,
+    plan_cadence: null,
+    notes: null,
+    is_default: lite.is_default,
+    deleted_at: lite.deleted_at,
+    created_at: lite.updated_at,
+    updated_at: lite.updated_at,
+  };
+}
+
 export function usePlannerVehicles() {
   const queryClient = useQueryClient();
+  const { online } = useConnectivity();
   const query = useQuery({
-    queryKey: plannerVehicleKeys.list(),
-    queryFn: listPlannerVehicles,
+    queryKey: [...plannerVehicleKeys.list(), online ? 'online' : 'offline'],
+    queryFn: () => listVehiclesForUi(online),
   });
 
   useFocusEffect(

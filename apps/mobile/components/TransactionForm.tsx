@@ -50,6 +50,13 @@ export type TransactionFormValues = {
   category: string;
   note: string;
   occurredAt: Date;
+  /** Optional Planner account id; null = None. */
+  vehicleId: string | null;
+};
+
+export type TransactionAccountOption = {
+  id: string;
+  name: string;
 };
 
 /** One-off txn fields plus optional repeat rule for Add Transaction. */
@@ -70,6 +77,16 @@ type Props = {
   banner?: ReactNode;
   /** Amber dot beside Category when a local edit is waiting to sync. */
   pendingSync?: boolean;
+  /**
+   * Planner accounts for the optional Account picker.
+   * Hidden when empty — never invent accounts here.
+   */
+  accounts?: TransactionAccountOption[];
+  /**
+   * Preselect on create when the form has no initial vehicleId.
+   * Ignored when `initial.vehicleId` is set (including explicit null on edit).
+   */
+  defaultAccountId?: string | null;
   onSubmit: (input: TransactionFormSubmit) => void;
   onDelete?: () => void;
   deleteBusy?: boolean;
@@ -84,6 +101,8 @@ export function TransactionForm({
   allowVoice = false,
   banner,
   pendingSync = false,
+  accounts = [],
+  defaultAccountId = null,
   onSubmit,
   onDelete,
   deleteBusy = false,
@@ -97,7 +116,17 @@ export function TransactionForm({
   );
   const [note, setNote] = useState(initial?.note ?? '');
   const [occurredAt, setOccurredAt] = useState(initial?.occurredAt ?? new Date());
+  const [vehicleId, setVehicleId] = useState<string | null>(() => {
+    if (initial && 'vehicleId' in initial) {
+      return initial.vehicleId ?? null;
+    }
+    if (defaultAccountId && accounts.some((a) => a.id === defaultAccountId)) {
+      return defaultAccountId;
+    }
+    return null;
+  });
   const [showPicker, setShowPicker] = useState(false);
+  const [showAccountSheet, setShowAccountSheet] = useState(false);
   const [repeatRule, setRepeatRule] = useState<RepeatRule | null>(null);
   const [showRepeatSheet, setShowRepeatSheet] = useState(false);
   const [showCustomSheet, setShowCustomSheet] = useState(false);
@@ -121,6 +150,40 @@ export function TransactionForm({
     setShowRepeatSheet(false);
     setShowCustomSheet(false);
   }, [repeatBlocked]);
+
+  const initialHadVehicle = initial != null && 'vehicleId' in initial;
+  const [defaultApplied, setDefaultApplied] = useState(initialHadVehicle);
+
+  // Preselect default once accounts arrive on create (not edit).
+  useEffect(() => {
+    if (defaultApplied || initialHadVehicle) return;
+    if (!defaultAccountId) {
+      if (accounts.length > 0) setDefaultApplied(true);
+      return;
+    }
+    if (accounts.some((a) => a.id === defaultAccountId)) {
+      setVehicleId(defaultAccountId);
+      setDefaultApplied(true);
+    }
+  }, [
+    accounts,
+    defaultAccountId,
+    defaultApplied,
+    initialHadVehicle,
+  ]);
+
+  // Drop a stale selection if the account list shrinks (e.g. deleted offline).
+  useEffect(() => {
+    if (vehicleId == null) return;
+    if (!accounts.some((a) => a.id === vehicleId)) {
+      setVehicleId(null);
+    }
+  }, [accounts, vehicleId]);
+
+  // One-off only: recurring series do not carry an account link in MVP.
+  useEffect(() => {
+    if (repeatRule != null) setVehicleId(null);
+  }, [repeatRule]);
 
   const applyVoiceDraft = useCallback((draft: VoiceDraft) => {
     setAmount(formatAmountInput(draft.amount));
@@ -177,19 +240,27 @@ export function TransactionForm({
       return;
     }
 
+    const repeat =
+      allowRepeat && !repeatBlocked ? repeatRule : null;
     onSubmit({
       amount: Math.round(parsed * 100) / 100,
       type,
       category,
       note: note.trim() || null,
       occurred_at: occurredAt.toISOString(),
-      repeat: allowRepeat && !repeatBlocked ? repeatRule : null,
+      vehicle_id: repeat != null ? null : vehicleId,
+      repeat,
     });
   }
 
   const categories = pickerCategories(type, customs);
   const displayError = localError ?? error ?? (allowVoice ? voice.error : null);
   const highlightVoice = voiceFilled && allowVoice;
+  const showAccount = accounts.length > 0 && repeatRule == null;
+  const selectedAccountName =
+    vehicleId == null
+      ? 'None'
+      : (accounts.find((a) => a.id === vehicleId)?.name ?? 'None');
 
   return (
     <View style={styles.root}>
@@ -356,6 +427,24 @@ export function TransactionForm({
           </CaptionText>
         ) : null}
 
+        {showAccount ? (
+          <>
+            <CaptionText style={styles.label}>Account (optional)</CaptionText>
+            <Pressable
+              style={styles.input}
+              onPress={() => setShowAccountSheet(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Choose Planner account"
+            >
+              <Text style={styles.dateText}>{selectedAccountName}</Text>
+            </Pressable>
+            <CaptionText style={styles.hint}>
+              Income adds to the account; expense subtracts. Leave as None to
+              skip.
+            </CaptionText>
+          </>
+        ) : null}
+
         <CaptionText style={styles.label}>Note (optional)</CaptionText>
         <TextInput
           style={[styles.input, styles.noteInput]}
@@ -479,6 +568,90 @@ export function TransactionForm({
             setShowCustomSheet(false);
           }}
         />
+
+        <Modal
+          visible={showAccountSheet}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowAccountSheet(false)}
+        >
+          <Pressable
+            style={styles.sheetScrim}
+            onPress={() => setShowAccountSheet(false)}
+            accessibilityLabel="Dismiss account options"
+          >
+            <Pressable
+              style={styles.sheet}
+              onPress={(e) => e.stopPropagation()}
+              accessibilityViewIsModal
+            >
+              <TitleText style={styles.sheetTitle}>Account</TitleText>
+              <CaptionText style={styles.sheetSubtitle}>
+                Link this transaction to a Planner account, or leave None.
+              </CaptionText>
+              <ScrollView style={styles.sheetList}>
+                <Pressable
+                  style={[
+                    styles.sheetRow,
+                    vehicleId == null && styles.sheetRowSelected,
+                  ]}
+                  onPress={() => {
+                    setVehicleId(null);
+                    setShowAccountSheet(false);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: vehicleId == null }}
+                >
+                  <StrongText
+                    style={[
+                      styles.sheetRowText,
+                      vehicleId == null && styles.sheetRowTextSelected,
+                    ]}
+                  >
+                    None
+                  </StrongText>
+                </Pressable>
+                {accounts.map((account) => {
+                  const selected = vehicleId === account.id;
+                  return (
+                    <Pressable
+                      key={account.id}
+                      style={[
+                        styles.sheetRow,
+                        selected && styles.sheetRowSelected,
+                      ]}
+                      onPress={() => {
+                        setVehicleId(account.id);
+                        setShowAccountSheet(false);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                    >
+                      <StrongText
+                        style={[
+                          styles.sheetRowText,
+                          selected && styles.sheetRowTextSelected,
+                        ]}
+                      >
+                        {account.name}
+                      </StrongText>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <Pressable
+                style={styles.sheetCancel}
+                onPress={() => setShowAccountSheet(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
+                <StrongText style={{ color: colors.green[700] }}>
+                  Cancel
+                </StrongText>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </ScrollView>
 
       <View style={styles.footer}>

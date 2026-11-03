@@ -26,6 +26,8 @@ export type Transaction = {
   occurred_at: string;
   recurring_series_id: string | null;
   occurrence_key: string | null;
+  /** Optional Planner account (`planner_vehicles.id`). */
+  vehicle_id: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -37,6 +39,8 @@ export type TransactionInput = {
   category: string;
   note?: string | null;
   occurred_at: string;
+  /** Optional Planner account; null/omit = unlinked. */
+  vehicle_id?: string | null;
 };
 
 export type TransactionBulkPatch = {
@@ -84,6 +88,7 @@ export function inputFromBulkPatch(
     category,
     note: patch.note !== undefined ? patch.note : row.note,
     occurred_at: patch.occurred_at ?? row.occurred_at,
+    vehicle_id: row.vehicle_id,
   };
 }
 

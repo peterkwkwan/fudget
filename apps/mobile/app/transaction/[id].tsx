@@ -16,6 +16,7 @@ import {
 } from '@/components/TransactionForm';
 import { colors, radius, space } from '@/constants/theme';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
+import { usePlannerVehicles } from '@/hooks/usePlanner';
 import { CATEGORY_FIX_COPY, REPEAT_BLOCKED_COPY } from '@/lib/offline/ux';
 import { userFacingOfflineWriteError } from '@/lib/offline/writeError';
 import {
@@ -30,11 +31,16 @@ export default function EditTransactionScreen() {
   const { data, isLoading, isError, error } = useTransaction(id);
   const update = useUpdateTransaction(id ?? '');
   const softDelete = useSoftDeleteTransaction();
+  const vehicles = usePlannerVehicles();
   const { pendingIds, categoryFixIds, recurringBlocked, banner } =
     useOfflineGates();
   const pending = Boolean(id && pendingIds.has(id));
   const categoryFix = Boolean(id && categoryFixIds.has(id));
   const [formError, setFormError] = useState<string | null>(null);
+  const accounts = (vehicles.data ?? []).map((v) => ({
+    id: v.id,
+    name: v.name,
+  }));
 
   async function onSubmit(input: TransactionFormSubmit) {
     if (!id) return;
@@ -46,6 +52,7 @@ export default function EditTransactionScreen() {
         category: input.category,
         note: input.note,
         occurred_at: input.occurred_at,
+        vehicle_id: input.vehicle_id ?? null,
       });
       router.back();
     } catch (err) {
@@ -155,7 +162,9 @@ export default function EditTransactionScreen() {
           category: data.category,
           note: data.note ?? '',
           occurredAt: new Date(data.occurred_at),
+          vehicleId: data.vehicle_id,
         }}
+        accounts={accounts}
         submitLabel="Save changes"
         busy={update.isPending}
         deleteBusy={softDelete.isPending}

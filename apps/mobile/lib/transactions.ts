@@ -13,6 +13,11 @@ import {
   type TransactionBulkPatch,
   type TransactionInput,
 } from '@/lib/transactionModel';
+import {
+  applyBalanceDelta,
+  balanceDeltasForTxnChange,
+  type LinkedTxnEffect,
+} from '@/lib/vehicleBalance';
 
 import { supabase } from './supabase';
 
@@ -42,10 +47,19 @@ function mapRow(row: Record<string, unknown>): Transaction {
     occurred_at: String(row.occurred_at),
     recurring_series_id: (row.recurring_series_id as string | null) ?? null,
     occurrence_key: (row.occurrence_key as string | null) ?? null,
+    vehicle_id: (row.vehicle_id as string | null) ?? null,
     deleted_at: (row.deleted_at as string | null) ?? null,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };
+}
+
+function normalizeVehicleId(
+  vehicleId: string | null | undefined
+): string | null {
+  if (vehicleId == null) return null;
+  const trimmed = vehicleId.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 /** Active (non–soft-deleted) rows for the signed-in user, newest first. */
@@ -90,6 +104,7 @@ export async function createTransaction(
   }
 
   const note = input.note?.trim() ? input.note.trim() : null;
+  const vehicle_id = normalizeVehicleId(input.vehicle_id);
 
   const { data, error } = await supabase
     .from('transactions')
@@ -101,6 +116,7 @@ export async function createTransaction(
       note,
       currency,
       occurred_at: input.occurred_at,
+      vehicle_id,
     })
     .select('*')
     .single();
@@ -109,7 +125,13 @@ export async function createTransaction(
     throw new Error(error.message);
   }
 
-  return mapRow(data as Record<string, unknown>);
+  const saved = mapRow(data as Record<string, unknown>);
+  await applyRemoteBalanceForChange(null, {
+    vehicle_id: saved.vehicle_id,
+    type: saved.type,
+    amount: saved.amount,
+  });
+  return saved;
 }
 
 export async function updateTransaction(
@@ -121,7 +143,13 @@ export async function updateTransaction(
     throw new Error(validationError);
   }
 
+  const existing = await getTransaction(id);
+  if (!existing) {
+    throw new Error('Transaction not found.');
+  }
+
   const note = input.note?.trim() ? input.note.trim() : null;
+  const vehicle_id = normalizeVehicleId(input.vehicle_id);
 
   const { data, error } = await supabase
     .from('transactions')
@@ -131,6 +159,7 @@ export async function updateTransaction(
       category: input.category,
       note,
       occurred_at: input.occurred_at,
+      vehicle_id,
     })
     .eq('id', id)
     .is('deleted_at', null)
@@ -141,11 +170,26 @@ export async function updateTransaction(
     throw new Error(error.message);
   }
 
-  return mapRow(data as Record<string, unknown>);
+  const saved = mapRow(data as Record<string, unknown>);
+  await applyRemoteBalanceForChange(
+    {
+      vehicle_id: existing.vehicle_id,
+      type: existing.type,
+      amount: existing.amount,
+    },
+    {
+      vehicle_id: saved.vehicle_id,
+      type: saved.type,
+      amount: saved.amount,
+    }
+  );
+  return saved;
 }
 
 /** Soft-delete: sets deleted_at; row stays in DB and is hidden from default lists. */
 export async function softDeleteTransaction(id: string): Promise<void> {
+  const existing = await getTransaction(id);
+
   const { error } = await supabase
     .from('transactions')
     .update({ deleted_at: new Date().toISOString() })
@@ -154,6 +198,17 @@ export async function softDeleteTransaction(id: string): Promise<void> {
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (existing) {
+    await applyRemoteBalanceForChange(
+      {
+        vehicle_id: existing.vehicle_id,
+        type: existing.type,
+        amount: existing.amount,
+      },
+      null
+    );
   }
 }
 
@@ -250,7 +305,50 @@ export type OwnTransactionInsert = {
   updated_at: string;
   recurring_series_id?: string | null;
   occurrence_key?: string | null;
+  vehicle_id?: string | null;
 };
+
+/**
+ * Apply linked-account balance deltas on the server after a UI write.
+ * Sync push uses absolute snapshots instead (see offline outbox).
+ */
+async function applyRemoteBalanceForChange(
+  prev: LinkedTxnEffect | null,
+  next: LinkedTxnEffect | null
+): Promise<void> {
+  const deltas = balanceDeltasForTxnChange(prev, next);
+  for (const { vehicle_id, delta } of deltas) {
+    const { data, error } = await supabase
+      .from('planner_vehicles')
+      .select('balance')
+      .eq('id', vehicle_id)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) continue;
+    const nextBalance = applyBalanceDelta(Number(data.balance), delta);
+    const { error: updateError } = await supabase
+      .from('planner_vehicles')
+      .update({ balance: nextBalance })
+      .eq('id', vehicle_id)
+      .is('deleted_at', null);
+    if (updateError) throw new Error(updateError.message);
+  }
+}
+
+/** Push absolute balances after an offline outbox ack (coalesced snapshots). */
+export async function applyVehicleBalanceSnapshots(
+  snapshots: ReadonlyArray<{ vehicle_id: string; balance: number }>
+): Promise<void> {
+  for (const snap of snapshots) {
+    const { error } = await supabase
+      .from('planner_vehicles')
+      .update({ balance: applyBalanceDelta(snap.balance, 0) })
+      .eq('id', snap.vehicle_id)
+      .is('deleted_at', null);
+    if (error) throw new Error(error.message);
+  }
+}
 
 /** Insert a client-id row. Used by outbox create. Duplicate id throws with code 23505. */
 export async function insertOwnTransaction(
@@ -271,6 +369,7 @@ export async function insertOwnTransaction(
       updated_at: row.updated_at,
       recurring_series_id: row.recurring_series_id ?? null,
       occurrence_key: row.occurrence_key ?? null,
+      vehicle_id: normalizeVehicleId(row.vehicle_id),
     })
     .select('*')
     .single();
@@ -295,6 +394,7 @@ export async function updateOwnTransaction(
     category: row.category,
     note: row.note,
     occurred_at: row.occurred_at,
+    vehicle_id: normalizeVehicleId(row.vehicle_id),
     deleted_at: null as string | null,
   };
 

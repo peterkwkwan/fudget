@@ -23,6 +23,8 @@ export type PlannerVehicle = {
   plan_amount: number | null;
   plan_cadence: PlanCadence | null;
   notes: string | null;
+  /** At most one active default per user; preselected on Add Transaction. */
+  is_default: boolean;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -38,6 +40,7 @@ export type PlannerVehicleInput = {
   plan_amount?: number | null;
   plan_cadence?: PlanCadence | null;
   notes?: string | null;
+  is_default?: boolean;
 };
 
 function mapRow(row: Record<string, unknown>): PlannerVehicle {
@@ -59,6 +62,7 @@ function mapRow(row: Record<string, unknown>): PlannerVehicle {
         ? (String(row.plan_cadence) as PlanCadence)
         : null,
     notes: (row.notes as string | null) ?? null,
+    is_default: Boolean(row.is_default),
     deleted_at: (row.deleted_at as string | null) ?? null,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
@@ -137,6 +141,24 @@ export async function getPlannerVehicle(
   return mapRow(data as Record<string, unknown>);
 }
 
+/** Clear other defaults for this user so at most one stays true. */
+async function clearOtherDefaults(
+  userId: string,
+  keepId: string | null
+): Promise<void> {
+  let query = supabase
+    .from('planner_vehicles')
+    .update({ is_default: false })
+    .eq('user_id', userId)
+    .eq('is_default', true)
+    .is('deleted_at', null);
+  if (keepId) {
+    query = query.neq('id', keepId);
+  }
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+}
+
 export async function createPlannerVehicle(
   userId: string,
   input: PlannerVehicleInput
@@ -147,6 +169,11 @@ export async function createPlannerVehicle(
   const growth_mode = growthFor(input);
   const compound_period = input.compound_period ?? 'yearly';
   const notes = input.notes?.trim() ? input.notes.trim() : null;
+  const is_default = Boolean(input.is_default);
+
+  if (is_default) {
+    await clearOtherDefaults(userId, null);
+  }
 
   const { data, error } = await supabase
     .from('planner_vehicles')
@@ -161,6 +188,7 @@ export async function createPlannerVehicle(
       plan_amount: input.plan_amount ?? null,
       plan_cadence: input.plan_cadence ?? null,
       notes,
+      is_default,
     })
     .select('*')
     .single();
@@ -179,6 +207,14 @@ export async function updatePlannerVehicle(
   const growth_mode = growthFor(input);
   const compound_period = input.compound_period ?? 'yearly';
   const notes = input.notes?.trim() ? input.notes.trim() : null;
+  const is_default = Boolean(input.is_default);
+
+  const existing = await getPlannerVehicle(id);
+  if (!existing) throw new Error('Account not found.');
+
+  if (is_default) {
+    await clearOtherDefaults(existing.user_id, id);
+  }
 
   const { data, error } = await supabase
     .from('planner_vehicles')
@@ -192,6 +228,7 @@ export async function updatePlannerVehicle(
       plan_amount: input.plan_amount ?? null,
       plan_cadence: input.plan_cadence ?? null,
       notes,
+      is_default,
     })
     .eq('id', id)
     .is('deleted_at', null)
