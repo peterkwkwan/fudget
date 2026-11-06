@@ -10,9 +10,9 @@ import {
   View,
 } from 'react-native';
 
-import { ConnectionRequired } from '@/components/ConnectionRequired';
 import { PlusIcon } from '@/components/icons';
 import { LinkedAccountLinks } from '@/components/planner/LinkedAccountLinks';
+import { PartnerCollapsibleCard } from '@/components/planner/PartnerCollapsibleCard';
 import { ProjectionChart } from '@/components/planner/ProjectionChart';
 import { ProjectionDisclaimerInfo } from '@/components/planner/ProjectionDisclaimerInfo';
 import { ProjectionEmptyWell } from '@/components/planner/ProjectionEmptyWell';
@@ -29,10 +29,15 @@ import {
   type HorizonPresetKey,
 } from '@/constants/planner';
 import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { useAuth } from '@/lib/auth';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
+import { usePartnerLink } from '@/hooks/usePartner';
 import {
+  usePartnerPlannerGoals,
+  usePartnerPlannerVehicles,
   usePlannerGoals,
   usePlannerVehicles,
+  warmPartnerPlannerMirror,
 } from '@/hooks/usePlanner';
 import {
   type ChartFocusSelection,
@@ -44,7 +49,7 @@ import {
   saveChartFocus,
 } from '@/lib/plannerChartFocus';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
-import { PLANNER_OFFLINE_COPY } from '@/lib/offline/ux';
+import { PLANNER_WRITE_OFFLINE_COPY } from '@/lib/offline/ux';
 import { guardedPush } from '@/lib/navGuard';
 import {
   goalEffectiveSaved,
@@ -54,6 +59,7 @@ import {
   type PaceStatus,
   type ProjectVehicleInput,
 } from '@/lib/plannerMath';
+import type { PlannerGoal } from '@/lib/plannerGoals';
 import type { PlannerVehicle } from '@/lib/plannerVehicles';
 
 /** Near-white empty fill — lighter than surfaceMuted (#f5f5f7). */
@@ -61,6 +67,13 @@ const EMPTY_FILL = '#fafafa';
 
 const ADD_VEHICLE = '/planner/vehicle/new';
 const ADD_GOAL = '/planner/goal/new';
+
+type PlannerScope = 'personal' | 'pair';
+
+const SCOPE_OPTIONS = [
+  { value: 'personal', label: 'Personal' },
+  { value: 'pair', label: 'Pair' },
+] as const satisfies readonly { value: PlannerScope; label: string }[];
 
 function paceLabel(status: PaceStatus): string {
   switch (status) {
@@ -101,10 +114,19 @@ function toProjectInput(v: PlannerVehicle): ProjectVehicleInput {
 
 export default function PlannerScreen() {
   const { format } = useFormatMoney();
+  const { user } = useAuth();
   const router = useRouter();
   const vehicles = usePlannerVehicles();
   const goals = usePlannerGoals();
+  const partnerLink = usePartnerLink();
+  const isPaired = partnerLink.data?.status === 'active';
+  const partnerId = isPaired ? partnerLink.data?.partnerId ?? null : null;
+  const partnerName =
+    partnerLink.data?.partnerDisplayName?.trim() || 'partner';
+  const partnerVehicles = usePartnerPlannerVehicles(partnerId);
+  const partnerGoals = usePartnerPlannerGoals(partnerId);
 
+  const [scope, setScope] = useState<PlannerScope>('personal');
   const [horizonKey, setHorizonKey] = useState<HorizonPresetKey>('10y');
   const [customYears, setCustomYears] = useState('15');
   const [storedFocus, setStoredFocus] = useState<ChartFocusSelection | null>(
@@ -112,7 +134,18 @@ export default function PlannerScreen() {
   );
   const [prefsReady, setPrefsReady] = useState(false);
   const { edges, scrollProps } = useScrollEdges();
-  const { plannerBlocked } = useOfflineGates();
+  const { plannerWriteBlocked } = useOfflineGates();
+
+  useEffect(() => {
+    if (!isPaired && scope === 'pair') {
+      setScope('personal');
+    }
+  }, [isPaired, scope]);
+
+  useEffect(() => {
+    if (!partnerId) return;
+    void warmPartnerPlannerMirror(partnerId);
+  }, [partnerId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +160,14 @@ export default function PlannerScreen() {
     };
   }, []);
 
+  function pushWrite(href: string) {
+    if (plannerWriteBlocked) {
+      // Soft gate: still navigate; write screens show ConnectionRequired.
+      // Prefer keeping list readable offline.
+    }
+    guardedPush(router, href);
+  }
+
   const horizonMonths = useMemo(() => {
     if (horizonKey === 'custom') {
       const y = Number(customYears);
@@ -140,6 +181,14 @@ export default function PlannerScreen() {
 
   const vehicleList = vehicles.data ?? [];
   const goalList = goals.data ?? [];
+  const partnerVehicleList = partnerVehicles.data ?? [];
+  const partnerGoalList = partnerGoals.data ?? [];
+  /** Own goals may link partner accounts — include both for progress math. */
+  const progressVehicles = useMemo(
+    () => [...vehicleList, ...partnerVehicleList],
+    [vehicleList, partnerVehicleList]
+  );
+  const showPair = scope === 'pair' && isPaired;
 
   const chartMode = useMemo(
     () => resolveChartMode(goalList, vehicleList),
@@ -165,14 +214,14 @@ export default function PlannerScreen() {
   const primaryVehicles = useMemo(() => {
     if (!focus) return [] as PlannerVehicle[];
     if (focus.kind === 'goal' && focusedGoal) {
-      return linkedGrowthVehicles(focusedGoal, vehicleList);
+      return linkedGrowthVehicles(focusedGoal, progressVehicles);
     }
     if (focus.kind === 'vehicle') {
       const v = vehicleList.find((x) => x.id === focus.id);
       return v ? [v] : [];
     }
     return [];
-  }, [focus, focusedGoal, vehicleList]);
+  }, [focus, focusedGoal, progressVehicles, vehicleList]);
 
   const projection = useMemo(() => {
     if (primaryVehicles.length === 0) return [];
@@ -187,7 +236,11 @@ export default function PlannerScreen() {
       ? focusedGoal.target_amount
       : null;
 
-  const refreshing = vehicles.isRefetching || goals.isRefetching;
+  const refreshing =
+    vehicles.isRefetching ||
+    goals.isRefetching ||
+    (showPair &&
+      (partnerVehicles.isRefetching || partnerGoals.isRefetching));
   const loading = vehicles.isLoading || goals.isLoading || !prefsReady;
   const error =
     (vehicles.error instanceof Error && vehicles.error.message) ||
@@ -200,11 +253,206 @@ export default function PlannerScreen() {
   const startNet = projection[0]?.netWorth ?? 0;
   const hasGreyedGoals =
     chartMode === 'goal' &&
-    goalList.some((g) => !isChartableGoal(g, vehicleList));
+    goalList.some((g) => !isChartableGoal(g, progressVehicles));
 
   function selectFocus(next: ChartFocusSelection) {
     setStoredFocus(next);
     void saveChartFocus(next);
+  }
+
+  const scopeBlock = isPaired ? (
+    <View style={styles.scopeBlock}>
+      <View style={styles.scopeRow}>
+        {SCOPE_OPTIONS.map((opt) => {
+          const selected = scope === opt.value;
+          return (
+            <Pressable
+              key={opt.value}
+              onPress={() => setScope(opt.value)}
+              style={[styles.scopeChip, selected && styles.scopeChipSelected]}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${opt.label} planner`}
+            >
+              <CaptionText
+                style={[
+                  styles.scopeText,
+                  selected && styles.scopeTextSelected,
+                ]}
+              >
+                {opt.label}
+              </CaptionText>
+            </Pressable>
+          );
+        })}
+      </View>
+      {scope === 'personal' ? (
+        <CaptionText style={styles.scopeHint}>
+          Your accounts and goals. To see {partnerName}&apos;s accounts and
+          goals, click on the &quot;Pair&quot; tab.
+        </CaptionText>
+      ) : (
+        <CaptionText style={styles.scopeHint}>
+          Your lists plus {partnerName}&apos;s accounts and goals (read-only).
+        </CaptionText>
+      )}
+      {plannerWriteBlocked ? (
+        <CaptionText style={styles.scopeHint}>
+          {PLANNER_WRITE_OFFLINE_COPY}
+        </CaptionText>
+      ) : null}
+    </View>
+  ) : null;
+
+  function renderOwnVehicleCard(v: PlannerVehicle) {
+    const detailHref = `/planner/vehicle/${v.id}`;
+    return (
+      <Pressable
+        key={v.id}
+        style={({ pressed }) => [
+          styles.plannerCard,
+          pressed && styles.plannerCardPressed,
+        ]}
+        onPress={() => pushWrite(detailHref)}
+        accessibilityRole="button"
+        accessibilityLabel={`${v.name} account`}
+      >
+        <View style={styles.plannerCardTop}>
+          <StrongText style={styles.plannerCardTitle} numberOfLines={2}>
+            {v.name}
+          </StrongText>
+          <Pressable
+            onPress={() => pushWrite(detailHref)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${v.name}`}
+          >
+            <CaptionText style={styles.editLink}>Edit</CaptionText>
+          </Pressable>
+        </View>
+        <CaptionText style={styles.muted}>
+          {VEHICLE_TYPE_LABELS[v.vehicle_type]} ·{' '}
+          {v.growth_mode === 'grow' ? 'Grows' : 'Shrinks'} · {v.annual_rate}%{' '}
+          {v.compound_period === 'yearly' ? 'yearly' : 'monthly'}
+        </CaptionText>
+        <CaptionText style={styles.muted}>
+          {format(v.balance)}
+          {v.plan_amount != null && v.plan_cadence
+            ? ` · plan ${format(v.plan_amount)} ${PLAN_CADENCE_LABELS[v.plan_cadence].toLowerCase()}`
+            : ''}
+        </CaptionText>
+      </Pressable>
+    );
+  }
+
+  function renderPartnerVehicleRow(v: PlannerVehicle) {
+    return (
+      <View key={v.id} style={styles.partnerRow}>
+        <StrongText style={styles.partnerRowTitle} numberOfLines={1}>
+          {v.name}
+        </StrongText>
+        <CaptionText style={styles.muted}>
+          {VEHICLE_TYPE_LABELS[v.vehicle_type]} · {format(v.balance)}
+        </CaptionText>
+      </View>
+    );
+  }
+
+  function renderOwnGoalCard(g: PlannerGoal) {
+    const saved = goalEffectiveSaved({
+      currentSaved: g.current_saved,
+      vehicleIds: g.vehicle_ids,
+      vehicles: progressVehicles,
+    });
+    const linkedGrowth = linkedGrowthVehicles(g, progressVehicles);
+    const pace = goalPace({
+      targetAmount: g.target_amount,
+      currentSaved: saved,
+      targetDate: g.target_date,
+      createdAt: g.created_at,
+      linkedVehicles: linkedGrowth.map(toProjectInput),
+      planAmount: g.plan_amount,
+      planCadence: g.plan_cadence,
+    });
+    const need = requiredContribution({
+      targetAmount: g.target_amount,
+      currentSaved: saved,
+      targetDate: g.target_date,
+      cadence: g.plan_cadence ?? 'monthly',
+    });
+    const linkedAccounts = progressVehicles
+      .filter((v) => g.vehicle_ids.includes(v.id))
+      .map((v) => ({
+        id: v.id,
+        name: v.name,
+        tappable: v.user_id === user?.id,
+      }));
+    const detailHref = `/planner/goal/${g.id}`;
+    const editHref = `/planner/goal/${g.id}?edit=1`;
+    return (
+      <Pressable
+        key={g.id}
+        style={({ pressed }) => [
+          styles.plannerCard,
+          pressed && styles.plannerCardPressed,
+        ]}
+        onPress={() => guardedPush(router, detailHref)}
+        accessibilityRole="button"
+        accessibilityLabel={`${g.name} goal`}
+      >
+        <View style={styles.plannerCardTop}>
+          <StrongText style={styles.plannerCardTitle} numberOfLines={2}>
+            {g.name}
+          </StrongText>
+          <Pressable
+            onPress={() => pushWrite(editHref)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${g.name}`}
+          >
+            <CaptionText style={styles.editLink}>Edit</CaptionText>
+          </Pressable>
+        </View>
+        <CaptionText
+          style={[styles.muted, { color: paceColor(pace.status) }]}
+        >
+          {GOAL_TYPE_LABELS[g.goal_type]} · {pace.progressPct}% ·{' '}
+          {paceLabel(pace.status)}
+        </CaptionText>
+        <CaptionText style={styles.muted}>
+          {format(saved)} of {format(g.target_amount)}
+          {need != null
+            ? ` · ~${format(need)}/${g.plan_cadence ? PLAN_CADENCE_LABELS[g.plan_cadence].toLowerCase() : 'mo'} to hit date`
+            : ''}
+        </CaptionText>
+        <LinkedAccountLinks
+          accounts={linkedAccounts}
+          label="Linked accounts:"
+          onPressAccount={(accountId) =>
+            pushWrite(`/planner/vehicle/${accountId}`)
+          }
+        />
+      </Pressable>
+    );
+  }
+
+  function renderPartnerGoalRow(g: PlannerGoal) {
+    const saved = goalEffectiveSaved({
+      currentSaved: g.current_saved,
+      vehicleIds: g.vehicle_ids,
+      vehicles: progressVehicles,
+    });
+    return (
+      <View key={g.id} style={styles.partnerRow}>
+        <StrongText style={styles.partnerRowTitle} numberOfLines={1}>
+          {g.name}
+        </StrongText>
+        <CaptionText style={styles.muted}>
+          {GOAL_TYPE_LABELS[g.goal_type]} · {format(saved)} of{' '}
+          {format(g.target_amount)}
+        </CaptionText>
+      </View>
+    );
   }
 
   return (
@@ -219,14 +467,17 @@ export default function PlannerScreen() {
           onRefresh={() => {
             void vehicles.refetch();
             void goals.refetch();
+            void partnerLink.refetch();
+            if (partnerId) {
+              void partnerVehicles.refetch();
+              void partnerGoals.refetch();
+            }
           }}
           tintColor={colors.green[700]}
         />
       }
     >
-      {plannerBlocked ? (
-        <ConnectionRequired message={PLANNER_OFFLINE_COPY} />
-      ) : loading ? (
+      {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.green[700]} />
         </View>
@@ -246,7 +497,14 @@ export default function PlannerScreen() {
         </View>
       ) : (
         <>
-          <View style={[styles.sectionHead, styles.sectionHeadFirst]}>
+          {scopeBlock}
+
+          <View
+            style={[
+              styles.sectionHead,
+              isPaired ? null : styles.sectionHeadFirst,
+            ]}
+          >
             <View style={styles.projectionTitleRow}>
               <TitleText style={styles.sectionTitle}>Projection</TitleText>
               <ProjectionDisclaimerInfo />
@@ -293,7 +551,7 @@ export default function PlannerScreen() {
               <View style={styles.chips}>
                 {chartMode === 'goal'
                   ? goalList.map((g) => {
-                      const chartable = isChartableGoal(g, vehicleList);
+                      const chartable = isChartableGoal(g, progressVehicles);
                       const selected =
                         focus?.kind === 'goal' && focus.id === g.id;
                       return (
@@ -372,9 +630,7 @@ export default function PlannerScreen() {
 
           {!hasVehicles ? (
             <View style={styles.chartBleed}>
-              <ProjectionEmptyWell
-                onPress={() => guardedPush(router, ADD_VEHICLE)}
-              />
+              <ProjectionEmptyWell onPress={() => pushWrite(ADD_VEHICLE)} />
             </View>
           ) : (
             <>
@@ -408,7 +664,7 @@ export default function PlannerScreen() {
             {hasVehicles ? (
               <Pressable
                 style={styles.headerAdd}
-                onPress={() => guardedPush(router, ADD_VEHICLE)}
+                onPress={() => pushWrite(ADD_VEHICLE)}
                 accessibilityRole="button"
                 accessibilityLabel="Add account"
               >
@@ -425,7 +681,7 @@ export default function PlannerScreen() {
                 styles.dashedEmpty,
                 pressed && styles.dashedEmptyPressed,
               ]}
-              onPress={() => guardedPush(router, ADD_VEHICLE)}
+              onPress={() => pushWrite(ADD_VEHICLE)}
               accessibilityRole="button"
               accessibilityLabel="Add account"
             >
@@ -437,55 +693,28 @@ export default function PlannerScreen() {
               <CaptionText style={styles.secondaryText}>Add account</CaptionText>
             </Pressable>
           ) : (
-            vehicleList.map((v) => {
-              const detailHref = `/planner/vehicle/${v.id}`;
-              return (
-                <Pressable
-                  key={v.id}
-                  style={({ pressed }) => [
-                    styles.plannerCard,
-                    pressed && styles.plannerCardPressed,
-                  ]}
-                  onPress={() => guardedPush(router, detailHref)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${v.name} account`}
-                >
-                  <View style={styles.plannerCardTop}>
-                    <StrongText style={styles.plannerCardTitle} numberOfLines={2}>
-                      {v.name}
-                    </StrongText>
-                    <Pressable
-                      onPress={() => guardedPush(router, detailHref)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Edit ${v.name}`}
-                    >
-                      <CaptionText style={styles.editLink}>Edit</CaptionText>
-                    </Pressable>
-                  </View>
-                  <CaptionText style={styles.muted}>
-                    {VEHICLE_TYPE_LABELS[v.vehicle_type]} ·{' '}
-                    {v.growth_mode === 'grow' ? 'Grows' : 'Shrinks'} ·{' '}
-                    {v.annual_rate}%{' '}
-                    {v.compound_period === 'yearly' ? 'yearly' : 'monthly'}
-                  </CaptionText>
-                  <CaptionText style={styles.muted}>
-                    {format(v.balance)}
-                    {v.plan_amount != null && v.plan_cadence
-                      ? ` · plan ${format(v.plan_amount)} ${PLAN_CADENCE_LABELS[v.plan_cadence].toLowerCase()}`
-                      : ''}
-                  </CaptionText>
-                </Pressable>
-              );
-            })
+            vehicleList.map(renderOwnVehicleCard)
           )}
+
+          {showPair ? (
+            <PartnerCollapsibleCard
+              title={`${partnerName}'s accounts`}
+              total={partnerVehicleList.length}
+            >
+              {partnerVehicleList.length === 0 ? (
+                <CaptionText style={styles.muted}>No accounts yet.</CaptionText>
+              ) : (
+                partnerVehicleList.map(renderPartnerVehicleRow)
+              )}
+            </PartnerCollapsibleCard>
+          ) : null}
 
           <View style={styles.sectionHead}>
             <TitleText style={styles.sectionTitle}>Goals</TitleText>
             {hasGoals ? (
               <Pressable
                 style={styles.headerAdd}
-                onPress={() => guardedPush(router, ADD_GOAL)}
+                onPress={() => pushWrite(ADD_GOAL)}
                 accessibilityRole="button"
                 accessibilityLabel="Add goal"
               >
@@ -500,7 +729,7 @@ export default function PlannerScreen() {
                 styles.dashedEmpty,
                 pressed && styles.dashedEmptyPressed,
               ]}
-              onPress={() => guardedPush(router, ADD_GOAL)}
+              onPress={() => pushWrite(ADD_GOAL)}
               accessibilityRole="button"
               accessibilityLabel="Add goal"
             >
@@ -517,80 +746,21 @@ export default function PlannerScreen() {
               <CaptionText style={styles.secondaryText}>Add goal</CaptionText>
             </Pressable>
           ) : (
-            goalList.map((g) => {
-              const saved = goalEffectiveSaved({
-                currentSaved: g.current_saved,
-                vehicleIds: g.vehicle_ids,
-                vehicles: vehicleList,
-              });
-              const linkedGrowth = linkedGrowthVehicles(g, vehicleList);
-              const pace = goalPace({
-                targetAmount: g.target_amount,
-                currentSaved: saved,
-                targetDate: g.target_date,
-                createdAt: g.created_at,
-                linkedVehicles: linkedGrowth.map(toProjectInput),
-                planAmount: g.plan_amount,
-                planCadence: g.plan_cadence,
-              });
-              const need = requiredContribution({
-                targetAmount: g.target_amount,
-                currentSaved: saved,
-                targetDate: g.target_date,
-                cadence: g.plan_cadence ?? 'monthly',
-              });
-              const linkedAccounts = vehicleList.filter((v) =>
-                g.vehicle_ids.includes(v.id)
-              );
-              const detailHref = `/planner/goal/${g.id}`;
-              const editHref = `/planner/goal/${g.id}?edit=1`;
-              return (
-                <Pressable
-                  key={g.id}
-                  style={({ pressed }) => [
-                    styles.plannerCard,
-                    pressed && styles.plannerCardPressed,
-                  ]}
-                  onPress={() => guardedPush(router, detailHref)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${g.name} goal`}
-                >
-                  <View style={styles.plannerCardTop}>
-                    <StrongText style={styles.plannerCardTitle} numberOfLines={2}>
-                      {g.name}
-                    </StrongText>
-                    <Pressable
-                      onPress={() => guardedPush(router, editHref)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Edit ${g.name}`}
-                    >
-                      <CaptionText style={styles.editLink}>Edit</CaptionText>
-                    </Pressable>
-                  </View>
-                  <CaptionText
-                    style={[styles.muted, { color: paceColor(pace.status) }]}
-                  >
-                    {GOAL_TYPE_LABELS[g.goal_type]} · {pace.progressPct}% ·{' '}
-                    {paceLabel(pace.status)}
-                  </CaptionText>
-                  <CaptionText style={styles.muted}>
-                    {format(saved)} of {format(g.target_amount)}
-                    {need != null
-                      ? ` · ~${format(need)}/${g.plan_cadence ? PLAN_CADENCE_LABELS[g.plan_cadence].toLowerCase() : 'mo'} to hit date`
-                      : ''}
-                  </CaptionText>
-                  <LinkedAccountLinks
-                    accounts={linkedAccounts}
-                    label="Linked accounts:"
-                    onPressAccount={(id) =>
-                      guardedPush(router, `/planner/vehicle/${id}`)
-                    }
-                  />
-                </Pressable>
-              );
-            })
+            goalList.map(renderOwnGoalCard)
           )}
+
+          {showPair ? (
+            <PartnerCollapsibleCard
+              title={`${partnerName}'s goals`}
+              total={partnerGoalList.length}
+            >
+              {partnerGoalList.length === 0 ? (
+                <CaptionText style={styles.muted}>No goals yet.</CaptionText>
+              ) : (
+                partnerGoalList.map(renderPartnerGoalRow)
+              )}
+            </PartnerCollapsibleCard>
+          ) : null}
         </>
       )}
     </ScrollView>
@@ -765,4 +935,40 @@ const styles = StyleSheet.create({
     color: colors.green[700],
     fontFamily: fonts.bodyStrong,
   },
+  scopeBlock: {
+    gap: space.sm,
+    marginBottom: space.xs,
+  },
+  scopeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+  },
+  scopeChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+  },
+  scopeChipSelected: {
+    borderColor: colors.green[700],
+    backgroundColor: colors.green[50],
+  },
+  scopeText: { color: colors.ink },
+  scopeTextSelected: {
+    color: colors.green[700],
+    fontFamily: fonts.bodyStrong,
+  },
+  scopeHint: {
+    color: colors.inkMuted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  partnerRow: {
+    gap: 2,
+    paddingVertical: 6,
+  },
+  partnerRowTitle: { color: colors.ink },
 });

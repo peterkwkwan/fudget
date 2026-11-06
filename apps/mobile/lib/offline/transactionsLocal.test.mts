@@ -105,7 +105,7 @@ function input(
 describe('offline schema', () => {
   it('creates the local tables and is idempotent', async () => {
     const db = await freshDb();
-    assert.equal(await readUserVersion(db), 4);
+    assert.equal(await readUserVersion(db), 5);
 
     const tables = await db.all<{ name: string }>(
       `SELECT name FROM sqlite_master
@@ -116,7 +116,10 @@ describe('offline schema', () => {
       tables.map((table) => table.name),
       [
         'category_cache',
+        'goal_vehicles_local',
+        'goals_local',
         'outbox',
+        'partner_cache',
         'sync_meta',
         'transactions_local',
         'vehicles_local',
@@ -133,7 +136,7 @@ describe('offline schema', () => {
       ['user-a']
     );
     assert.equal(meta?.user_id, 'user-a');
-    assert.equal(await readUserVersion(db), 4);
+    assert.equal(await readUserVersion(db), 5);
   });
 });
 

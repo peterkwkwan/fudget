@@ -11,9 +11,13 @@ import { useConnectivity } from '@/hooks/useConnectivity';
 import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
 import { getOfflineDb } from '@/lib/offline/db';
 import {
+  listActiveGoalsLocal,
+  replaceGoalsLocal,
+} from '@/lib/offline/goalsLocal';
+import {
   listActiveVehiclesLocal,
   replaceVehiclesLocal,
-  toPlannerVehicleLite,
+  toPlannerVehicle,
   vehicleFromRemote,
 } from '@/lib/offline/vehiclesLocal';
 import {
@@ -21,18 +25,19 @@ import {
   deleteContributionEvent,
   getPlannerGoal,
   listContributionEvents,
-  listPlannerGoals,
+  listPlannerGoalsForUser,
   logContributionEvent,
   plannerGoalKeys,
   softDeletePlannerGoal,
   updatePlannerGoal,
   type ContributionEventInput,
+  type PlannerGoal,
   type PlannerGoalInput,
 } from '@/lib/plannerGoals';
 import {
   createPlannerVehicle,
   getPlannerVehicle,
-  listPlannerVehicles,
+  listPlannerVehiclesForUser,
   plannerVehicleKeys,
   softDeletePlannerVehicle,
   updatePlannerVehicle,
@@ -45,75 +50,75 @@ function invalidatePlanner(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: plannerVehicleKeys.all });
 }
 
+async function sessionUserId(): Promise<string | null> {
+  const { data: sessionData } = await (
+    await import('@/lib/supabase')
+  ).supabase.auth.getSession();
+  return sessionData.session?.user.id ?? null;
+}
+
 /** Online: fetch + cache. Offline: read the local vehicles mirror. */
-async function listVehiclesForUi(online: boolean): Promise<PlannerVehicle[]> {
+async function listVehiclesForOwner(
+  ownerId: string,
+  online: boolean
+): Promise<PlannerVehicle[]> {
   if (!OFFLINE_TXNS_ENABLED) {
-    return listPlannerVehicles();
+    return listPlannerVehiclesForUser(ownerId);
   }
   if (!online) {
     const db = await getOfflineDb();
-    const { data: sessionData } = await (
-      await import('@/lib/supabase')
-    ).supabase.auth.getSession();
-    const userId = sessionData.session?.user.id;
-    if (!userId) return [];
-    const rows = await listActiveVehiclesLocal(db, userId);
-    // Lite rows are enough for Account picker / balances; fill defaults for type.
-    return rows.map((row) => ({
-      ...emptyVehicleShape(toPlannerVehicleLite(row)),
-    }));
+    const rows = await listActiveVehiclesLocal(db, ownerId);
+    return rows.map(toPlannerVehicle);
   }
-  const remote = await listPlannerVehicles();
+  const remote = await listPlannerVehiclesForUser(ownerId);
   try {
     const db = await getOfflineDb();
-    const userId = remote[0]?.user_id;
-    if (userId) {
-      await replaceVehiclesLocal(
-        db,
-        userId,
-        remote.map(vehicleFromRemote)
-      );
-    } else {
-      const { data: sessionData } = await (
-        await import('@/lib/supabase')
-      ).supabase.auth.getSession();
-      const uid = sessionData.session?.user.id;
-      if (uid) await replaceVehiclesLocal(db, uid, []);
-    }
+    await replaceVehiclesLocal(
+      db,
+      ownerId,
+      remote.map(vehicleFromRemote)
+    );
   } catch {
     // Cache miss is fine; remote list still returned.
   }
   return remote;
 }
 
-function emptyVehicleShape(
-  lite: ReturnType<typeof toPlannerVehicleLite>
-): PlannerVehicle {
-  return {
-    id: lite.id,
-    user_id: lite.user_id,
-    name: lite.name,
-    vehicle_type: 'other',
-    balance: lite.balance,
-    annual_rate: 0,
-    growth_mode: 'grow',
-    compound_period: 'yearly',
-    plan_amount: null,
-    plan_cadence: null,
-    notes: null,
-    is_default: lite.is_default,
-    deleted_at: lite.deleted_at,
-    created_at: lite.updated_at,
-    updated_at: lite.updated_at,
-  };
+async function listGoalsForOwner(
+  ownerId: string,
+  online: boolean
+): Promise<PlannerGoal[]> {
+  if (!OFFLINE_TXNS_ENABLED) {
+    return listPlannerGoalsForUser(ownerId);
+  }
+  if (!online) {
+    const db = await getOfflineDb();
+    return listActiveGoalsLocal(db, ownerId);
+  }
+  const remote = await listPlannerGoalsForUser(ownerId);
+  try {
+    const db = await getOfflineDb();
+    await replaceGoalsLocal(db, ownerId, remote);
+  } catch {
+    // Cache miss is fine.
+  }
+  return remote;
 }
 
 export function usePlannerVehicles() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { online } = useConnectivity();
+  const userId = user?.id;
+
   const query = useQuery({
-    queryKey: [...plannerVehicleKeys.list(), online ? 'online' : 'offline'],
-    queryFn: () => listVehiclesForUi(online),
+    queryKey: [
+      ...plannerVehicleKeys.list(),
+      userId ?? '',
+      online ? 'online' : 'offline',
+    ],
+    queryFn: () => listVehiclesForOwner(userId!, online),
+    enabled: Boolean(userId),
   });
 
   useFocusEffect(
@@ -125,6 +130,21 @@ export function usePlannerVehicles() {
   );
 
   return query;
+}
+
+/** Partner (or any other owner) vehicles — Pair read-only list. */
+export function usePartnerPlannerVehicles(partnerId: string | null | undefined) {
+  const { online } = useConnectivity();
+  return useQuery({
+    queryKey: [
+      ...plannerVehicleKeys.all,
+      'partner',
+      partnerId ?? '',
+      online ? 'online' : 'offline',
+    ],
+    queryFn: () => listVehiclesForOwner(partnerId!, online),
+    enabled: Boolean(partnerId),
+  });
 }
 
 export function usePlannerVehicle(id: string | undefined) {
@@ -166,9 +186,18 @@ export function useSoftDeletePlannerVehicle() {
 
 export function usePlannerGoals() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { online } = useConnectivity();
+  const userId = user?.id;
+
   const query = useQuery({
-    queryKey: plannerGoalKeys.list(),
-    queryFn: listPlannerGoals,
+    queryKey: [
+      ...plannerGoalKeys.list(),
+      userId ?? '',
+      online ? 'online' : 'offline',
+    ],
+    queryFn: () => listGoalsForOwner(userId!, online),
+    enabled: Boolean(userId),
   });
 
   useFocusEffect(
@@ -178,6 +207,21 @@ export function usePlannerGoals() {
   );
 
   return query;
+}
+
+/** Partner goals — Pair read-only list. */
+export function usePartnerPlannerGoals(partnerId: string | null | undefined) {
+  const { online } = useConnectivity();
+  return useQuery({
+    queryKey: [
+      ...plannerGoalKeys.all,
+      'partner',
+      partnerId ?? '',
+      online ? 'online' : 'offline',
+    ],
+    queryFn: () => listGoalsForOwner(partnerId!, online),
+    enabled: Boolean(partnerId),
+  });
 }
 
 export function usePlannerGoal(id: string | undefined) {
@@ -243,3 +287,15 @@ export function useDeleteContribution() {
     onSuccess: () => invalidatePlanner(queryClient),
   });
 }
+
+/** Prefetch partner mirrors while online (Pair view + offline). */
+export async function warmPartnerPlannerMirror(
+  partnerId: string
+): Promise<void> {
+  if (!OFFLINE_TXNS_ENABLED) return;
+  const online = true;
+  await listVehiclesForOwner(partnerId, online);
+  await listGoalsForOwner(partnerId, online);
+}
+
+export { sessionUserId };

@@ -76,6 +76,14 @@ async function seedVehicle(
     is_default: isDefault,
     deleted_at: null,
     updated_at: '2026-11-01T00:00:00.000Z',
+    vehicle_type: 'savings',
+    annual_rate: 0,
+    growth_mode: 'grow',
+    compound_period: 'yearly',
+    plan_amount: null,
+    plan_cadence: null,
+    notes: null,
+    created_at: '2026-11-01T00:00:00.000Z',
   });
 }
 
@@ -101,6 +109,14 @@ describe('offline vehicle link', () => {
       is_default: 1,
       deleted_at: null,
       updated_at: '2026-11-01T00:00:00.000Z',
+      vehicle_type: 'cash',
+      annual_rate: 0,
+      growth_mode: 'grow',
+      compound_period: 'yearly',
+      plan_amount: null,
+      plan_cadence: null,
+      notes: null,
+      created_at: '2026-11-01T00:00:00.000Z',
     });
     await upsertVehicleLocal(db, {
       id: 'veh-b',
@@ -110,6 +126,14 @@ describe('offline vehicle link', () => {
       is_default: 0,
       deleted_at: null,
       updated_at: '2026-11-01T00:00:00.000Z',
+      vehicle_type: 'savings',
+      annual_rate: 0,
+      growth_mode: 'grow',
+      compound_period: 'yearly',
+      plan_amount: null,
+      plan_cadence: null,
+      notes: null,
+      created_at: '2026-11-01T00:00:00.000Z',
     });
     const options = optionsFor(db);
 
@@ -249,16 +273,21 @@ describe('offline vehicle link', () => {
     assert.equal((await listPendingOutbox(db, 'user-a')).length, 0);
   });
 
-  it('schema migrates to v4 with transfer_to_vehicle_id', async () => {
+  it('schema migrates to v5 with transfer + planner pair tables', async () => {
     const db = await freshDb();
     const version = await db.first<{ user_version: number }>(
       'PRAGMA user_version'
     );
-    assert.equal(Number(version?.user_version), 4);
+    assert.equal(Number(version?.user_version), 5);
     const cols = await db.all<{ name: string }>(
       'PRAGMA table_info(transactions_local)'
     );
     assert.ok(cols.some((c) => c.name === 'vehicle_id'));
     assert.ok(cols.some((c) => c.name === 'transfer_to_vehicle_id'));
+    const vehicleCols = await db.all<{ name: string }>(
+      'PRAGMA table_info(vehicles_local)'
+    );
+    assert.ok(vehicleCols.some((c) => c.name === 'vehicle_type'));
+    assert.ok(vehicleCols.some((c) => c.name === 'compound_period'));
   });
 });

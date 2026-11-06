@@ -25,7 +25,11 @@ export const STATS_OFFLINE_COPY = 'Partner stats need a connection.';
 export const STATS_PERSONAL_OFFLINE_BANNER =
   'Personal stats use data on this phone. Partner stats need a connection.';
 
-export const PLANNER_OFFLINE_COPY = 'Planner needs a connection.';
+export const PLANNER_OFFLINE_COPY =
+  'Planner on this phone. Adding or editing accounts and goals needs a connection.';
+
+export const PLANNER_WRITE_OFFLINE_COPY =
+  'Connect to the internet to add or edit Planner accounts and goals.';
 
 export const SAVED_ON_PHONE_COPY = 'Saved on phone — sync will retry.';
 

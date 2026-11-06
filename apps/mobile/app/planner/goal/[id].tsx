@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { ConnectionRequired } from '@/components/ConnectionRequired';
 import { GoalForm } from '@/components/planner/GoalForm';
 import { LinkedAccountLinks } from '@/components/planner/LinkedAccountLinks';
 import { CaptionText, StrongText, TitleText } from '@/components/StyledText';
@@ -19,15 +20,20 @@ import {
   PLAN_CADENCE_LABELS,
 } from '@/constants/planner';
 import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { useOfflineGates } from '@/hooks/useOfflineGates';
+import { usePartnerLink } from '@/hooks/usePartner';
 import {
   useContributionEvents,
   useLogContribution,
+  usePartnerPlannerVehicles,
   usePlannerGoal,
   usePlannerVehicles,
   useSoftDeletePlannerGoal,
   useUpdatePlannerGoal,
 } from '@/hooks/usePlanner';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
+import { PLANNER_WRITE_OFFLINE_COPY } from '@/lib/offline/ux';
+import { useAuth } from '@/lib/auth';
 import {
   formatAmountInput,
   parseAmountInput,
@@ -68,13 +74,23 @@ export default function GoalDetailScreen() {
     edit?: string | string[];
   }>();
   const router = useRouter();
+  const { user } = useAuth();
   const goalQuery = usePlannerGoal(id);
   const vehicles = usePlannerVehicles();
+  const partnerLink = usePartnerLink();
+  const isPaired = partnerLink.data?.status === 'active';
+  const partnerId = isPaired ? partnerLink.data?.partnerId : null;
+  const partnerVehicles = usePartnerPlannerVehicles(partnerId);
+  const { plannerWriteBlocked } = useOfflineGates();
   const events = useContributionEvents(id);
   const update = useUpdatePlannerGoal(id!);
   const remove = useSoftDeletePlannerGoal();
   const log = useLogContribution(id!);
   const [error, setError] = useState<string | null>(null);
+  const allVehicles = [
+    ...(vehicles.data ?? []),
+    ...(isPaired ? (partnerVehicles.data ?? []) : []),
+  ];
   const [mode, setMode] = useState<'view' | 'edit'>(() =>
     editParamOn(edit) ? 'edit' : 'view'
   );
@@ -183,18 +199,32 @@ export default function GoalDetailScreen() {
   const effectiveSaved = goalEffectiveSaved({
     currentSaved: goal.current_saved,
     vehicleIds: goal.vehicle_ids,
-    vehicles: vehicles.data ?? [],
+    vehicles: allVehicles,
   });
-  const linkedAccounts = (vehicles.data ?? []).filter((v) =>
-    goal.vehicle_ids.includes(v.id)
-  );
+  const linkedAccounts = allVehicles
+    .filter((v) => goal.vehicle_ids.includes(v.id))
+    .map((v) => ({
+      id: v.id,
+      name: v.name,
+      tappable: v.user_id === user?.id,
+    }));
 
   if (mode === 'edit') {
+    if (plannerWriteBlocked) {
+      return (
+        <View style={styles.container}>
+          <Stack.Screen options={{ title: 'Edit goal' }} />
+          <ConnectionRequired message={PLANNER_WRITE_OFFLINE_COPY} />
+        </View>
+      );
+    }
     return (
       <View style={styles.container}>
         <Stack.Screen options={{ title: 'Edit goal' }} />
         <GoalForm
           vehicles={vehicles.data ?? []}
+          partnerVehicles={isPaired ? (partnerVehicles.data ?? []) : []}
+          partnerLabel={partnerLink.data?.partnerDisplayName ?? null}
           initial={{
             name: goal.name,
             goal_type: goal.goal_type,
@@ -219,7 +249,7 @@ export default function GoalDetailScreen() {
     );
   }
 
-  const linkedGrowth = (vehicles.data ?? []).filter(
+  const linkedGrowth = allVehicles.filter(
     (v) => goal.vehicle_ids.includes(v.id) && isGrowthVehicle(v)
   );
   const pace = goalPace({

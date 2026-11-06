@@ -115,15 +115,27 @@ function growthFor(input: PlannerVehicleInput): GrowthMode {
   return input.growth_mode ?? defaultGrowthMode(input.vehicle_type);
 }
 
-export async function listPlannerVehicles(): Promise<PlannerVehicle[]> {
+/** Active vehicles for one owner (self or paired partner via RLS). */
+export async function listPlannerVehiclesForUser(
+  userId: string
+): Promise<PlannerVehicle[]> {
   const { data, error } = await supabase
     .from('planner_vehicles')
     .select('*')
+    .eq('user_id', userId)
     .is('deleted_at', null)
     .order('updated_at', { ascending: false });
 
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => mapRow(row as Record<string, unknown>));
+}
+
+/** Own active vehicles only (filters after partner SELECT RLS). */
+export async function listPlannerVehicles(): Promise<PlannerVehicle[]> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user.id;
+  if (!userId) return [];
+  return listPlannerVehiclesForUser(userId);
 }
 
 export async function getPlannerVehicle(

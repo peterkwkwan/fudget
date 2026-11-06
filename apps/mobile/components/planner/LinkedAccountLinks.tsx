@@ -3,7 +3,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { CaptionText } from '@/components/StyledText';
 import { colors, fonts } from '@/constants/theme';
 
-export type LinkedAccountRef = { id: string; name: string };
+export type LinkedAccountRef = {
+  id: string;
+  name: string;
+  /** When false, name is plain text (partner account — no detail screen). */
+  tappable?: boolean;
+};
 
 type Props = {
   accounts: LinkedAccountRef[];
@@ -15,7 +20,8 @@ type Props = {
 };
 
 /**
- * “Linked accounts: Name, Name” with each name as an accent link → account edit.
+ * “Linked accounts: Name, Name” with each name as an accent link → account edit
+ * (unless `tappable: false` for partner-owned accounts).
  */
 export function LinkedAccountLinks({
   accounts,
@@ -28,19 +34,26 @@ export function LinkedAccountLinks({
   return (
     <View style={styles.row}>
       <CaptionText style={styles.muted}>{label} </CaptionText>
-      {accounts.map((a, i) => (
-        <View key={a.id} style={styles.nameChunk}>
-          {i > 0 ? <CaptionText style={styles.muted}>, </CaptionText> : null}
-          <Pressable
-            onPress={() => onPressAccount(a.id)}
-            hitSlop={6}
-            accessibilityRole="link"
-            accessibilityLabel={`Edit account ${a.name}`}
-          >
-            <CaptionText style={styles.link}>{a.name}</CaptionText>
-          </Pressable>
-        </View>
-      ))}
+      {accounts.map((a, i) => {
+        const tappable = a.tappable !== false;
+        return (
+          <View key={a.id} style={styles.nameChunk}>
+            {i > 0 ? <CaptionText style={styles.muted}>, </CaptionText> : null}
+            {tappable ? (
+              <Pressable
+                onPress={() => onPressAccount(a.id)}
+                hitSlop={6}
+                accessibilityRole="link"
+                accessibilityLabel={`Edit account ${a.name}`}
+              >
+                <CaptionText style={styles.link}>{a.name}</CaptionText>
+              </Pressable>
+            ) : (
+              <CaptionText style={styles.plain}>{a.name}</CaptionText>
+            )}
+          </View>
+        );
+      })}
       {trailingPeriod ? <CaptionText style={styles.muted}>.</CaptionText> : null}
     </View>
   );
@@ -61,5 +74,9 @@ const styles = StyleSheet.create({
     color: colors.green[700],
     fontFamily: fonts.bodyStrong,
     textDecorationLine: 'underline',
+  },
+  plain: {
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyStrong,
   },
 });

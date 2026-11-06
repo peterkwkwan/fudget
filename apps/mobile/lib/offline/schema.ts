@@ -3,7 +3,7 @@
  * Versioned with SQLite `user_version`. No Supabase migration.
  */
 
-export const OFFLINE_SCHEMA_VERSION = 4;
+export const OFFLINE_SCHEMA_VERSION = 5;
 
 export type SqlValue = string | number | null;
 
@@ -155,6 +155,62 @@ CREATE INDEX IF NOT EXISTS transactions_local_updated_idx
   ON transactions_local (updated_at);
 `;
 
+/**
+ * Pair Planner offline: full vehicle fields, goals + links mirror,
+ * last-known partner link (Pair chips when cold-offline).
+ */
+export const OFFLINE_SCHEMA_V5_SQL = `
+ALTER TABLE vehicles_local ADD COLUMN vehicle_type TEXT NOT NULL DEFAULT 'other';
+ALTER TABLE vehicles_local ADD COLUMN annual_rate REAL NOT NULL DEFAULT 0;
+ALTER TABLE vehicles_local ADD COLUMN growth_mode TEXT NOT NULL DEFAULT 'grow';
+ALTER TABLE vehicles_local ADD COLUMN compound_period TEXT NOT NULL DEFAULT 'yearly';
+ALTER TABLE vehicles_local ADD COLUMN plan_amount REAL;
+ALTER TABLE vehicles_local ADD COLUMN plan_cadence TEXT;
+ALTER TABLE vehicles_local ADD COLUMN notes TEXT;
+ALTER TABLE vehicles_local ADD COLUMN created_at TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS goals_local (
+  id TEXT PRIMARY KEY NOT NULL,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  goal_type TEXT NOT NULL,
+  target_amount REAL NOT NULL,
+  target_date TEXT,
+  current_saved REAL NOT NULL DEFAULT 0,
+  plan_amount REAL,
+  plan_cadence TEXT,
+  notes TEXT,
+  deleted_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS goals_local_user_idx
+  ON goals_local (user_id);
+
+CREATE TABLE IF NOT EXISTS goal_vehicles_local (
+  goal_id TEXT NOT NULL,
+  vehicle_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (goal_id, vehicle_id)
+);
+
+CREATE INDEX IF NOT EXISTS goal_vehicles_local_user_idx
+  ON goal_vehicles_local (user_id);
+
+CREATE INDEX IF NOT EXISTS goal_vehicles_local_goal_idx
+  ON goal_vehicles_local (goal_id);
+
+CREATE TABLE IF NOT EXISTS partner_cache (
+  user_id TEXT PRIMARY KEY NOT NULL,
+  partner_id TEXT,
+  partner_display_name TEXT,
+  status TEXT NOT NULL,
+  saved_at TEXT NOT NULL
+);
+`;
+
 export async function readUserVersion(db: SqlExecutor): Promise<number> {
   const row = await db.first<{ user_version: number }>('PRAGMA user_version');
   const version = Number(row?.user_version ?? 0);
@@ -183,6 +239,11 @@ export async function migrateOfflineSchema(db: SqlExecutor): Promise<void> {
   if (current < 4) {
     await db.exec(OFFLINE_SCHEMA_V4_SQL);
     await db.exec('PRAGMA user_version = 4');
+    current = 4;
+  }
+  if (current < 5) {
+    await db.exec(OFFLINE_SCHEMA_V5_SQL);
+    await db.exec('PRAGMA user_version = 5');
   }
 }
 

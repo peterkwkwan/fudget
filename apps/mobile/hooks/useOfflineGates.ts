@@ -48,9 +48,15 @@ export function useOfflineGates() {
      * Kept false so legacy call sites do not blank the tab.
      */
     statsBlocked: false,
-    /** Pair aggregates stay online-only (partner rows never cached). */
+    /** Pair aggregates stay online-only (partner txn rows never cached). */
     pairStatsBlocked: offline,
-    plannerBlocked: offline,
+    /**
+     * Planner lists (own + mirrored partner) work offline from SQLite.
+     * Mutations still need the network (no planner outbox).
+     */
+    plannerBlocked: false,
+    /** Create / edit / delete Planner rows while offline. */
+    plannerWriteBlocked: offline,
     /** Wipe, restore, delete account. Offline only. A non-empty outbox adds a discard confirm. */
     accountDataBlocked: offline,
     /** Partner, currency, and category manage. */

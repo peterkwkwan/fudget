@@ -47,6 +47,10 @@ type Props = {
   initial?: Partial<GoalFormValues>;
   /** Active vehicles available to link (multi-select). */
   vehicles?: PlannerVehicle[];
+  /** Partner accounts (Pair) — linkable; labeled separately. */
+  partnerVehicles?: PlannerVehicle[];
+  /** Short name for partner section, e.g. "Alex". */
+  partnerLabel?: string | null;
   submitLabel: string;
   busy?: boolean;
   error?: string | null;
@@ -60,6 +64,8 @@ type Props = {
 export function GoalForm({
   initial,
   vehicles = [],
+  partnerVehicles = [],
+  partnerLabel = null,
   submitLabel,
   busy = false,
   error = null,
@@ -226,23 +232,44 @@ export function GoalForm({
         ) : null}
 
         <FieldLabel>Linked accounts (optional)</FieldLabel>
-        {vehicles.length === 0 ? (
+        {vehicles.length === 0 && partnerVehicles.length === 0 ? (
           <CaptionText style={styles.hint}>
             No accounts yet. Add a savings or investment account on Planner,
             then link it here so progress uses that balance.
           </CaptionText>
         ) : (
           <>
-            <ChipRow>
-              {vehicles.map((v) => (
-                <Chip
-                  key={v.id}
-                  label={`${v.name} (${format(v.balance)})`}
-                  selected={vehicleIds.includes(v.id)}
-                  onPress={() => toggleVehicle(v.id)}
-                />
-              ))}
-            </ChipRow>
+            {vehicles.length > 0 ? (
+              <ChipRow>
+                {vehicles.map((v) => (
+                  <Chip
+                    key={v.id}
+                    label={`${v.name} (${format(v.balance)})`}
+                    selected={vehicleIds.includes(v.id)}
+                    onPress={() => toggleVehicle(v.id)}
+                  />
+                ))}
+              </ChipRow>
+            ) : null}
+            {partnerVehicles.length > 0 ? (
+              <>
+                <CaptionText style={styles.hint}>
+                  {partnerLabel
+                    ? `${partnerLabel}'s accounts`
+                    : "Partner's accounts"}
+                </CaptionText>
+                <ChipRow>
+                  {partnerVehicles.map((v) => (
+                    <Chip
+                      key={v.id}
+                      label={`${v.name} (${format(v.balance)})`}
+                      selected={vehicleIds.includes(v.id)}
+                      onPress={() => toggleVehicle(v.id)}
+                    />
+                  ))}
+                </ChipRow>
+              </>
+            ) : null}
             <CaptionText style={styles.hint}>
               {linked
                 ? 'Progress comes from linked accounts (sum of balances). Manual contributions are off while linked.'

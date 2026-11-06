@@ -197,10 +197,14 @@ async function replaceGoalVehicles(
   if (insError) throw new Error(insError.message);
 }
 
-export async function listPlannerGoals(): Promise<PlannerGoal[]> {
+/** Active goals for one owner (self or paired partner via RLS). */
+export async function listPlannerGoalsForUser(
+  userId: string
+): Promise<PlannerGoal[]> {
   const { data, error } = await supabase
     .from('planner_goals')
     .select('*')
+    .eq('user_id', userId)
     .is('deleted_at', null)
     .order('updated_at', { ascending: false });
 
@@ -212,6 +216,14 @@ export async function listPlannerGoals(): Promise<PlannerGoal[]> {
     const r = row as Record<string, unknown>;
     return mapGoal(r, links.get(String(r.id)) ?? []);
   });
+}
+
+/** Own active goals only (filters after partner SELECT RLS). */
+export async function listPlannerGoals(): Promise<PlannerGoal[]> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user.id;
+  if (!userId) return [];
+  return listPlannerGoalsForUser(userId);
 }
 
 export async function getPlannerGoal(id: string): Promise<PlannerGoal | null> {
