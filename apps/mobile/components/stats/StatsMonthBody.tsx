@@ -34,6 +34,7 @@ import {
   useAggregateTrend,
   usePersonalStats,
   usePersonalTrend,
+  type StatsScope,
 } from '@/hooks/useStats';
 import { guardedPush } from '@/lib/navGuard';
 import { STATS_OFFLINE_COPY } from '@/lib/offline/ux';
@@ -48,6 +49,11 @@ import type { StatsMetric } from '@/lib/stats';
 
 const ADD_TRANSACTION = '/transaction/new';
 
+const SCOPE_OPTIONS = [
+  { value: 'personal', label: 'Personal' },
+  { value: 'pair', label: 'Pair' },
+] as const satisfies readonly { value: StatsScope; label: string }[];
+
 export type StatsMonthBodyProps = {
   focus: PeriodFocus;
   /** Non-month presets still reuse this body when the pager is disabled. */
@@ -57,6 +63,11 @@ export type StatsMonthBodyProps = {
   onPieTypeChange: (type: TransactionType) => void;
   trendMetric: StatsMetric;
   onTrendMetricChange: (metric: StatsMetric) => void;
+  /** Active partner link — shows Personal/Pair chrome inside the scroll. */
+  isPaired: boolean;
+  scope: StatsScope;
+  onScopeChange: (scope: StatsScope) => void;
+  partnerDisplayName: string | null;
   pairLive: boolean;
   pairBlocked: boolean;
   offline: boolean;
@@ -83,6 +94,10 @@ export function StatsMonthBody({
   onPieTypeChange,
   trendMetric,
   onTrendMetricChange,
+  isPaired,
+  scope,
+  onScopeChange,
+  partnerDisplayName,
   pairLive,
   pairBlocked,
   offline,
@@ -206,6 +221,53 @@ export function StatsMonthBody({
     !isPeriodEmpty &&
     !awaitingTotals;
 
+  const partnerName = partnerDisplayName?.trim() || 'partner';
+
+  /**
+   * Personal/Pair chips + mode hint live in the ScrollView (not sticky)
+   * so they move with the rest of Stats content.
+   */
+  const scopeBlock = isPaired ? (
+    <View style={styles.scopeBlock}>
+      <View style={styles.scopeRow}>
+        {SCOPE_OPTIONS.map((opt) => {
+          const selected = scope === opt.value;
+          return (
+            <Pressable
+              key={opt.value}
+              onPress={active ? () => onScopeChange(opt.value) : undefined}
+              disabled={!active}
+              style={[styles.scopeChip, selected && styles.scopeChipSelected]}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${opt.label} stats`}
+            >
+              <CaptionText
+                style={[
+                  styles.scopeText,
+                  selected && styles.scopeTextSelected,
+                ]}
+              >
+                {opt.label}
+              </CaptionText>
+            </Pressable>
+          );
+        })}
+      </View>
+      {scope === 'personal' ? (
+        <CaptionText style={styles.scopeHint}>
+          Individual totals. To see combined totals with your linked partner,{' '}
+          {partnerName}, click on the "Pair" tab.
+        </CaptionText>
+      ) : pairLive ? (
+        <CaptionText style={styles.scopeHint}>
+          Combined totals with {partnerName}. Category sums only — no
+          individual transactions.
+        </CaptionText>
+      ) : null}
+    </View>
+  ) : null;
+
   const byCategoryChrome = (
     <View style={styles.section}>
       <StrongText style={styles.sectionTitle}>By category</StrongText>
@@ -318,6 +380,7 @@ export function StatsMonthBody({
           />
         }
       >
+        {scopeBlock}
         {pairBlocked ? (
           <ConnectionRequired message={STATS_OFFLINE_COPY} />
         ) : error ? (
@@ -385,6 +448,37 @@ const styles = StyleSheet.create({
   },
   contentEmpty: {
     flexGrow: 1,
+  },
+  scopeBlock: {
+    gap: space.sm,
+  },
+  scopeRow: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  scopeChip: {
+    flex: 1,
+    height: 40,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scopeChipSelected: {
+    borderColor: colors.green[700],
+    backgroundColor: colors.surface,
+  },
+  scopeText: {
+    color: colors.inkMuted,
+  },
+  scopeTextSelected: {
+    color: colors.green[700],
+    fontFamily: fonts.bodyStrong,
+  },
+  scopeHint: {
+    color: colors.inkMuted,
   },
   centered: {
     paddingVertical: space.xxl,

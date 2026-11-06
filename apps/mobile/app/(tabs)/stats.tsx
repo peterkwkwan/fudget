@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
 import {
@@ -15,9 +15,8 @@ import {
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PeriodSelector } from '@/components/stats/PeriodSelector';
 import { StatsMonthBody } from '@/components/stats/StatsMonthBody';
-import { CaptionText } from '@/components/StyledText';
 import type { TransactionType } from '@/constants/categories';
-import { colors, fonts, radius, space } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 import { useStatsMonthContentReady } from '@/hooks/useMonthPrefetch';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePartnerLink } from '@/hooks/usePartner';
@@ -175,6 +174,10 @@ export default function StatsScreen() {
         onPieTypeChange={setPieType}
         trendMetric={trendMetric}
         onTrendMetricChange={setTrendMetric}
+        isPaired={isPaired}
+        scope={scope}
+        onScopeChange={setScope}
+        partnerDisplayName={partnerLink.data?.partnerDisplayName ?? null}
         pairLive={pairLive}
         pairBlocked={pairBlocked}
         offline={offline}
@@ -193,6 +196,9 @@ export default function StatsScreen() {
       timeZone,
       pieType,
       trendMetric,
+      isPaired,
+      scope,
+      partnerLink.data?.partnerDisplayName,
       pairLive,
       pairBlocked,
       offline,
@@ -231,50 +237,6 @@ export default function StatsScreen() {
         message={offline ? STATS_PERSONAL_OFFLINE_BANNER : null}
       />
 
-      {isPaired ? (
-        <View style={styles.scopeRowPad}>
-          <View style={styles.scopeRow}>
-            {(
-              [
-                { value: 'personal', label: 'Personal' },
-                { value: 'pair', label: 'Pair' },
-              ] as const
-            ).map((opt) => {
-              const selected = scope === opt.value;
-              return (
-                <Pressable
-                  key={opt.value}
-                  onPress={() => setScope(opt.value)}
-                  style={[
-                    styles.scopeChip,
-                    selected && styles.scopeChipSelected,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={`${opt.label} stats`}
-                >
-                  <CaptionText
-                    style={[
-                      styles.scopeText,
-                      selected && styles.scopeTextSelected,
-                    ]}
-                  >
-                    {opt.label}
-                  </CaptionText>
-                </Pressable>
-              );
-            })}
-          </View>
-          {pairLive ? (
-            <CaptionText style={styles.pairHint}>
-              Combined totals with{' '}
-              {partnerLink.data?.partnerDisplayName ?? 'partner'}. Category sums
-              only — no individual transactions.
-            </CaptionText>
-          ) : null}
-        </View>
-      ) : null}
-
       <MonthCardPager
         ref={pagerRef}
         focus={focus}
@@ -295,38 +257,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
-  },
-  scopeRowPad: {
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
-    gap: space.sm,
-  },
-  scopeRow: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
-  scopeChip: {
-    flex: 1,
-    height: 40,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scopeChipSelected: {
-    borderColor: colors.green[700],
-    backgroundColor: colors.surface,
-  },
-  scopeText: {
-    color: colors.inkMuted,
-  },
-  scopeTextSelected: {
-    color: colors.green[700],
-    fontFamily: fonts.bodyStrong,
-  },
-  pairHint: {
-    color: colors.inkMuted,
   },
 });
