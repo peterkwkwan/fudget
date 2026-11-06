@@ -23,6 +23,7 @@ import {
 import {
   fetchAggregateCategoryTotals,
   fetchAggregateTotals,
+  fetchAggregateTrend,
   fetchPersonalCategoryTotals,
   fetchPersonalTotals,
   fetchPersonalTrend,
@@ -130,7 +131,7 @@ export function prefetchStatsMonth(
     },
   });
 
-  if (trendMetric) {
+  if (trendMetric && !(pairLive && !useLocal)) {
     const bucket = trendBucketForPeriod(
       period.start,
       period.end,
@@ -182,6 +183,29 @@ export function prefetchStatsMonth(
       queryFn: () =>
         fetchAggregateCategoryTotals(pieType, period.start, period.end),
     });
+    if (trendMetric) {
+      const bucket = trendBucketForPeriod(
+        period.start,
+        period.end,
+        period.preset
+      );
+      const trendBounds = resolveTrendBounds(period, timeZone);
+      void queryClient.prefetchQuery({
+        queryKey: statsKeys.aggregateTrend(
+          trendMetric,
+          trendBounds.start.toISOString(),
+          trendBounds.end.toISOString(),
+          bucket
+        ),
+        queryFn: () =>
+          fetchAggregateTrend(
+            trendMetric,
+            trendBounds.start,
+            trendBounds.end,
+            bucket
+          ),
+      });
+    }
   }
 }
 

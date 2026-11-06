@@ -21,8 +21,9 @@ export type PeriodBounds = {
 export type TrendBucket = 'day' | 'week' | 'month' | 'year';
 
 /**
- * Allow-list for `stats_personal_trend.p_bucket` (must stay in sync with
- * supabase migrations `*_stats_trend_year_*.sql`). Yearly Trend sends `year`.
+ * Allow-list for `stats_personal_trend` / `stats_aggregate_trend` `p_bucket`
+ * (must stay in sync with supabase migrations `*_stats_trend_*.sql` and
+ * `*_stats_aggregate_trend.sql`). Yearly Trend sends `year`.
  */
 export const TREND_RPC_BUCKETS = [
   'day',

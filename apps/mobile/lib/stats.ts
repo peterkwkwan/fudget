@@ -114,6 +114,33 @@ export async function fetchPersonalTrend(
   }));
 }
 
+/**
+ * Pair trend series — server aggregates only; never partner txn rows.
+ * Same metric/bucket contract as `fetchPersonalTrend`.
+ */
+export async function fetchAggregateTrend(
+  metric: StatsMetric,
+  start: Date,
+  end: Date,
+  bucket: TrendBucket
+): Promise<TrendPoint[]> {
+  const { data, error } = await supabase.rpc('stats_aggregate_trend', {
+    p_metric: metric,
+    p_start: start.toISOString(),
+    p_end: end.toISOString(),
+    p_bucket: bucket,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    bucketStart: String(row.bucket_start),
+    total: Number(row.total ?? 0),
+  }));
+}
+
 /** Pair category totals — server aggregates only; never partner txn rows. */
 export async function fetchAggregateCategoryTotals(
   type: TransactionType,
@@ -215,6 +242,20 @@ export const statsKeys = {
     [...statsKeys.aggregate(), 'category', type, startIso, endIso] as const,
   aggregateTotals: (startIso: string, endIso: string) =>
     [...statsKeys.aggregate(), 'totals', startIso, endIso] as const,
+  aggregateTrend: (
+    metric: StatsMetric,
+    startIso: string,
+    endIso: string,
+    bucket: TrendBucket
+  ) =>
+    [
+      ...statsKeys.aggregate(),
+      'trend',
+      metric,
+      startIso,
+      endIso,
+      bucket,
+    ] as const,
   drilldown: (
     type: TransactionType,
     category: string,

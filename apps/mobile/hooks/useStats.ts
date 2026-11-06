@@ -18,6 +18,7 @@ import { deviceTimezone } from '@/lib/profile';
 import {
   fetchAggregateCategoryTotals,
   fetchAggregateTotals,
+  fetchAggregateTrend,
   fetchPersonalCategoryTotals,
   fetchPersonalTotals,
   fetchPersonalTrend,
@@ -152,11 +153,27 @@ export function useAggregateStats(
   return { totals, categories, startIso, endIso };
 }
 
+function alignTrendSlots(
+  period: PeriodBounds,
+  timeZone: string,
+  raw: { bucketStart: string; total: number }[]
+): TrendSlot[] {
+  if (period.preset === 'custom') {
+    return raw.map((p) => ({
+      bucketStart: p.bucketStart,
+      total: p.total,
+    }));
+  }
+  const focus = focusFromPeriodBounds(period, timeZone);
+  return alignCenteredTrendSlots(focus, period.preset, timeZone, raw);
+}
+
 export function usePersonalTrend(
   period: PeriodBounds,
   metric: StatsMetric,
   bucket: TrendBucket,
-  timeZone: string = 'UTC'
+  timeZone: string = 'UTC',
+  enabled: boolean = true
 ) {
   const { user } = useAuth();
   const useLocal = usePersonalStatsLocal();
@@ -166,7 +183,7 @@ export function usePersonalTrend(
   const startIso = start.toISOString();
   const endIso = end.toISOString();
   const source = useLocal ? 'local' : 'remote';
-  const enabled = useLocal ? Boolean(userId) : true;
+  const queryEnabled = enabled && (useLocal ? Boolean(userId) : true);
 
   return useQuery({
     queryKey: [...statsKeys.trend(metric, startIso, endIso, bucket), source, timeZone],
@@ -179,17 +196,32 @@ export function usePersonalTrend(
       const scoped = filterStatsTransactions(rows, start, end, timeZone);
       return aggregateTrend(scoped, metric, bucket, timeZone);
     },
+    enabled: queryEnabled,
+    select: (raw): TrendSlot[] => alignTrendSlots(period, timeZone, raw),
+  });
+}
+
+/**
+ * Pair aggregate trend. Same centered window / slot alignment as personal.
+ * Online-only — callers disable while offline / unpaired.
+ * Focus invalidation is covered by `useAggregateStats` (`statsKeys.aggregate()`).
+ */
+export function useAggregateTrend(
+  period: PeriodBounds,
+  metric: StatsMetric,
+  bucket: TrendBucket,
+  timeZone: string = 'UTC',
+  enabled: boolean = true
+) {
+  const { start, end } = resolveTrendBounds(period, timeZone);
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+
+  return useQuery({
+    queryKey: statsKeys.aggregateTrend(metric, startIso, endIso, bucket),
+    queryFn: () => fetchAggregateTrend(metric, start, end, bucket),
     enabled,
-    select: (raw): TrendSlot[] => {
-      if (period.preset === 'custom') {
-        return raw.map((p) => ({
-          bucketStart: p.bucketStart,
-          total: p.total,
-        }));
-      }
-      const focus = focusFromPeriodBounds(period, timeZone);
-      return alignCenteredTrendSlots(focus, period.preset, timeZone, raw);
-    },
+    select: (raw): TrendSlot[] => alignTrendSlots(period, timeZone, raw),
   });
 }
 

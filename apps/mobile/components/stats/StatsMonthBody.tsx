@@ -31,6 +31,7 @@ import { trendStrokeForMetric } from '@/constants/chartColors';
 import { colors, fonts, radius, space, typography } from '@/constants/theme';
 import {
   useAggregateStats,
+  useAggregateTrend,
   usePersonalStats,
   usePersonalTrend,
 } from '@/hooks/useStats';
@@ -109,7 +110,21 @@ export function StatsMonthBody({
 
   const personal = usePersonalStats(period, pieType);
   const aggregate = useAggregateStats(period, pieType, pairLive);
-  const trend = usePersonalTrend(period, trendMetric, personal.bucket, timeZone);
+  const personalTrend = usePersonalTrend(
+    period,
+    trendMetric,
+    personal.bucket,
+    timeZone,
+    !pairLive
+  );
+  const aggregateTrend = useAggregateTrend(
+    period,
+    trendMetric,
+    personal.bucket,
+    timeZone,
+    pairLive
+  );
+  const trend = pairLive ? aggregateTrend : personalTrend;
 
   const totals = pairLive ? aggregate.totals : personal.totals;
   const categories = pairLive ? aggregate.categories : personal.categories;
@@ -117,7 +132,7 @@ export function StatsMonthBody({
   const refreshing =
     totals.isRefetching ||
     categories.isRefetching ||
-    (!pairLive && trend.isRefetching) ||
+    trend.isRefetching ||
     (!offline && partnerRefetching);
 
   const loading = pairBlocked
@@ -131,9 +146,7 @@ export function StatsMonthBody({
     ? null
     : (totals.error instanceof Error && totals.error.message) ||
       (categories.error instanceof Error && categories.error.message) ||
-      (!pairLive &&
-        trend.error instanceof Error &&
-        trend.error.message) ||
+      (trend.error instanceof Error && trend.error.message) ||
       null;
 
   const txnCount =
@@ -179,17 +192,15 @@ export function StatsMonthBody({
     if (pairBlocked) return;
     void totals.refetch();
     void categories.refetch();
-    if (!pairLive) {
-      void trend.refetch();
-    }
+    void trend.refetch();
   };
 
   /**
    * Quiet / empty periods: hide Trend entirely (no title, toggles, or chart).
    * Active periods keep the section even while the series is still loading.
+   * Personal and Pair share the same Trend UI + centered window.
    */
   const showTrend =
-    !pairLive &&
     !pairBlocked &&
     !error &&
     !isPeriodEmpty &&

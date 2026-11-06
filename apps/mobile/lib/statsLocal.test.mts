@@ -223,6 +223,37 @@ describe('aggregateTrend', () => {
     assert.ok(start);
     assert.equal(start!.toISOString(), '2026-10-26T00:00:00.000Z');
   });
+
+  it('excludes transfers from expense, income, and net', () => {
+    const rows = [
+      txn({
+        id: 'e',
+        amount: 40,
+        type: 'expense',
+        category: 'Food',
+        occurred_at: '2026-10-10T12:00:00.000Z',
+      }),
+      txn({
+        id: 'i',
+        amount: 100,
+        type: 'income',
+        category: 'Salary',
+        occurred_at: '2026-10-12T12:00:00.000Z',
+      }),
+      txn({
+        id: 't',
+        amount: 200,
+        type: 'transfer',
+        category: 'Transfer',
+        occurred_at: '2026-10-15T12:00:00.000Z',
+        vehicle_id: 'a',
+        transfer_to_vehicle_id: 'b',
+      }),
+    ];
+    assert.equal(aggregateTrend(rows, 'expense', 'month', tz)[0]!.total, 40);
+    assert.equal(aggregateTrend(rows, 'income', 'month', tz)[0]!.total, 100);
+    assert.equal(aggregateTrend(rows, 'net', 'month', tz)[0]!.total, 60);
+  });
 });
 
 describe('filterCategoryTransactions', () => {
