@@ -1,9 +1,11 @@
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Platform,
   Pressable,
@@ -40,10 +42,13 @@ import {
   formatAmountInput,
   parseAmountInput,
 } from '@/lib/money';
+import { guardedPush } from '@/lib/navGuard';
 import { deviceTimezone } from '@/lib/profile';
 import type { TransactionInput } from '@/lib/transactions';
 import { pickerCategories } from '@/lib/userCategories';
 import type { VoiceDraft } from '@/lib/voiceParse';
+
+const ADD_ACCOUNT = '/planner/vehicle/new';
 
 export type TransactionFormValues = {
   amount: string;
@@ -110,6 +115,7 @@ export function TransactionForm({
   onDelete,
   deleteBusy = false,
 }: Props) {
+  const router = useRouter();
   const [amount, setAmount] = useState(() =>
     formatAmountInput(initial?.amount ?? '')
   );
@@ -571,10 +577,32 @@ export function TransactionForm({
             >
               <Text style={styles.dateText}>{selectedAccountName}</Text>
             </Pressable>
-            <CaptionText style={styles.hint}>
-              Income adds to the account; expense subtracts. Leave as None to
-              skip.
-            </CaptionText>
+            <View style={styles.hintRow}>
+              <CaptionText style={styles.hint}>
+                Income adds to the account; expense subtracts.{' '}
+              </CaptionText>
+              <Pressable
+                onPress={() => {
+                  Alert.alert(
+                    'Add an account?',
+                    'Do you want to add a Planner account?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Confirm',
+                        onPress: () => guardedPush(router, ADD_ACCOUNT),
+                      },
+                    ]
+                  );
+                }}
+                hitSlop={6}
+                accessibilityRole="link"
+                accessibilityLabel="Click here to add an account"
+              >
+                <CaptionText style={styles.hintLink}>Click here</CaptionText>
+              </Pressable>
+              <CaptionText style={styles.hint}> to add an account.</CaptionText>
+            </View>
           </>
         ) : null}
 
@@ -908,6 +936,16 @@ const styles = StyleSheet.create({
   },
   hint: {
     color: colors.inkMuted,
+  },
+  hintRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  hintLink: {
+    color: colors.green[700],
+    fontFamily: fonts.bodyStrong,
+    textDecorationLine: 'underline',
   },
   dateRepeatRow: {
     flexDirection: 'row',
