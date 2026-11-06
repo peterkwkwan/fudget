@@ -10,7 +10,7 @@ import type { CategoryTotal } from '@/lib/stats';
 type Props = {
   data: CategoryTotal[];
   emptyLabel: string;
-  /** Active Stats type — drives green (income) vs rust (expense) wedges. */
+  /** Active Stats type — drives income (green/blue) vs expense (warm) wedges. */
   type: TransactionType;
   /**
    * Active-mode period total shown in the donut hole
@@ -24,9 +24,12 @@ type Props = {
   loading?: boolean;
 };
 
-/** Modest bump from mockup D (168 / 104) for readable center totals. */
-const SIZE = 188;
-const INNER_RATIO = 104 / 168;
+/**
+ * Sized so a 7-digit whole total (e.g. HK$1,234,567) fits the hole on one line.
+ * Inner ratio keeps the ring readable while giving the center more width.
+ */
+const SIZE = 220;
+const INNER_RATIO = 112 / 168;
 /** Radial wedges — View-only donut (no Skia / SVG). */
 const WEDGES = 90;
 /** Outer wrap height — loading, empty, and loaded share this for CLS. */
@@ -130,7 +133,12 @@ export function CategoryPieChart({
         })}
         <View style={styles.hole} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <CaptionText style={styles.centerLabel}>{centerLabel}</CaptionText>
-          <StrongText style={[styles.centerValue, { color: centerColor }]}>
+          <StrongText
+            style={[styles.centerValue, { color: centerColor }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
             {formatCenterMoney(centerTotal)}
           </StrongText>
         </View>
@@ -185,6 +193,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     textAlign: 'center',
+    maxWidth: '100%',
   },
   centerLabelBone: {
     width: 36,
@@ -193,7 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   centerValueBone: {
-    width: 56,
+    width: 72,
     height: 16,
     borderRadius: 4,
     backgroundColor: colors.surfaceMuted,

@@ -1,21 +1,34 @@
 import type { TransactionType } from '@/constants/categories';
 import { colors } from '@/constants/theme';
 
-/** Income / growth categorical series (cool greens). */
+/**
+ * Income categorical series — greens + blues for clear slice differentiation.
+ * Amount token `colors.income` stays brand green for totals text.
+ */
 export const CHART_INCOME_COLORS = [
   colors.green[950],
   colors.green[700],
+  colors.blue[700],
+  colors.blue[500],
   colors.green[400],
+  colors.blue[400],
   colors.green[200],
+  colors.blue[200],
 ] as const;
 
-/** Expense / spend categorical series (warm rust). */
+/**
+ * Expense categorical series — red, purple, orange, deep yellow (not one rust ramp).
+ * Amount token `colors.expense` stays rust for totals text.
+ */
 export const CHART_EXPENSE_COLORS = [
-  colors.rust[950],
-  colors.rust[700],
+  colors.chartRed[800],
+  colors.chartPurple[700],
   colors.rust[500],
+  colors.chartAmber[700],
+  colors.chartRed[500],
+  colors.chartPurple[400],
   colors.rust[400],
-  colors.rust[200],
+  colors.chartAmber[500],
 ] as const;
 
 /** @deprecated Prefer colorForCategory(index, type). */

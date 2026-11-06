@@ -12,13 +12,35 @@ export const colors = {
     /** Brand tint only — never page background. */
     50: '#e0f7f1',
   },
-  /** Warm rust scale for expense charts (spend). */
+  /** Warm rust scale — expense amount token + orange wedges. */
   rust: {
     950: '#7c2d12',
     700: '#9a3412',
     500: '#c2410c',
     400: '#ea580c',
     200: '#fdba74',
+  },
+  /** Cool blues — income chart wedges (with greens). */
+  blue: {
+    700: '#1d4ed8',
+    500: '#2563eb',
+    400: '#60a5fa',
+    200: '#bfdbfe',
+  },
+  /** Expense chart — red wedges (distinct from amount `expense` token). */
+  chartRed: {
+    800: '#9f1239',
+    500: '#e11d48',
+  },
+  /** Expense chart — purple wedges. */
+  chartPurple: {
+    700: '#7e22ce',
+    400: '#a855f7',
+  },
+  /** Expense chart — deep yellow / amber wedges. */
+  chartAmber: {
+    700: '#a16207',
+    500: '#ca8a04',
   },
   /** Page / screen background (paper white). */
   canvas: '#ffffff',

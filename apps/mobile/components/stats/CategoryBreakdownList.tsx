@@ -11,7 +11,7 @@ type Props = {
   data: CategoryTotal[];
   /** When omitted, rows are display-only (e.g. pair aggregates — no txn drill-down). */
   onSelect?: (row: CategoryTotal) => void;
-  /** Active Stats type — drives green (income) vs rust (expense) bars. */
+  /** Active Stats type — drives income vs expense chart swatches. */
   type: TransactionType;
 };
 
