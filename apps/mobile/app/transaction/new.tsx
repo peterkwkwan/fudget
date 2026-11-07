@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -14,21 +14,33 @@ import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePlannerVehicles } from '@/hooks/usePlanner';
 import { useCreateRecurringSeries } from '@/hooks/useRecurring';
 import { useCreateTransaction } from '@/hooks/useTransactions';
+import { occurredAtFromDateParam } from '@/lib/addTransactionDate';
 import { useAuth } from '@/lib/auth';
 import { userFacingOfflineWriteError } from '@/lib/offline/writeError';
 import { deviceTimezone } from '@/lib/profile';
 import { takePendingVoiceDraft } from '@/lib/voiceDraft';
 
-function readVoiceInitial(): Partial<TransactionFormValues> | undefined {
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function readInitial(
+  dateParam: string | undefined,
+  timeZone: string
+): Partial<TransactionFormValues> | undefined {
   const draft = takePendingVoiceDraft();
-  if (!draft) return undefined;
-  return {
-    amount: draft.amount,
-    type: draft.type,
-    category: draft.category,
-    note: draft.note,
-    occurredAt: new Date(),
-  };
+  if (draft) {
+    return {
+      amount: draft.amount,
+      type: draft.type,
+      category: draft.category,
+      note: draft.note,
+      occurredAt: new Date(),
+    };
+  }
+  const occurredAt = occurredAtFromDateParam(dateParam, timeZone);
+  if (!occurredAt) return undefined;
+  return { occurredAt };
 }
 
 export default function NewTransactionScreen() {
@@ -40,8 +52,11 @@ export default function NewTransactionScreen() {
   const createSeries = useCreateRecurringSeries();
   const vehicles = usePlannerVehicles();
   const [error, setError] = useState<string | null>(null);
-  const [initial] = useState(() => readVoiceInitial());
+  const params = useLocalSearchParams<{ date?: string | string[] }>();
   const timezone = profile?.timezone || deviceTimezone();
+  const [initial] = useState(() =>
+    readInitial(firstParam(params.date), timezone)
+  );
   const { offline, banner } = useOfflineGates();
   const busy = createTxn.isPending || createSeries.isPending;
   const accounts = (vehicles.data ?? []).map((v) => ({

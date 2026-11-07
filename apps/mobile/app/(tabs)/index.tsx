@@ -38,6 +38,7 @@ import {
   useTransactionList,
 } from '@/hooks/useTransactions';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
+import { setCalendarAddDate } from '@/lib/addTransactionDate';
 import { useAuth } from '@/lib/auth';
 import { userFacingOfflineWriteError } from '@/lib/offline/writeError';
 import { PeriodNavHeader } from '@/lib/periodHeader';
@@ -50,6 +51,7 @@ import {
 import { parseTransactionsDateView } from '@/lib/profile';
 import {
   clampDayInMonth,
+  dateKeyFromFocusDay,
   defaultSelectedDay,
   filterTransactionsForDay,
 } from '@/lib/transactionsDateView';
@@ -136,6 +138,16 @@ export default function TransactionsScreen() {
 
   const busy = bulkDelete.isPending || bulkPatch.isPending;
   const { pendingIds, categoryFixIds, banner } = useOfflineGates();
+
+  // Week and month have a selected day. List and other tabs add on today.
+  useEffect(() => {
+    if (dateView === 'list') {
+      setCalendarAddDate(null);
+    } else {
+      setCalendarAddDate(dateKeyFromFocusDay(focus, selectedDay));
+    }
+    return () => setCalendarAddDate(null);
+  }, [dateView, focus.year, focus.month, selectedDay]);
 
   // Clamp before paint so settle matches the projected day for the new month.
   useLayoutEffect(() => {
