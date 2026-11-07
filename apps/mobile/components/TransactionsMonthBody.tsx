@@ -18,7 +18,6 @@ import { SurfaceCard } from '@/components/SurfaceCard';
 import { TransactionRow } from '@/components/TransactionRow';
 import { TransactionsEmptyMonth } from '@/components/TransactionsEmptyMonth';
 import { UpcomingRepeatsBar } from '@/components/UpcomingRepeatsBar';
-import { WeekDayStrip } from '@/components/WeekDayStrip';
 import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
 import { useTheme } from '@/lib/ThemeProvider';
 import { resolvePeriodBounds, type PeriodFocus } from '@/lib/periods';
@@ -187,18 +186,7 @@ export function TransactionsMonthBody({
           }}
         />
       ) : null}
-      {monthHasTransactions && dateView === 'week' ? (
-        <WeekDayStrip
-          focus={focus}
-          selectedDay={selectedDay}
-          dayNets={dayNets}
-          onSelectDay={
-            active && onSelectedDayChange ? onSelectedDayChange : () => {}
-          }
-          currency={currency}
-        />
-      ) : null}
-      {monthHasTransactions && dateView === 'month' ? (
+      {monthHasTransactions && dateView === 'calendar' ? (
         <MonthDayCalendar
           focus={focus}
           selectedDay={selectedDay}
@@ -209,8 +197,7 @@ export function TransactionsMonthBody({
           currency={currency}
         />
       ) : null}
-      {monthHasTransactions &&
-      (dateView === 'week' || dateView === 'month') ? (
+      {monthHasTransactions && dateView === 'calendar' ? (
         <View style={styles.dayHeading}>
           <View style={styles.dayHeadingCopy}>
             <StrongText style={styles.dayHeadingText}>

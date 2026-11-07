@@ -84,7 +84,8 @@ npx supabase db push
 | `supabase/migrations/20261023120000_planner.sql` | **Planner P0** `planner_vehicles` + `planner_goals` + `planner_contribution_events` (own-row RLS; soft-delete vehicles/goals) |
 | `supabase/migrations/20261023130000_planner_vehicle_compound_period.sql` | **Planner P0** `planner_vehicles.compound_period` (`monthly` \| `yearly`, default yearly) |
 | `supabase/migrations/20261023140000_planner_goal_vehicles.sql` | **Planner P0** `planner_goal_vehicles` join (goal ↔ vehicles; progress = sum of linked balances) |
-| `supabase/migrations/20261023160000_transactions_date_view.sql` | **Transactions** `profiles.transactions_date_view` (`list` \| `week` \| `month`, default `month`) |
+| `supabase/migrations/20261023160000_transactions_date_view.sql` | **Transactions** `profiles.transactions_date_view` (initial `list` \| `week` \| `month`) |
+| `supabase/migrations/20261107120000_transactions_date_view_calendar.sql` | **Transactions** date view: drop `week`; `month` → `calendar`; default `calendar` (`list` \| `calendar`) |
 | `supabase/migrations/20261023170000_stats_trend_year_bucket.sql` | **Stats** `stats_personal_trend` allows `p_bucket` `year` (Yearly Trend) |
 | `supabase/migrations/20261025010000_stats_trend_year_tz.sql` | **Stats** re-assert `year` + truncate buckets in profile timezone |
 | `supabase/migrations/20261025020000_account_wipe_restore.sql` | **Account** wipe backup table + `wipe_my_data` / `restore_my_data` / `get_account_backup_status` / `delete_my_account_data` / `purge_expired_account_backups` |
@@ -93,7 +94,7 @@ npx supabase db push
 
 **Founder step (Stats Yearly Trend):** apply through `20261025010000_stats_trend_year_tz.sql` (`npx supabase db push`). No Edge Functions. **EAS rebuild: no.** Until applied, Stats → Yearly shows “Couldn’t load stats” / `p_bucket must be day, week, or month`.
 
-**Founder step (Transactions date views):** apply `20261023160000_transactions_date_view.sql` (`npx supabase db push`). No Edge Functions. **EAS rebuild: no.** Until applied, List · Week · Month toggle still works in-session; saving the preference fails until the column exists.
+**Founder step (Transactions date views):** apply through `20261107120000_transactions_date_view_calendar.sql` (`npx supabase db push`). No Edge Functions. **EAS rebuild: no.** Preference is List · Calendar (default Calendar). Until the calendar migration is applied, saving `calendar` may fail the old check constraint; the app still maps legacy `week`/`month` to Calendar in-session.
 
 **Founder step (Planner P0):** apply planner migrations through `20261023140000` (`npx supabase db push`). No new Edge Functions. Until applied, the Planner tab’s goals/vehicles CRUD will error. **EAS rebuild: no** (JS + SQL; View-only projection chart). Contributions stay Planner-local (do **not** create Transactions). Tab order: Transactions · Add FAB · Stats · Planner · Account. Vehicles use plain-language yearly growth/interest labels + Monthly/Yearly compounding (default Yearly).
 

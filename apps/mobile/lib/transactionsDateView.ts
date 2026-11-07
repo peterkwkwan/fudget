@@ -1,5 +1,5 @@
 /**
- * Helpers for Transactions date layouts (list by day / week strip / month calendar).
+ * Helpers for Transactions date layouts (list by day / month calendar).
  */
 
 import {

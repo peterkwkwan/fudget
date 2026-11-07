@@ -8,8 +8,7 @@ import { useTheme } from '@/lib/ThemeProvider';
 
 const OPTIONS: { value: TransactionsDateView; label: string }[] = [
   { value: 'list', label: 'List' },
-  { value: 'week', label: 'Week' },
-  { value: 'month', label: 'Month' },
+  { value: 'calendar', label: 'Calendar' },
 ];
 
 type Props = {
@@ -17,7 +16,7 @@ type Props = {
   onChange: (view: TransactionsDateView) => void;
 };
 
-/** Segmented control: List · Week · Month for Transactions date layouts. */
+/** Segmented control: List · Calendar for Transactions date layouts. */
 export function DateViewToggle({ value, onChange }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -42,11 +41,7 @@ export function DateViewToggle({ value, onChange }: Props) {
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             accessibilityLabel={
-              opt.value === 'list'
-                ? 'List by day'
-                : opt.value === 'week'
-                  ? 'Week strip'
-                  : 'Month calendar'
+              opt.value === 'list' ? 'List by day' : 'Month calendar'
             }
           >
             <CaptionText

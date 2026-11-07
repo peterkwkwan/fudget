@@ -10,15 +10,21 @@ import {
 import { supabase } from './supabase';
 
 /** Transactions screen date layout preference (profiles.transactions_date_view). */
-export type TransactionsDateView = 'list' | 'week' | 'month';
+export type TransactionsDateView = 'list' | 'calendar';
 
-export const DEFAULT_TRANSACTIONS_DATE_VIEW: TransactionsDateView = 'month';
+export const DEFAULT_TRANSACTIONS_DATE_VIEW: TransactionsDateView = 'calendar';
 
+/**
+ * Normalize stored / legacy values to List | Calendar.
+ * Legacy `week` and `month` both become Calendar so existing users keep a
+ * calendar layout after Week was removed.
+ */
 export function parseTransactionsDateView(
   value: unknown
 ): TransactionsDateView {
-  if (value === 'list' || value === 'week' || value === 'month') {
-    return value;
+  if (value === 'list') return 'list';
+  if (value === 'calendar' || value === 'week' || value === 'month') {
+    return 'calendar';
   }
   return DEFAULT_TRANSACTIONS_DATE_VIEW;
 }
@@ -27,7 +33,7 @@ export type Profile = {
   id: string;
   display_name: string | null;
   timezone: string;
-  /** Last chosen Transactions date layout; default month. */
+  /** Last chosen Transactions date layout; default calendar. */
   transactions_date_view: TransactionsDateView;
   /** One currency per account; default HKD. */
   currency: AccountCurrency;
@@ -90,17 +96,32 @@ export async function ensureProfile(user: User): Promise<Profile | null> {
   }
 
   if (existing) {
-    const mapped = mapProfile(existing as Record<string, unknown>);
-    // Keep an existing timezone; only backfill if still the default and device knows better.
-    if (mapped.timezone === 'UTC' && timezone !== 'UTC') {
+    const raw = existing as Record<string, unknown>;
+    const mapped = mapProfile(raw);
+    const legacyDateView =
+      raw.transactions_date_view === 'week' ||
+      raw.transactions_date_view === 'month';
+    const needsTimezone =
+      mapped.timezone === 'UTC' && timezone !== 'UTC';
+
+    // Migrate week|month → calendar; optionally backfill device timezone.
+    if (legacyDateView || needsTimezone) {
+      const patch: Record<string, unknown> = {};
+      if (legacyDateView) {
+        patch.transactions_date_view = DEFAULT_TRANSACTIONS_DATE_VIEW;
+      }
+      if (needsTimezone) {
+        patch.timezone = timezone;
+        patch.display_name = mapped.display_name ?? displayName;
+      }
       const { data, error } = await supabase
         .from('profiles')
-        .update({ timezone, display_name: mapped.display_name ?? displayName })
+        .update(patch)
         .eq('id', user.id)
         .select('*')
         .single();
       if (error) {
-        console.warn('[profile] timezone backfill failed', error.message);
+        console.warn('[profile] profile patch failed', error.message);
         return mapped;
       }
       return mapProfile(data as Record<string, unknown>);

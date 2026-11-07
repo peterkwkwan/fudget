@@ -118,8 +118,7 @@ export default function SettingsScreen() {
               <CaptionText style={styles.label}>Transactions layout</CaptionText>
               <StrongText style={styles.blockTitle}>Date view</StrongText>
               <CaptionText style={styles.hint}>
-                List by day, week strip, or month calendar on the Transactions
-                tab.
+                List by day or month calendar on the Transactions tab.
               </CaptionText>
               <DateViewToggle value={dateView} onChange={setDateView} />
             </View>
