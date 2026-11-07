@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -8,7 +8,8 @@ import {
   type TransactionFormSubmit,
   type TransactionFormValues,
 } from '@/components/TransactionForm';
-import { colors } from '@/constants/theme';
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePlannerVehicles } from '@/hooks/usePlanner';
 import { useCreateRecurringSeries } from '@/hooks/useRecurring';
@@ -31,6 +32,8 @@ function readVoiceInitial(): Partial<TransactionFormValues> | undefined {
 }
 
 export default function NewTransactionScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { profile } = useAuth();
   const createTxn = useCreateTransaction();
@@ -103,9 +106,12 @@ export default function NewTransactionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
   },
 });
+}
+

@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,8 @@ import {
 import { ConnectionRequired } from '@/components/ConnectionRequired';
 import { VehicleForm } from '@/components/planner/VehicleForm';
 import { CaptionText, TitleText } from '@/components/StyledText';
-import { colors, fonts, radius, space } from '@/constants/theme';
+import { fonts, radius, space, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import {
   usePlannerVehicle,
@@ -22,6 +23,8 @@ import { PLANNER_WRITE_OFFLINE_COPY } from '@/lib/offline/ux';
 import type { PlannerVehicleInput } from '@/lib/plannerVehicles';
 
 export default function VehicleDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const query = usePlannerVehicle(id);
@@ -128,7 +131,8 @@ export default function VehicleDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   centered: {
     flex: 1,
@@ -151,3 +155,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyStrong,
   },
 });
+}
+

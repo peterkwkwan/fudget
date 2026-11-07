@@ -1,10 +1,11 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CategoryIconTile } from '@/components/CategoryIconTile';
 import { PendingSyncDot } from '@/components/PendingSyncDot';
 import { CaptionText, StrongText } from '@/components/StyledText';
-import { colors, space, typography } from '@/constants/theme';
+import { space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { useAuth } from '@/lib/auth';
 import { CATEGORY_FIX_COPY } from '@/lib/offline/ux';
@@ -39,6 +40,8 @@ export function TransactionRow({
   pending = false,
   categoryFix = false,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { format } = useFormatMoney();
   const formatAmount = (txn: Transaction): string => {
     if (txn.type === 'transfer') return format(txn.amount);
@@ -132,7 +135,8 @@ export function TransactionRow({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   row: {
     minHeight: 69,
     paddingVertical: space.sm + 4,
@@ -202,3 +206,5 @@ const styles = StyleSheet.create({
     fontFamily: undefined,
   },
 });
+}
+

@@ -4,7 +4,7 @@ import { ExternalLink } from './ExternalLink';
 import { MonoText } from './StyledText';
 import { Text, View } from './Themed';
 
-import { colors } from '@/constants/theme';
+import { darkColors, lightColors } from '@/constants/theme';
 
 export default function EditScreenInfo({ path }: { path: string }) {
   return (
@@ -12,22 +12,22 @@ export default function EditScreenInfo({ path }: { path: string }) {
       <View style={styles.getStartedContainer}>
         <Text
           style={styles.getStartedText}
-          lightColor={colors.ink}
-          darkColor={colors.inkInverse}>
+          lightColor={lightColors.ink}
+          darkColor={darkColors.ink}>
           Open up the code for this screen:
         </Text>
 
         <View
           style={[styles.codeHighlightContainer, styles.homeScreenFilename]}
-          darkColor="rgba(255,255,255,0.05)"
-          lightColor={colors.surfaceMuted}>
+          darkColor={darkColors.surfaceMuted}
+          lightColor={lightColors.surfaceMuted}>
           <MonoText>{path}</MonoText>
         </View>
 
         <Text
           style={styles.getStartedText}
-          lightColor={colors.ink}
-          darkColor={colors.inkInverse}>
+          lightColor={lightColors.ink}
+          darkColor={darkColors.ink}>
           Change any of the text, save the file, and your app will automatically update.
         </Text>
       </View>
@@ -36,7 +36,11 @@ export default function EditScreenInfo({ path }: { path: string }) {
         <ExternalLink
           style={styles.helpLink}
           href="https://docs.expo.io/get-started/create-a-new-app/#opening-the-app-on-your-phonetablet">
-          <Text style={styles.helpLinkText} lightColor={colors.green[700]}>
+          <Text
+            style={styles.helpLinkText}
+            lightColor={lightColors.green[700]}
+            darkColor={darkColors.green[700]}
+          >
             Tap here if your app doesn't automatically update after making changes
           </Text>
         </ExternalLink>

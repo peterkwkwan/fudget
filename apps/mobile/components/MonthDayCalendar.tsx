@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
 import { SurfaceCard } from '@/components/SurfaceCard';
-import { colors, radius, space } from '@/constants/theme';
+import { radius, space, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import type { PeriodFocus } from '@/lib/periods';
 import {
   WEEKDAY_LETTERS_SUN,
@@ -21,7 +23,7 @@ type Props = {
   currency?: string;
 };
 
-function toneColor(tone: DayNetTone): string {
+function toneColor(tone: DayNetTone, colors: ThemeColors): string {
   if (tone === 'income') return colors.income;
   if (tone === 'expense') return colors.expense;
   return colors.inkMuted;
@@ -35,6 +37,8 @@ export function MonthDayCalendar({
   onSelectDay,
   currency,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const cells = monthGridCells(focus);
 
   return (
@@ -83,7 +87,7 @@ export function MonthDayCalendar({
                     numberOfLines={1}
                     adjustsFontSizeToFit
                     minimumFontScale={0.7}
-                    style={[styles.amount, { color: toneColor(label.tone) }]}
+                    style={[styles.amount, { color: toneColor(label.tone, colors) }]}
                   >
                     {label.text}
                   </CaptionText>
@@ -99,7 +103,8 @@ export function MonthDayCalendar({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   outer: {
     paddingHorizontal: space.screen,
     paddingBottom: space.md,
@@ -162,3 +167,5 @@ const styles = StyleSheet.create({
     height: 10,
   },
 });
+}
+

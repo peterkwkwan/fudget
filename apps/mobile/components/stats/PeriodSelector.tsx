@@ -23,7 +23,7 @@ import {
   MonthSwipeNavLabel,
 } from '@/components/MonthSwipeNavLabel';
 import { CaptionText, PageTitleText, StrongText } from '@/components/StyledText';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
 import {
   formatCompactDate,
   periodModeLabel,
@@ -32,6 +32,8 @@ import {
   type PeriodFocus,
   type PeriodPreset,
 } from '@/lib/periods';
+import { useTheme } from '@/lib/ThemeProvider';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 /** Shared with MonthCardPager so the header month slides with the cards. */
 export type PeriodSwipeMotion = {
@@ -93,6 +95,8 @@ export function PeriodSelector({
   onSwipeStep,
 }: PeriodSelectorProps) {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const modeTriggerRef = useRef<ComponentRef<typeof View>>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState({ top: 0, right: 0 });
@@ -297,6 +301,7 @@ export function PeriodSelector({
                   position: 'absolute',
                   top: menuAnchor.top,
                   right: menuAnchor.right,
+                  shadowColor: isDark ? '#000000' : '#202923',
                 },
               ]}
               accessibilityRole="menu"
@@ -359,158 +364,159 @@ export function PeriodSelector({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    width: '100%',
-    gap: 22,
-  },
-  pageTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  pageTitle: {
-    flex: 1,
-    color: colors.ink,
-    ...typography.pageTitle,
-  },
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    flexWrap: 'nowrap',
-    minHeight: 34,
-    alignSelf: 'stretch',
-    width: '100%',
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-    flex: 1,
-    minWidth: 0,
-  },
-  monthSlot: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'flex-start',
-  },
-  chevronPair: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
-  },
-  chevronBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.tile,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  periodRange: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-    flexGrow: 0,
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  dateField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-    minHeight: 32,
-  },
-  dateFieldText: {
-    color: colors.ink,
-    fontFamily: fonts.caption,
-    fontSize: 13,
-  },
-  tilde: {
-    color: colors.inkMuted,
-    paddingHorizontal: 2,
-  },
-  modeTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-    minHeight: 32,
-  },
-  modeTriggerText: {
-    color: colors.green[700],
-    fontFamily: fonts.caption,
-    fontSize: 12,
-  },
-  modeCaret: {
-    color: colors.green[700],
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  menuBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(32, 41, 35, 0.2)',
-  },
-  menuSheet: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    minWidth: 148,
-    shadowColor: '#202923',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  menuItem: {
-    paddingVertical: space.sm + 4,
-    paddingHorizontal: space.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  menuItemLast: {
-    borderBottomWidth: 0,
-  },
-  menuItemSelected: {
-    backgroundColor: colors.green[50],
-  },
-  menuItemText: {
-    color: colors.ink,
-    fontSize: 16,
-  },
-  menuItemTextSelected: {
-    color: colors.green[700],
-  },
-  done: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: space.md,
-    height: 40,
-    justifyContent: 'center',
-  },
-  doneText: {
-    color: colors.green[700],
-    fontFamily: fonts.bodyStrong,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    wrap: {
+      width: '100%' as const,
+      gap: 22,
+    },
+    pageTitleRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      gap: space.sm,
+    },
+    pageTitle: {
+      flex: 1,
+      color: colors.ink,
+      ...typography.pageTitle,
+    },
+    bar: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'flex-start' as const,
+      flexWrap: 'nowrap' as const,
+      minHeight: 34,
+      alignSelf: 'stretch' as const,
+      width: '100%' as const,
+    },
+    stepper: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      gap: space.sm,
+      flex: 1,
+      minWidth: 0,
+    },
+    monthSlot: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: 'flex-start' as const,
+    },
+    chevronPair: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      flexShrink: 0,
+    },
+    chevronBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: radius.tile,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    periodRange: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: space.xs,
+      flexGrow: 0,
+      flexShrink: 1,
+      minWidth: 0,
+    },
+    dateField: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.sm,
+      backgroundColor: colors.surface,
+      minHeight: 32,
+    },
+    dateFieldText: {
+      color: colors.ink,
+      fontFamily: fonts.caption,
+      fontSize: 13,
+    },
+    tilde: {
+      color: colors.inkMuted,
+      paddingHorizontal: 2,
+    },
+    modeTrigger: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.sm,
+      backgroundColor: colors.surface,
+      minHeight: 32,
+    },
+    modeTriggerText: {
+      color: colors.green[700],
+      fontFamily: fonts.caption,
+      fontSize: 12,
+    },
+    modeCaret: {
+      color: colors.green[700],
+      fontSize: 11,
+      lineHeight: 14,
+    },
+    pressed: {
+      opacity: 0.75,
+    },
+    menuBackdrop: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+    },
+    menuSheet: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: 'hidden' as const,
+      minWidth: 148,
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
+    },
+    menuItem: {
+      paddingVertical: space.sm + 4,
+      paddingHorizontal: space.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    menuItemLast: {
+      borderBottomWidth: 0,
+    },
+    menuItemSelected: {
+      backgroundColor: colors.green[50],
+    },
+    menuItemText: {
+      color: colors.ink,
+      fontSize: 16,
+    },
+    menuItemTextSelected: {
+      color: colors.green[700],
+    },
+    done: {
+      alignSelf: 'flex-end' as const,
+      paddingHorizontal: space.md,
+      height: 40,
+      justifyContent: 'center' as const,
+    },
+    doneText: {
+      color: colors.green[700],
+      fontFamily: fonts.bodyStrong,
+    },
+  };
+}

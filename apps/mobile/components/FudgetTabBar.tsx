@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -17,8 +17,15 @@ import {
   PlusIcon,
   UserIcon,
 } from '@/components/icons';
-import { chromeHairline, colors, fonts, radius, space } from '@/constants/theme';
+import {
+  chromeHairlineFor,
+  fonts,
+  radius,
+  space,
+  type ThemeColors,
+} from '@/constants/theme';
 import { guardedPush } from '@/lib/navGuard';
+import { useTheme } from '@/lib/ThemeProvider';
 
 /** Figma Add FAB: 50×50, radius 18 (squircle), no white ring. */
 const FAB_SIZE = 50;
@@ -52,6 +59,8 @@ const TABS: {
 export function FudgetTabBar({ state, onTabPress }: FudgetTabBarProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [reduceMotion, setReduceMotion] = useState(false);
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -188,63 +197,66 @@ export function FudgetTabBar({ state, onTabPress }: FudgetTabBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  bar: {
-    backgroundColor: colors.surface,
-    borderTopWidth: chromeHairline.width,
-    borderTopColor: chromeHairline.color,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    height: 76,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    minHeight: 44,
-  },
-  tabLabel: {
-    fontSize: 10,
-    letterSpacing: 0,
-  },
-  fabGap: {
-    width: FAB_GAP,
-    flexShrink: 0,
-  },
-  fabWrap: {
-    position: 'absolute',
-    left: '50%',
-    top: -18,
-    marginLeft: -FAB_SIZE / 2,
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    zIndex: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fabRing: {
-    position: 'absolute',
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: radius.fab,
-    backgroundColor: colors.green[700],
-  },
-  fab: {
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: radius.fab,
-    backgroundColor: colors.green[700],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fabPressed: {
-    backgroundColor: colors.green[950],
-    transform: [{ scale: 0.98 }],
-  },
-});
+function createStyles(colors: ThemeColors) {
+  const hairline = chromeHairlineFor(colors);
+  return StyleSheet.create({
+    bar: {
+      backgroundColor: colors.surface,
+      borderTopWidth: hairline.width,
+      borderTopColor: hairline.color,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 12,
+      height: 76,
+    },
+    tab: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+      minHeight: 44,
+    },
+    tabLabel: {
+      fontSize: 10,
+      letterSpacing: 0,
+    },
+    fabGap: {
+      width: FAB_GAP,
+      flexShrink: 0,
+    },
+    fabWrap: {
+      position: 'absolute',
+      left: '50%',
+      top: -18,
+      marginLeft: -FAB_SIZE / 2,
+      width: FAB_SIZE,
+      height: FAB_SIZE,
+      zIndex: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fabRing: {
+      position: 'absolute',
+      width: FAB_SIZE,
+      height: FAB_SIZE,
+      borderRadius: radius.fab,
+      backgroundColor: colors.green[700],
+    },
+    fab: {
+      width: FAB_SIZE,
+      height: FAB_SIZE,
+      borderRadius: radius.fab,
+      backgroundColor: colors.green[700],
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fabPressed: {
+      backgroundColor: colors.primaryPressed,
+      transform: [{ scale: 0.98 }],
+    },
+  });
+}

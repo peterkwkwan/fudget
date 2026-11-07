@@ -5,7 +5,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native';
 
@@ -28,7 +27,7 @@ import { TrendLineChart } from '@/components/stats/TrendLineChart';
 import { CaptionText, StrongText, TitleText } from '@/components/StyledText';
 import type { TransactionType } from '@/constants/categories';
 import { trendStrokeForMetric } from '@/constants/chartColors';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
 import {
   useAggregateStats,
   useAggregateTrend,
@@ -44,8 +43,10 @@ import {
   type PeriodFocus,
   type PeriodPreset,
 } from '@/lib/periods';
-import { savingsRateColor, savingsRatePercent } from '@/lib/savingsRate';
+import { savingsRatePercent } from '@/lib/savingsRate';
 import type { StatsMetric } from '@/lib/stats';
+import { useTheme } from '@/lib/ThemeProvider';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 const ADD_TRANSACTION = '/transaction/new';
 
@@ -111,6 +112,8 @@ export function StatsMonthBody({
   customEnd,
 }: StatsMonthBodyProps) {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { edges, scrollProps } = useScrollEdges();
 
   const period = useMemo(
@@ -187,6 +190,12 @@ export function StatsMonthBody({
   const incomeSum = totals.data?.incomeSum ?? 0;
   const netSum = totals.data?.net ?? 0;
   const periodSavingsPct = savingsRatePercent(incomeSum, expenseSum);
+  const savingsRateTint =
+    periodSavingsPct == null || periodSavingsPct === 0
+      ? colors.inkMuted
+      : periodSavingsPct > 0
+        ? colors.income
+        : colors.expense;
   const quietPeers = [
     { label: 'Spent', value: formatSigned(expenseSum) },
     { label: 'Earned', value: formatSigned(incomeSum) },
@@ -298,7 +307,7 @@ export function StatsMonthBody({
             emptyLabel="No trend data for this period."
             bucket={personal.bucket}
             timeZone={timeZone}
-            strokeColor={trendStrokeForMetric(trendMetric)}
+            strokeColor={trendStrokeForMetric(trendMetric, colors)}
           />
         </View>
       )}
@@ -322,7 +331,7 @@ export function StatsMonthBody({
       <CaptionText
         style={[
           styles.savingsRate,
-          { color: savingsRateColor(periodSavingsPct) },
+          { color: savingsRateTint },
         ]}
         accessibilityLabel={
           periodSavingsPct == null
@@ -433,122 +442,124 @@ export function StatsMonthBody({
   );
 }
 
-const styles = StyleSheet.create({
-  scrollHost: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: space.screen,
-    paddingTop: space.md,
-    paddingBottom: space.xxl,
-    gap: space.lg,
-  },
-  contentEmpty: {
-    flexGrow: 1,
-  },
-  scopeBlock: {
-    gap: space.sm,
-  },
-  scopeRow: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
-  scopeChip: {
-    flex: 1,
-    height: 40,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scopeChipSelected: {
-    borderColor: colors.green[700],
-    backgroundColor: colors.surface,
-  },
-  scopeText: {
-    color: colors.inkMuted,
-  },
-  scopeTextSelected: {
-    color: colors.green[700],
-    fontFamily: fonts.bodyStrong,
-  },
-  scopeHint: {
-    color: colors.inkMuted,
-  },
-  centered: {
-    paddingVertical: space.xxl,
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  emptyTitle: {
-    color: colors.green[950],
-    textAlign: 'center',
-  },
-  emptyBody: {
-    color: colors.inkMuted,
-    textAlign: 'center',
-    ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  secondary: {
-    marginTop: space.sm,
-    paddingHorizontal: space.md,
-    height: 40,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  secondaryText: {
-    color: colors.green[700],
-    fontFamily: fonts.bodyStrong,
-  },
-  section: {
-    gap: space.sm,
-  },
-  cardSection: {
-    gap: space.md,
-  },
-  categoryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: space.md,
-    gap: space.md,
-  },
-  sectionTitle: {
-    color: colors.ink,
-    ...typography.section,
-    textAlign: 'left',
-  },
-  trendTitle: {
-    color: colors.ink,
-    ...typography.section,
-  },
-  savingsRate: {
-    color: colors.expense,
-    textAlign: 'center',
-    fontSize: 12,
-    lineHeight: 16,
-    backgroundColor: colors.expenseTint,
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignSelf: 'center',
-    fontFamily: fonts.caption,
-  },
-  chartBleed: {
-    marginHorizontal: 0,
-    alignSelf: 'stretch',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    scrollHost: {
+      flex: 1,
+    },
+    scroll: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: space.screen,
+      paddingTop: space.md,
+      paddingBottom: space.xxl,
+      gap: space.lg,
+    },
+    contentEmpty: {
+      flexGrow: 1,
+    },
+    scopeBlock: {
+      gap: space.sm,
+    },
+    scopeRow: {
+      flexDirection: 'row' as const,
+      gap: space.sm,
+    },
+    scopeChip: {
+      flex: 1,
+      height: 40,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    scopeChipSelected: {
+      borderColor: colors.green[700],
+      backgroundColor: colors.surface,
+    },
+    scopeText: {
+      color: colors.inkMuted,
+    },
+    scopeTextSelected: {
+      color: colors.green[700],
+      fontFamily: fonts.bodyStrong,
+    },
+    scopeHint: {
+      color: colors.inkMuted,
+    },
+    centered: {
+      paddingVertical: space.xxl,
+      alignItems: 'center' as const,
+      gap: space.sm,
+    },
+    emptyTitle: {
+      color: colors.green[950],
+      textAlign: 'center' as const,
+    },
+    emptyBody: {
+      color: colors.inkMuted,
+      textAlign: 'center' as const,
+      ...typography.body,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    secondary: {
+      marginTop: space.sm,
+      paddingHorizontal: space.md,
+      height: 40,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    secondaryPressed: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    secondaryText: {
+      color: colors.green[700],
+      fontFamily: fonts.bodyStrong,
+    },
+    section: {
+      gap: space.sm,
+    },
+    cardSection: {
+      gap: space.md,
+    },
+    categoryCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: space.md,
+      gap: space.md,
+    },
+    sectionTitle: {
+      color: colors.ink,
+      ...typography.section,
+      textAlign: 'left' as const,
+    },
+    trendTitle: {
+      color: colors.ink,
+      ...typography.section,
+    },
+    savingsRate: {
+      color: colors.expense,
+      textAlign: 'center' as const,
+      fontSize: 12,
+      lineHeight: 16,
+      backgroundColor: colors.expenseTint,
+      overflow: 'hidden' as const,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+      alignSelf: 'center' as const,
+      fontFamily: fonts.caption,
+    },
+    chartBleed: {
+      marginHorizontal: 0,
+      alignSelf: 'stretch' as const,
+    },
+  };
+}

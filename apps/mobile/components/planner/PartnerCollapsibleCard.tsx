@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
-import { colors, fonts, space } from '@/constants/theme';
+import { fonts, space, type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 type Props = {
   /** e.g. "Alex's accounts" */
@@ -18,6 +19,7 @@ type Props = {
  */
 export function PartnerCollapsibleCard({ title, total, children }: Props) {
   const [open, setOpen] = useState(false);
+  const styles = useThemedStyles(createStyles);
   const countLabel = `${total} total`;
 
   return (
@@ -48,43 +50,45 @@ export function PartnerCollapsibleCard({ title, total, children }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceMuted,
-    marginBottom: 2,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-  },
-  headerPressed: {
-    backgroundColor: colors.green[50],
-  },
-  headerText: {
-    flex: 1,
-    gap: 4,
-    paddingRight: space.sm,
-  },
-  title: { color: colors.ink },
-  meta: { color: colors.inkMuted },
-  chevron: {
-    color: colors.inkMuted,
-    fontFamily: fonts.bodyStrong,
-    fontSize: 16,
-  },
-  body: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    paddingHorizontal: 14,
-    paddingBottom: 12,
-    gap: 8,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    card: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: 14,
+      backgroundColor: colors.surfaceMuted,
+      marginBottom: 2,
+      overflow: 'hidden' as const,
+    },
+    header: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      gap: space.sm,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+    },
+    headerPressed: {
+      backgroundColor: colors.green[50],
+    },
+    headerText: {
+      flex: 1,
+      gap: 4,
+      paddingRight: space.sm,
+    },
+    title: { color: colors.ink },
+    meta: { color: colors.inkMuted },
+    chevron: {
+      color: colors.inkMuted,
+      fontFamily: fonts.bodyStrong,
+      fontSize: 16,
+    },
+    body: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+      paddingHorizontal: 14,
+      paddingBottom: 12,
+      gap: 8,
+    },
+  };
+}

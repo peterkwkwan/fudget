@@ -19,7 +19,8 @@ import {
   categoriesForType,
   type TransactionType,
 } from '@/constants/categories';
-import { colors, fonts, radius, space } from '@/constants/theme';
+import { fonts, radius, space, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import {
   useArchiveUserCategory,
@@ -33,6 +34,8 @@ import {
  * Settings → Categories: system list (read-only) + add/rename/archive customs.
  */
 export default function CategoriesSettingsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { edges, scrollProps } = useScrollEdges();
   const customsQuery = useUserCategories();
   const create = useCreateUserCategory();
@@ -290,7 +293,8 @@ export default function CategoriesSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   host: { flex: 1, backgroundColor: colors.canvas },
   scrollHost: { flex: 1 },
   scroll: { flex: 1 },
@@ -375,3 +379,5 @@ const styles = StyleSheet.create({
   muted: { color: colors.inkMuted },
   error: { color: colors.danger },
 });
+}
+

@@ -2,16 +2,14 @@ import { useState } from 'react';
 import {
   LayoutChangeEvent,
   Pressable,
-  StyleSheet,
   View,
 } from 'react-native';
 
 import { PlusIcon } from '@/components/icons';
 import { CaptionText } from '@/components/StyledText';
-import { colors, space } from '@/constants/theme';
-
-/** Near-white empty fill — matches Goals/Accounts dashed CTAs. */
-const EMPTY_FILL = '#fafafa';
+import { space, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 const WELL_H = 180;
 const CHART_H = 120;
@@ -38,6 +36,8 @@ type Props = {
  * Entire well navigates to Add account. Stretches with full-bleed parent.
  */
 export function ProjectionEmptyWell({ onPress }: Props) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [chartW, setChartW] = useState(FALLBACK_CHART_W);
 
   function onLayout(e: LayoutChangeEvent) {
@@ -105,58 +105,60 @@ export function ProjectionEmptyWell({ onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  well: {
-    width: '100%',
-    minHeight: WELL_H,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: colors.border,
-    // Full-bleed: square to screen edges.
-    borderRadius: 0,
-    backgroundColor: EMPTY_FILL,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: space.md,
-  },
-  wellPressed: {
-    backgroundColor: colors.green[50],
-    borderColor: colors.green[200],
-  },
-  ghostCanvas: {
-    position: 'absolute',
-    height: CHART_H,
-    opacity: 0.35,
-  },
-  ghostSeg: {
-    position: 'absolute',
-    height: GHOST_STROKE,
-    borderRadius: 1,
-    // Soft green dashed feel via lighter stroke + opacity on parent
-    backgroundColor: colors.green[400],
-    borderStyle: 'dashed',
-  },
-  cta: {
-    alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.lg,
-    zIndex: 1,
-  },
-  plusCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: colors.green[700],
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  caption: {
-    color: colors.inkMuted,
-    textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    well: {
+      width: '100%' as const,
+      minHeight: WELL_H,
+      borderWidth: 1.5,
+      borderStyle: 'dashed' as const,
+      borderColor: colors.border,
+      // Full-bleed: square to screen edges.
+      borderRadius: 0,
+      backgroundColor: colors.surfaceMuted,
+      overflow: 'hidden' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: space.md,
+    },
+    wellPressed: {
+      backgroundColor: colors.green[50],
+      borderColor: colors.green[200],
+    },
+    ghostCanvas: {
+      position: 'absolute' as const,
+      height: CHART_H,
+      opacity: 0.35,
+    },
+    ghostSeg: {
+      position: 'absolute' as const,
+      height: GHOST_STROKE,
+      borderRadius: 1,
+      // Soft green dashed feel via lighter stroke + opacity on parent
+      backgroundColor: colors.green[400],
+      borderStyle: 'dashed' as const,
+    },
+    cta: {
+      alignItems: 'center' as const,
+      gap: space.sm,
+      paddingHorizontal: space.lg,
+      zIndex: 1,
+    },
+    plusCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 2,
+      borderColor: colors.green[700],
+      backgroundColor: colors.surface,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    caption: {
+      color: colors.inkMuted,
+      textAlign: 'center' as const,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+  };
+}

@@ -1,13 +1,12 @@
 import { Tabs } from 'expo-router';
 
 import { FudgetTabBar } from '@/components/FudgetTabBar';
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors, fonts, navHeaderStyle } from '@/constants/theme';
+import { fonts, navHeaderStyleFor } from '@/constants/theme';
 import { periodBodyScreenOptions } from '@/lib/periodHeader';
+import { useTheme } from '@/lib/ThemeProvider';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const { colors } = useTheme();
 
   return (
     <Tabs
@@ -29,11 +28,11 @@ export default function TabLayout() {
         />
       )}
       screenOptions={{
-        tabBarActiveTintColor: palette.tint,
-        tabBarInactiveTintColor: palette.tabIconDefault,
+        tabBarActiveTintColor: colors.green[700],
+        tabBarInactiveTintColor: colors.inkMuted,
         tabBarStyle: {
-          backgroundColor: palette.surface,
-          borderTopColor: palette.chromeBorder,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.chromeBorder,
         },
         tabBarLabelStyle: {
           fontFamily: fonts.caption,
@@ -41,14 +40,10 @@ export default function TabLayout() {
           letterSpacing: 0.2,
         },
         // Fallback for any tab that still uses the default header.
-        headerStyle: {
-          ...navHeaderStyle,
-          backgroundColor: palette.background,
-          borderBottomColor: palette.chromeBorder,
-        },
+        headerStyle: navHeaderStyleFor(colors),
         headerTitleStyle: {
           fontFamily: fonts.title,
-          color: palette.text,
+          color: colors.ink,
         },
         headerShadowVisible: false,
         headerShown: true,

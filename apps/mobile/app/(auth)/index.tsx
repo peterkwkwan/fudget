@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -10,12 +10,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useAuth } from '@/lib/auth';
 
 const MARK = require('../../assets/images/fudget-mark-g.png');
 
 export default function LoginScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { signInWithGoogle, configured } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -93,7 +96,8 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -176,7 +180,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonPressed: {
-    backgroundColor: colors.green[950],
+    backgroundColor: colors.primaryPressed,
     transform: [{ scale: 0.98 }],
   },
   buttonDisabled: {
@@ -200,3 +204,5 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
   },
 });
+}
+

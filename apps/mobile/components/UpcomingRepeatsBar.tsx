@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import type { UpcomingRepeatsSummary } from '@/lib/transactions';
+import { useTheme } from '@/lib/ThemeProvider';
 
 type Props = {
   summary: UpcomingRepeatsSummary;
@@ -11,6 +13,8 @@ type Props = {
 };
 
 export function UpcomingRepeatsBar({ summary, onPress }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { format } = useFormatMoney();
   const parts: string[] = [];
   if (summary.expenseSum > 0) {
@@ -46,42 +50,44 @@ export function UpcomingRepeatsBar({ summary, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  bar: {
-    marginHorizontal: space.md,
-    marginTop: space.md,
-    marginBottom: space.sm,
-    paddingVertical: space.sm + 4,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  pressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  textCol: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    color: colors.green[950],
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  names: {
-    color: colors.ink,
-  },
-  meta: {
-    color: colors.inkMuted,
-    ...typography.caption,
-  },
-  chevron: {
-    color: colors.green[700],
-    fontFamily: fonts.bodyStrong,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    bar: {
+      marginHorizontal: space.md,
+      marginTop: space.md,
+      marginBottom: space.sm,
+      paddingVertical: space.sm + 4,
+      paddingHorizontal: space.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceMuted,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.sm,
+    },
+    pressed: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    textCol: {
+      flex: 1,
+      gap: 2,
+    },
+    title: {
+      color: colors.green[950],
+      fontSize: 15,
+      lineHeight: 20,
+    },
+    names: {
+      color: colors.ink,
+    },
+    meta: {
+      color: colors.inkMuted,
+      ...typography.caption,
+    },
+    chevron: {
+      color: colors.green[700],
+      fontFamily: fonts.bodyStrong,
+    },
+  });
+}

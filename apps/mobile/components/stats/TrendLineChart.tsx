@@ -7,8 +7,9 @@ import {
 } from 'react-native';
 
 import { BodyText, CaptionText } from '@/components/StyledText';
-import { colors, space } from '@/constants/theme';
+import { space, type ThemeColors } from '@/constants/theme';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
+import { useTheme } from '@/lib/ThemeProvider';
 import { niceAxisTicks, tickDomain } from '@/lib/money';
 import {
   formatTrendBucketLabel,
@@ -16,6 +17,7 @@ import {
   type TrendBucket,
   type TrendSlot,
 } from '@/lib/periods';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 type Props = {
   data: TrendSlot[];
@@ -68,8 +70,11 @@ export function TrendLineChart({
   emptyLabel,
   bucket,
   timeZone,
-  strokeColor = colors.green[700],
+  strokeColor,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const resolvedStroke = strokeColor ?? colors.green[700];
   const { formatCompact } = useFormatMoney();
   // Full-bleed ≈ window width; onLayout corrects if insets differ.
   const [chartW, setChartW] = useState(
@@ -101,9 +106,11 @@ export function TrendLineChart({
         data={data}
         bucket={bucket}
         timeZone={timeZone}
-        strokeColor={strokeColor}
+        strokeColor={resolvedStroke}
         chartW={chartW}
         onWrapLayout={onWrapLayout}
+        styles={styles}
+        ghostSegColor={colors.border}
       />
     );
   }
@@ -188,7 +195,7 @@ export function TrendLineChart({
                   height: STROKE,
                   left: midX - length / 2,
                   top: midY - STROKE / 2,
-                  backgroundColor: strokeColor,
+                  backgroundColor: resolvedStroke,
                   transform: [{ rotate: `${angle}deg` }],
                 },
               ]}
@@ -204,7 +211,7 @@ export function TrendLineChart({
               {
                 left: p.x - DOT / 2,
                 top: p.y - DOT / 2,
-                backgroundColor: strokeColor,
+                backgroundColor: resolvedStroke,
               },
             ]}
           />
@@ -242,6 +249,8 @@ export function TrendLineChart({
   );
 }
 
+type ChartStyles = ReturnType<typeof createStyles>;
+
 /**
  * Solid real point(s) + dashed ghost 5-slot line + explanatory copy.
  * No CTA — totals / categories / metric toggles stay on the parent screen.
@@ -253,6 +262,8 @@ function InsufficientTrendPlaceholder({
   strokeColor,
   chartW,
   onWrapLayout,
+  styles,
+  ghostSegColor,
 }: {
   data: TrendSlot[];
   bucket: TrendBucket;
@@ -260,6 +271,8 @@ function InsufficientTrendPlaceholder({
   strokeColor: string;
   chartW: number;
   onWrapLayout: (e: LayoutChangeEvent) => void;
+  styles: ChartStyles;
+  ghostSegColor: string;
 }) {
   const { formatCompact } = useFormatMoney();
   const realSlots = data.filter((p) => p.total != null);
@@ -330,7 +343,8 @@ function InsufficientTrendPlaceholder({
             key={`ghost-seg-${i}`}
             from={a}
             to={layoutPts[i + 1]!}
-            color={colors.border}
+            color={ghostSegColor}
+            styles={styles}
           />
         ))}
 
@@ -444,10 +458,12 @@ function DashedSegment({
   from,
   to,
   color,
+  styles,
 }: {
   from: { x: number; y: number };
   to: { x: number; y: number };
   color: string;
+  styles: ChartStyles;
 }) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -501,106 +517,108 @@ function pickLabelIndexes(count: number, maxLabels: number): number[] {
   return [...new Set(indexes)];
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    width: '100%',
-    alignItems: 'stretch',
-    justifyContent: 'center',
-  },
-  canvas: {
-    width: '100%',
-    height: CHART_H,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    // Full-bleed: square to screen edges (no side gutters / radius).
-    borderRadius: 0,
-  },
-  yLabel: {
-    position: 'absolute',
-    left: Y_LABEL_INSET,
-    color: colors.inkMuted,
-    fontSize: 11,
-    lineHeight: 14,
-    textAlign: 'right',
-  },
-  gridLine: {
-    position: 'absolute',
-    left: PAD_LEFT,
-    right: PAD_RIGHT,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-  },
-  gridLineDashedHint: {
-    opacity: 0.55,
-  },
-  baseline: {
-    position: 'absolute',
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.green[200],
-  },
-  segment: {
-    position: 'absolute',
-    borderRadius: 2,
-  },
-  ghostDash: {
-    position: 'absolute',
-    height: GHOST_STROKE,
-    borderRadius: 1,
-  },
-  dot: {
-    position: 'absolute',
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  ghostDot: {
-    position: 'absolute',
-    width: GHOST_DOT,
-    height: GHOST_DOT,
-    borderRadius: GHOST_DOT / 2,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  axisRow: {
-    position: 'relative',
-    height: 20,
-    marginTop: space.xs,
-  },
-  xLabel: {
-    position: 'absolute',
-    top: 0,
-    width: 56,
-    color: colors.inkMuted,
-    fontSize: 11,
-    lineHeight: 14,
-    textAlign: 'center',
-  },
-  xLabelReal: {
-    color: colors.inkMuted,
-  },
-  xLabelGhost: {
-    color: colors.border,
-  },
-  empty: {
-    width: '100%',
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space.lg,
-  },
-  emptyText: {
-    color: colors.inkMuted,
-    textAlign: 'center',
-  },
-  insufficientCopy: {
-    marginTop: space.sm,
-    paddingHorizontal: space.md,
-    textAlign: 'center',
-    color: colors.inkMuted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    wrap: {
+      width: '100%' as const,
+      alignItems: 'stretch' as const,
+      justifyContent: 'center' as const,
+    },
+    canvas: {
+      width: '100%' as const,
+      height: CHART_H,
+      overflow: 'hidden' as const,
+      backgroundColor: colors.surface,
+      // Full-bleed: square to screen edges (no side gutters / radius).
+      borderRadius: 0,
+    },
+    yLabel: {
+      position: 'absolute' as const,
+      left: Y_LABEL_INSET,
+      color: colors.inkMuted,
+      fontSize: 11,
+      lineHeight: 14,
+      textAlign: 'right' as const,
+    },
+    gridLine: {
+      position: 'absolute' as const,
+      left: PAD_LEFT,
+      right: PAD_RIGHT,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.border,
+    },
+    gridLineDashedHint: {
+      opacity: 0.55,
+    },
+    baseline: {
+      position: 'absolute' as const,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.green[200],
+    },
+    segment: {
+      position: 'absolute' as const,
+      borderRadius: 2,
+    },
+    ghostDash: {
+      position: 'absolute' as const,
+      height: GHOST_STROKE,
+      borderRadius: 1,
+    },
+    dot: {
+      position: 'absolute' as const,
+      width: DOT,
+      height: DOT,
+      borderRadius: DOT / 2,
+      borderWidth: 2,
+      borderColor: colors.surface,
+    },
+    ghostDot: {
+      position: 'absolute' as const,
+      width: GHOST_DOT,
+      height: GHOST_DOT,
+      borderRadius: GHOST_DOT / 2,
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+    },
+    axisRow: {
+      position: 'relative' as const,
+      height: 20,
+      marginTop: space.xs,
+    },
+    xLabel: {
+      position: 'absolute' as const,
+      top: 0,
+      width: 56,
+      color: colors.inkMuted,
+      fontSize: 11,
+      lineHeight: 14,
+      textAlign: 'center' as const,
+    },
+    xLabelReal: {
+      color: colors.inkMuted,
+    },
+    xLabelGhost: {
+      color: colors.border,
+    },
+    empty: {
+      width: '100%' as const,
+      height: 140,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingHorizontal: space.lg,
+    },
+    emptyText: {
+      color: colors.inkMuted,
+      textAlign: 'center' as const,
+    },
+    insufficientCopy: {
+      marginTop: space.sm,
+      paddingHorizontal: space.md,
+      textAlign: 'center' as const,
+      color: colors.inkMuted,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+  };
+}

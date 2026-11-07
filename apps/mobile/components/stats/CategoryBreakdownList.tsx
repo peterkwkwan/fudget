@@ -1,11 +1,13 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
 import type { TransactionType } from '@/constants/categories';
 import { colorForCategory } from '@/constants/chartColors';
-import { colors, fonts, space, typography } from '@/constants/theme';
+import { fonts, space, typography, type ThemeColors } from '@/constants/theme';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
+import { useTheme } from '@/lib/ThemeProvider';
 import type { CategoryTotal } from '@/lib/stats';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 type Props = {
   data: CategoryTotal[];
@@ -17,6 +19,9 @@ type Props = {
 
 export function CategoryBreakdownList({ data, onSelect, type }: Props) {
   const { formatWhole } = useFormatMoney();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   if (data.length === 0) {
     return null;
   }
@@ -54,7 +59,7 @@ export function CategoryBreakdownList({ data, onSelect, type }: Props) {
                     styles.fill,
                     {
                       width: `${Math.min(100, Math.max(0, pct))}%`,
-                      backgroundColor: colorForCategory(index, type),
+                      backgroundColor: colorForCategory(index, type, colors),
                     },
                   ]}
                 />
@@ -94,64 +99,66 @@ export function CategoryBreakdownList({ data, onSelect, type }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  list: {
-    gap: 0,
-  },
-  row: {
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: 10,
-  },
-  pressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  category: {
-    flex: 1,
-    color: colors.ink,
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: fonts.caption,
-  },
-  categoryEmphasis: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontFamily: fonts.bodyStrong,
-  },
-  shareRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  pct: {
-    ...typography.amount,
-    fontSize: 11,
-    lineHeight: 14,
-    width: 36,
-    textAlign: 'right',
-  },
-  amount: {
-    color: colors.inkMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontVariant: ['tabular-nums'],
-  },
-  track: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.canvas,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    list: {
+      gap: 0,
+    },
+    row: {
+      paddingVertical: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: 10,
+    },
+    pressed: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    top: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      gap: space.sm,
+    },
+    category: {
+      flex: 1,
+      color: colors.ink,
+      fontSize: 14,
+      lineHeight: 20,
+      fontFamily: fonts.caption,
+    },
+    categoryEmphasis: {
+      fontSize: 15,
+      lineHeight: 20,
+      fontFamily: fonts.bodyStrong,
+    },
+    shareRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+    },
+    pct: {
+      ...typography.amount,
+      fontSize: 11,
+      lineHeight: 14,
+      width: 36,
+      textAlign: 'right' as const,
+    },
+    amount: {
+      color: colors.inkMuted,
+      fontSize: 13,
+      lineHeight: 18,
+      fontVariant: ['tabular-nums'] as const,
+    },
+    track: {
+      flex: 1,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.canvas,
+      overflow: 'hidden' as const,
+    },
+    fill: {
+      height: '100%' as const,
+      borderRadius: 3,
+    },
+  };
+}

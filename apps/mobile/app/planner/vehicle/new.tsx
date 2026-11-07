@@ -1,16 +1,19 @@
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ConnectionRequired } from '@/components/ConnectionRequired';
 import { VehicleForm } from '@/components/planner/VehicleForm';
-import { colors } from '@/constants/theme';
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { useCreatePlannerVehicle } from '@/hooks/usePlanner';
 import { PLANNER_WRITE_OFFLINE_COPY } from '@/lib/offline/ux';
 import type { PlannerVehicleInput } from '@/lib/plannerVehicles';
 
 export default function NewVehicleScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const create = useCreatePlannerVehicle();
   const { plannerWriteBlocked } = useOfflineGates();
@@ -55,6 +58,9 @@ export default function NewVehicleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
 });
+}
+

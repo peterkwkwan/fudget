@@ -1,12 +1,4 @@
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useLayoutEffect,
-  useRef,
-  type ReactNode,
-} from 'react';
+import { useMemo, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, type ReactNode } from 'react';
 import {
   StyleSheet,
   View,
@@ -24,7 +16,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { colors } from '@/constants/theme';
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import {
   MONTH_CARD_SNAP_MS,
   MONTH_FILL_FADE_MS,
@@ -91,6 +84,8 @@ export const MonthCardPager = forwardRef<
   },
   ref
 ) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const widthInternal = useSharedValue(0);
   const translateInternal = useSharedValue(0);
   const fillOpacity = useSharedValue(contentReady ? 1 : 0);
@@ -275,7 +270,8 @@ export const MonthCardPager = forwardRef<
   );
 });
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   clip: {
     flex: 1,
     overflow: 'hidden',
@@ -306,3 +302,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
 });
+}
+

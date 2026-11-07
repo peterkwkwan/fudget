@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -10,7 +11,8 @@ import {
 import { ConnectionRequired } from '@/components/ConnectionRequired';
 import { CaptionText, TitleText } from '@/components/StyledText';
 import { RecurringRow } from '@/components/RecurringRow';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { useRecurringList } from '@/hooks/useRecurring';
 import { guardedPush } from '@/lib/navGuard';
@@ -21,6 +23,8 @@ import { REPEAT_BLOCKED_COPY } from '@/lib/offline/ux';
  * Create new rules via + (Add transaction) → Repeat.
  */
 export default function RecurringManageScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { recurringBlocked } = useOfflineGates();
   const { data, isLoading, isError, error, refetch, isRefetching } =
@@ -105,7 +109,8 @@ export default function RecurringManageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -165,3 +170,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyStrong,
   },
 });
+}
+

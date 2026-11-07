@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { colors } from '@/constants/theme';
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useAuth } from '@/lib/auth';
 
 /**
@@ -13,6 +15,8 @@ import { useAuth } from '@/lib/auth';
  * `/` → `(tabs)/index` (Transactions).
  */
 export default function AuthCallbackScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { session } = useAuth();
 
   if (session) {
@@ -26,7 +30,8 @@ export default function AuthCallbackScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -34,3 +39,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
 });
+}
+

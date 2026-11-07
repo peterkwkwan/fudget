@@ -18,7 +18,8 @@ import {
   defaultCategory,
   type TransactionType,
 } from '@/constants/categories';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useUserCategories } from '@/hooks/useUserCategories';
 import { useAuth } from '@/lib/auth';
 import { formatDisplayDate } from '@/lib/dates';
@@ -75,6 +76,8 @@ export function BulkEditSheet({
   onCancel,
   onApply,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const timeZone = profile?.timezone || deviceTimezone();
   const customsQuery = useUserCategories();
@@ -308,7 +311,8 @@ export function BulkEditSheet({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   scrim: {
     flex: 1,
     backgroundColor: colors.overlay,
@@ -424,7 +428,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryPressed: {
-    backgroundColor: colors.green[950],
+    backgroundColor: colors.primaryPressed,
   },
   primaryText: {
     color: colors.inkInverse,
@@ -433,3 +437,5 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
 });
+}
+

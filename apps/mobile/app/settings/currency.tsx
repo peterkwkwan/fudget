@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useMemo, useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -22,7 +22,8 @@ import {
   currencyPickerLabel,
   type AccountCurrency,
 } from '@/constants/currencies';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { invalidateAllProductQueries } from '@/hooks/useAccountBackup';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { useAuth } from '@/lib/auth';
@@ -41,6 +42,8 @@ import { parseMoneyInput } from '@/lib/money';
  * Settings → Currency: pick account currency; Keep amounts or Convert with rate.
  */
 export default function CurrencySettingsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { profile, refreshProfile, user } = useAuth();
   const queryClient = useQueryClient();
@@ -296,7 +299,8 @@ export default function CurrencySettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   host: { flex: 1, backgroundColor: colors.canvas },
   scrollHost: { flex: 1 },
   scroll: { flex: 1, backgroundColor: colors.canvas },
@@ -383,3 +387,5 @@ const styles = StyleSheet.create({
   cancelBtn: { alignItems: 'center', paddingVertical: space.sm },
   cancelText: { color: colors.inkMuted },
 });
+}
+

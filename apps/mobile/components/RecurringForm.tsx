@@ -1,7 +1,7 @@
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -18,7 +18,8 @@ import {
   defaultCategory,
   type TransactionType,
 } from '@/constants/categories';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import {
   endsSummary,
   type EndsMode,
@@ -76,6 +77,9 @@ type EditProps = {
 type Props = CreateProps | EditProps;
 
 export function RecurringForm(props: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { initial, submitLabel, busy = false, error = null, timezone } = props;
   const isCreate = props.mode === 'create';
 
@@ -437,7 +441,8 @@ export function RecurringForm(props: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   scroll: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -541,7 +546,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryPressed: {
-    backgroundColor: colors.green[950],
+    backgroundColor: colors.primaryPressed,
     transform: [{ scale: 0.98 }],
   },
   primaryText: {
@@ -577,3 +582,5 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
 });
+}
+

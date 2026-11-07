@@ -34,7 +34,8 @@ import {
   VEHICLE_TYPE_LABELS,
   type HorizonPresetKey,
 } from '@/constants/planner';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useAuth } from '@/lib/auth';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePartnerLink } from '@/hooks/usePartner';
@@ -91,16 +92,16 @@ function paceLabel(status: PaceStatus): string {
   }
 }
 
-function paceColor(status: PaceStatus): string {
+function paceColor(status: PaceStatus, palette: ThemeColors): string {
   switch (status) {
     case 'ahead':
-      return colors.green[700];
+      return palette.green[700];
     case 'behind':
-      return colors.warning;
+      return palette.warning;
     case 'on_track':
-      return colors.ink;
+      return palette.ink;
     default:
-      return colors.inkMuted;
+      return palette.inkMuted;
   }
 }
 
@@ -116,6 +117,8 @@ function toProjectInput(v: PlannerVehicle): ProjectVehicleInput {
 }
 
 export default function PlannerScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { format } = useFormatMoney();
   const { user } = useAuth();
   const router = useRouter();
@@ -424,7 +427,7 @@ export default function PlannerScreen() {
           </Pressable>
         </View>
         <CaptionText
-          style={[styles.muted, { color: paceColor(pace.status) }]}
+          style={[styles.muted, { color: paceColor(pace.status, colors) }]}
         >
           {GOAL_TYPE_LABELS[g.goal_type]} · {pace.progressPct}% ·{' '}
           {paceLabel(pace.status)}
@@ -787,7 +790,8 @@ export default function PlannerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   scroll: { flex: 1 },
   content: {
@@ -1017,3 +1021,5 @@ const styles = StyleSheet.create({
   },
   partnerRowTitle: { color: colors.ink },
 });
+}
+

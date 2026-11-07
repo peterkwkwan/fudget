@@ -1,86 +1,160 @@
 /**
- * Fudget design tokens — aligned to Figma redesign (9NzoMoJJqyC2cA4WH9Czek)
- * Soft gray canvas; forest green accent; white elevated cards.
+ * Fudget design tokens — light + dark palettes from Figma
+ * (9NzoMoJJqyC2cA4WH9Czek). Prefer useTheme().colors over the static
+ * `colors` export when a screen must react to Appearance preference.
  */
 
-export const colors = {
+export type ColorSchemePreference = 'light' | 'dark';
+
+/** Shared brand / chart scales that stay fixed across schemes. */
+const brandGreens = {
+  /** Deepest brand (light pressed / dark on-primary text). */
+  950: '#004d00',
+  700: '#008438',
+  400: '#66b3a1',
+  200: '#b2e0d4',
+  50: '#e1f5ec',
+} as const;
+
+const rust = {
+  950: '#7c2d12',
+  700: '#9a3412',
+  500: '#c2410c',
+  400: '#ea580c',
+  200: '#fdba74',
+} as const;
+
+const blue = {
+  700: '#1d4ed8',
+  500: '#2563eb',
+  400: '#60a5fa',
+  200: '#bfdbfe',
+} as const;
+
+const chartRed = { 800: '#9f1239', 500: '#e11d48' } as const;
+const chartPurple = { 700: '#7e22ce', 400: '#a855f7' } as const;
+const chartAmber = { 700: '#a16207', 500: '#ca8a04' } as const;
+
+export type ThemeColors = {
   green: {
-    950: '#004d00',
-    /** Primary interactive — Figma #008438. */
-    700: '#008438',
-    400: '#66b3a1',
-    200: '#b2e0d4',
-    /** Selected chip / day tint — Figma #e1f5ec. */
-    50: '#e1f5ec',
-  },
-  /** Warm rust scale — expense amount token + orange wedges. */
-  rust: {
-    950: '#7c2d12',
-    700: '#9a3412',
-    500: '#c2410c',
-    400: '#ea580c',
-    200: '#fdba74',
-  },
-  /** Cool blues — income chart wedges (with greens). */
-  blue: {
-    700: '#1d4ed8',
-    500: '#2563eb',
-    400: '#60a5fa',
-    200: '#bfdbfe',
-  },
-  /** Expense chart — red wedges (distinct from amount `expense` token). */
-  chartRed: {
-    800: '#9f1239',
-    500: '#e11d48',
-  },
-  /** Expense chart — purple wedges. */
-  chartPurple: {
-    700: '#7e22ce',
-    400: '#a855f7',
-  },
-  /** Expense chart — deep yellow / amber wedges. */
-  chartAmber: {
-    700: '#a16207',
-    500: '#ca8a04',
-  },
-  /** Soft gray page background (Figma #f6f7f8). */
+    950: string;
+    700: string;
+    400: string;
+    200: string;
+    50: string;
+  };
+  rust: typeof rust;
+  blue: typeof blue;
+  chartRed: typeof chartRed;
+  chartPurple: typeof chartPurple;
+  chartAmber: typeof chartAmber;
+  canvas: string;
+  ink: string;
+  inkMuted: string;
+  inkSoft: string;
+  /** Text/icons on primary CTAs (white in light; deep green on mint in dark). */
+  inkInverse: string;
+  surface: string;
+  surfaceMuted: string;
+  border: string;
+  chromeBorder: string;
+  gridLine: string;
+  danger: string;
+  warning: string;
+  income: string;
+  expense: string;
+  incomeTint: string;
+  expenseTint: string;
+  overlay: string;
+  chartWarm: string;
+  /** Primary CTA pressed fill (deep forest in light; darker mint in dark). */
+  primaryPressed: string;
+};
+
+/** Light — Figma paper-white redesign (shipped a7551f8). */
+export const lightColors: ThemeColors = {
+  green: { ...brandGreens },
+  rust,
+  blue,
+  chartRed,
+  chartPurple,
+  chartAmber,
   canvas: '#f6f7f8',
-  /** Primary body text (Figma #202923). */
   ink: '#202923',
-  /** Secondary labels (Figma #717972). */
   inkMuted: '#717972',
-  /** Soft / placeholder / weekday (Figma #929a95). */
   inkSoft: '#929a95',
   inkInverse: '#ffffff',
-  /** Raised card / chrome surface. */
   surface: '#ffffff',
-  /** Input fills / muted wells (matches canvas). */
   surfaceMuted: '#f6f7f8',
-  /** Content hairlines (Figma #e3e8e4). */
   border: '#e3e8e4',
-  /** Nav / tab chrome — same quiet green-gray as content borders. */
   chromeBorder: '#e3e8e4',
-  /** Chart grid lines (Figma #edf0ee). */
   gridLine: '#edf0ee',
   danger: '#b42318',
   warning: '#b54708',
-  /** Income amounts (= green.700). */
   income: '#008438',
-  /** Expense amounts (Figma #a65335). */
   expense: '#a65335',
-  /** Soft fills behind category glyphs. */
   incomeTint: '#e1f5ec',
   expenseTint: '#faeee7',
   overlay: 'rgba(32, 41, 35, 0.45)',
-  /** @deprecated Use colors.rust[500] — kept for any stray imports. */
   chartWarm: '#c2410c',
+  primaryPressed: '#004d00',
+};
+
+/**
+ * Dark — Figma Dark ·* frames.
+ * Primary interactive flips to mint `#62d99c`; CTA label uses deep green.
+ */
+export const darkColors: ThemeColors = {
+  green: {
+    /** Emphasis titles that were deep forest in light → mint in dark. */
+    950: '#62d99c',
+    700: '#62d99c',
+    400: '#66b3a1',
+    200: '#203e2e',
+    50: '#203e2e',
+  },
+  rust,
+  blue,
+  chartRed,
+  chartPurple,
+  chartAmber,
+  canvas: '#121815',
+  ink: '#eff4f0',
+  inkMuted: '#a5b2aa',
+  inkSoft: '#85958b',
+  /** On mint primary buttons / FAB glyph. */
+  inkInverse: '#092b18',
+  surface: '#1c2420',
+  surfaceMuted: '#252e29',
+  border: '#354139',
+  chromeBorder: '#354139',
+  gridLine: '#354139',
+  danger: '#f07167',
+  warning: '#f0a081',
+  income: '#62d99c',
+  expense: '#f0a081',
+  incomeTint: '#203e2e',
+  expenseTint: '#3b2b24',
+  overlay: 'rgba(8, 12, 10, 0.6)',
+  chartWarm: '#f0a081',
+  primaryPressed: '#3db87a',
+};
+
+export const palettes = {
+  light: lightColors,
+  dark: darkColors,
 } as const;
+
+/**
+ * Default static export — light palette.
+ * Screens that must follow the user preference should use `useTheme().colors`.
+ */
+export const colors = lightColors;
 
 export const space = {
   xs: 4,
   sm: 8,
   md: 16,
-  /** Screen horizontal padding in Figma frames. */
   screen: 20,
   lg: 24,
   xl: 32,
@@ -88,25 +162,17 @@ export const space = {
 } as const;
 
 export const radius = {
-  /** Chips / small controls. */
   sm: 9,
-  /** Buttons, inputs, month chevrons. */
   md: 12,
-  /** Day cells / small tiles. */
   tile: 10,
-  /** Cards / sheets (Figma 18). */
   lg: 18,
-  /** FAB squircle (Figma 18 on 50px). */
   fab: 18,
   full: 999,
 } as const;
 
-/** Loaded via @expo-google-fonts — family names match useFonts keys. */
 export const fonts = {
   display: 'Fraunces_600SemiBold',
-  /** Screen titles — DM Sans (Figma uses Inter; keep brand fonts). */
   title: 'DMSans_600SemiBold',
-  /** Large page titles render closer to Figma Regular 27. */
   pageTitle: 'DMSans_400Regular',
   body: 'DMSans_400Regular',
   bodyStrong: 'DMSans_600SemiBold',
@@ -120,7 +186,6 @@ export const typography = {
     fontSize: 28,
     lineHeight: 34,
   },
-  /** In-page hero title (Transactions / Stats / Planner / Account). */
   pageTitle: {
     fontFamily: fonts.pageTitle,
     fontSize: 27,
@@ -168,8 +233,28 @@ export const typography = {
   },
 } as const;
 
-/** Optional elevation only — default UI uses soft card lift, no multi-layer. */
-export const shadow = {
+export type ThemeShadow = {
+  sm: {
+    shadowColor: string;
+    shadowOffset: { width: number; height: number };
+    shadowOpacity: number;
+    shadowRadius: number;
+    elevation: number;
+  };
+  card: {
+    shadowColor: string;
+    shadowOffset: { width: number; height: number };
+    shadowOpacity: number;
+    shadowRadius: number;
+    elevation: number;
+  };
+  scrollEdge: {
+    color: string;
+    height: number;
+  };
+};
+
+export const shadow: ThemeShadow = {
   sm: {
     shadowColor: '#202923',
     shadowOffset: { width: 0, height: 1 },
@@ -184,68 +269,89 @@ export const shadow = {
     shadowRadius: 8,
     elevation: 2,
   },
-  /**
-   * Scroll-edge cue when content is clipped under the header / above the tab bar.
-   * Soft ink wash — not multi-layer chrome elevation.
-   */
   scrollEdge: {
     color: 'rgba(32, 41, 35, 0.07)',
     height: 8,
   },
-} as const;
+};
 
-/**
- * Shared 1px chrome separators for nav headers + tab bar.
- * Prefer over `StyleSheet.hairlineWidth` so edges stay visible on retina.
- */
+export const darkShadow: ThemeShadow = {
+  sm: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.35,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  card: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  scrollEdge: {
+    color: 'rgba(0, 0, 0, 0.35)',
+    height: 8,
+  },
+};
+
+export function chromeHairlineFor(c: ThemeColors) {
+  return { width: 1, color: c.chromeBorder } as const;
+}
+
 export const chromeHairline = {
   width: 1,
-  color: colors.chromeBorder,
+  color: lightColors.chromeBorder,
 } as const;
 
-/** Stack / tab header style: soft canvas + bottom chrome hairline, no platform shadow. */
-export const navHeaderStyle = {
-  backgroundColor: colors.canvas,
-  borderBottomWidth: chromeHairline.width,
-  borderBottomColor: chromeHairline.color,
-  elevation: 0,
-  shadowOpacity: 0,
-} as const;
+export function navHeaderStyleFor(c: ThemeColors) {
+  return {
+    backgroundColor: c.canvas,
+    borderBottomWidth: 1,
+    borderBottomColor: c.chromeBorder,
+    elevation: 0,
+    shadowOpacity: 0,
+  } as const;
+}
 
-/** Navigation / Themed light+dark maps (MVP ships light; dark mapped to brand neutrals). */
+export const navHeaderStyle = navHeaderStyleFor(lightColors);
+
+/** Navigation / Themed maps — keep in sync with palettes. */
 export const Colors = {
   light: {
-    text: colors.ink,
-    background: colors.canvas,
-    tint: colors.green[700],
-    tabIconDefault: colors.inkMuted,
-    tabIconSelected: colors.green[700],
-    border: colors.border,
-    chromeBorder: colors.chromeBorder,
-    surface: colors.surface,
-    surfaceMuted: colors.surfaceMuted,
-    danger: colors.danger,
-    warning: colors.warning,
+    text: lightColors.ink,
+    background: lightColors.canvas,
+    tint: lightColors.green[700],
+    tabIconDefault: lightColors.inkMuted,
+    tabIconSelected: lightColors.green[700],
+    border: lightColors.border,
+    chromeBorder: lightColors.chromeBorder,
+    surface: lightColors.surface,
+    surfaceMuted: lightColors.surfaceMuted,
+    danger: lightColors.danger,
+    warning: lightColors.warning,
   },
   dark: {
-    text: colors.inkInverse,
-    background: colors.green[950],
-    tint: colors.green[400],
-    tabIconDefault: colors.green[200],
-    tabIconSelected: colors.green[400],
-    border: colors.green[700],
-    chromeBorder: colors.green[700],
-    surface: '#0f1c14',
-    surfaceMuted: '#1a2a1f',
-    danger: '#ff8a80',
-    warning: '#fbbf24',
+    text: darkColors.ink,
+    background: darkColors.canvas,
+    tint: darkColors.green[700],
+    tabIconDefault: darkColors.inkMuted,
+    tabIconSelected: darkColors.green[700],
+    border: darkColors.border,
+    chromeBorder: darkColors.chromeBorder,
+    surface: darkColors.surface,
+    surfaceMuted: darkColors.surfaceMuted,
+    danger: darkColors.danger,
+    warning: darkColors.warning,
   },
 } as const;
 
 export type ThemeColorName = keyof typeof Colors.light;
 
 export const theme = {
-  colors,
+  colors: lightColors,
+  palettes,
   space,
   radius,
   fonts,

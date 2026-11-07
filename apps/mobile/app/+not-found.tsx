@@ -1,10 +1,14 @@
+import { useMemo } from 'react';
 import { Link, Stack } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
-import { colors, space, typography } from '@/constants/theme';
+import { space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 
 export default function NotFoundScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
@@ -19,7 +23,8 @@ export default function NotFoundScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
@@ -39,3 +44,5 @@ const styles = StyleSheet.create({
     color: colors.green[700],
   },
 });
+}
+

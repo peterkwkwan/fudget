@@ -1,10 +1,11 @@
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ConnectionRequired } from '@/components/ConnectionRequired';
 import { RecurringForm } from '@/components/RecurringForm';
-import { colors } from '@/constants/theme';
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { useCreateRecurringSeries } from '@/hooks/useRecurring';
 import { useAuth } from '@/lib/auth';
@@ -13,6 +14,8 @@ import { deviceTimezone } from '@/lib/profile';
 import type { RecurringSeriesInput } from '@/lib/recurring';
 
 export default function NewRecurringScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { profile } = useAuth();
   const create = useCreateRecurringSeries();
@@ -56,9 +59,12 @@ export default function NewRecurringScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
   },
 });
+}
+

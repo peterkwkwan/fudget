@@ -8,35 +8,30 @@ import {
 } from '@expo-google-fonts/dm-sans';
 import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
 import { useFonts } from 'expo-font';
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import {
+  DarkTheme as NavDarkTheme,
+  DefaultTheme,
+  ThemeProvider as NavThemeProvider,
+  Stack,
+} from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
-import { colors } from '@/constants/theme';
 import { useCatchUpRecurring } from '@/hooks/useCatchUpRecurring';
 import { useOfflineTransactionSync } from '@/hooks/useOfflineSync';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { AppQueryProvider } from '@/lib/query';
+import {
+  ThemeProvider as FudgetThemeProvider,
+  useTheme,
+} from '@/lib/ThemeProvider';
 
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
-
-const FudgetNavTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: colors.green[700],
-    background: colors.canvas,
-    card: colors.surface,
-    text: colors.ink,
-    border: colors.chromeBorder,
-    notification: colors.green[700],
-  },
-};
 
 /** Keep native splash up until fonts + auth session are ready. */
 function SplashController({ fontsReady }: { fontsReady: boolean }) {
@@ -87,6 +82,27 @@ function RootNavigator() {
   );
 }
 
+function ThemedNavigation({ children }: { children: ReactNode }) {
+  const { colors, isDark } = useTheme();
+  const navTheme = useMemo(
+    () => ({
+      ...(isDark ? NavDarkTheme : DefaultTheme),
+      colors: {
+        ...(isDark ? NavDarkTheme.colors : DefaultTheme.colors),
+        primary: colors.green[700],
+        background: colors.canvas,
+        card: colors.surface,
+        text: colors.ink,
+        border: colors.chromeBorder,
+        notification: colors.green[700],
+      },
+    }),
+    [colors, isDark]
+  );
+
+  return <NavThemeProvider value={navTheme}>{children}</NavThemeProvider>;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Fraunces_600SemiBold,
@@ -100,14 +116,16 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <AppQueryProvider>
-        <AuthProvider>
-          <ThemeProvider value={FudgetNavTheme}>
-            <SplashController fontsReady={fontsReady} />
-            <RootNavigator />
-          </ThemeProvider>
-        </AuthProvider>
-      </AppQueryProvider>
+      <FudgetThemeProvider>
+        <AppQueryProvider>
+          <AuthProvider>
+            <ThemedNavigation>
+              <SplashController fontsReady={fontsReady} />
+              <RootNavigator />
+            </ThemedNavigation>
+          </AuthProvider>
+        </AppQueryProvider>
+      </FudgetThemeProvider>
     </GestureHandlerRootView>
   );
 }

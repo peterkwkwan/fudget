@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useState } from 'react';
+import { useMemo, useCallback, useLayoutEffect, useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -6,7 +6,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { colors, fonts, typography } from '@/constants/theme';
+import { fonts, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 
 /**
  * Longest Monthly nav label — fixed slot so ‹ › do not shift
@@ -33,6 +34,8 @@ type FixedLabelProps = {
  * there is no swipe motion — Yearly, or Monthly before the pager mounts).
  */
 export function FixedMonthNavLabel({ label }: FixedLabelProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [slotW, setSlotW] = useState(0);
 
   const onMeasure = useCallback((event: LayoutChangeEvent) => {
@@ -46,7 +49,7 @@ export function FixedMonthNavLabel({ label }: FixedLabelProps) {
       style={[styles.wrap, slotW > 0 ? { width: slotW } : null]}
       collapsable={false}
     >
-      <LongestNavLabelProbe onLayout={onMeasure} />
+      <LongestNavLabelProbe styles={styles} onLayout={onMeasure} />
       <Text
         style={[styles.label, slotW > 0 ? { width: slotW } : null]}
         numberOfLines={1}
@@ -75,6 +78,8 @@ export function MonthSwipeNavLabel({
   translateX,
   pagerWidth,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const slotSV = useSharedValue(0);
   const [slotW, setSlotW] = useState(0);
 
@@ -111,7 +116,7 @@ export function MonthSwipeNavLabel({
       // Content-sized — never grow into the header leftover (that pushed › away).
       collapsable={false}
     >
-      <LongestNavLabelProbe onLayout={onMeasure} />
+      <LongestNavLabelProbe styles={styles} onLayout={onMeasure} />
 
       {slotW <= 0 ? (
         <Text
@@ -159,8 +164,10 @@ export function MonthSwipeNavLabel({
 }
 
 function LongestNavLabelProbe({
+  styles,
   onLayout,
 }: {
+  styles: ReturnType<typeof createStyles>;
   onLayout: (event: LayoutChangeEvent) => void;
 }) {
   return (
@@ -181,7 +188,8 @@ function LongestNavLabelProbe({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   wrap: {
     flexGrow: 0,
     flexShrink: 1,
@@ -217,3 +225,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyStrong,
   },
 });
+}
+

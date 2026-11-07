@@ -1,11 +1,13 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
-import { colors, space, typography } from '@/constants/theme';
+import { space, typography, type ThemeColors } from '@/constants/theme';
 import { seriesRepeatLabel } from '@/constants/repeatPresets';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { nextOccurrenceLabel } from '@/lib/nextOccurrence';
 import type { RecurringSeries } from '@/lib/recurring';
+import { useTheme } from '@/lib/ThemeProvider';
 
 type Props = {
   series: RecurringSeries;
@@ -13,6 +15,8 @@ type Props = {
 };
 
 export function RecurringRow({ series, onPress }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { format } = useFormatMoney();
   const amountColor =
     series.type === 'income' ? colors.income : colors.expense;
@@ -55,36 +59,38 @@ export function RecurringRow({ series, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    minHeight: 56,
-    paddingVertical: space.sm + 4,
-    paddingHorizontal: space.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  pressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  left: {
-    flex: 1,
-    gap: 2,
-  },
-  category: {
-    color: colors.ink,
-  },
-  note: {
-    color: colors.inkMuted,
-  },
-  meta: {
-    color: colors.inkMuted,
-  },
-  amount: {
-    ...typography.amount,
-    fontSize: 18,
-    lineHeight: 24,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    row: {
+      minHeight: 56,
+      paddingVertical: space.sm + 4,
+      paddingHorizontal: space.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    pressed: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    left: {
+      flex: 1,
+      gap: 2,
+    },
+    category: {
+      color: colors.ink,
+    },
+    note: {
+      color: colors.inkMuted,
+    },
+    meta: {
+      color: colors.inkMuted,
+    },
+    amount: {
+      ...typography.amount,
+      fontSize: 18,
+      lineHeight: 24,
+    },
+  });
+}

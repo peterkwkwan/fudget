@@ -16,7 +16,8 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { PeriodSelector } from '@/components/stats/PeriodSelector';
 import { StatsMonthBody } from '@/components/stats/StatsMonthBody';
 import type { TransactionType } from '@/constants/categories';
-import { colors } from '@/constants/theme';
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useStatsMonthContentReady } from '@/hooks/useMonthPrefetch';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePartnerLink } from '@/hooks/usePartner';
@@ -35,6 +36,8 @@ import { STATS_PERSONAL_OFFLINE_BANNER } from '@/lib/offline/ux';
 import type { StatsMetric } from '@/lib/stats';
 
 export default function StatsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const { formatWhole } = useFormatMoney();
   const formatSigned = useCallback(
@@ -254,9 +257,12 @@ export default function StatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
   },
 });
+}
+

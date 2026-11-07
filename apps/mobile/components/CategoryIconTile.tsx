@@ -1,7 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, fonts, radius } from '@/constants/theme';
+import { fonts, radius } from '@/constants/theme';
 import type { TransactionType } from '@/constants/categories';
+import { useTheme } from '@/lib/ThemeProvider';
 
 type Props = {
   category: string;
@@ -14,6 +15,7 @@ type Props = {
  * Uses a letter glyph — Metro-safe stand-in for Lucide category icons.
  */
 export function CategoryIconTile({ category, type, size = 34 }: Props) {
+  const { colors } = useTheme();
   const income = type === 'income';
   const transfer = type === 'transfer';
   const bg = transfer

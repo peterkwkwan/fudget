@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { MicIcon } from '@/components/icons';
-import { colors, radius } from '@/constants/theme';
+import { radius, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 
 type Props = {
   listening: boolean;
@@ -14,6 +16,9 @@ type Props = {
  * listening = solid green.700 + white icon.
  */
 export function MicButton({ listening, onPress, disabled }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -38,28 +43,30 @@ export function MicButton({ listening, onPress, disabled }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  idle: {
-    backgroundColor: colors.surface,
-    borderColor: colors.green[700],
-  },
-  listening: {
-    backgroundColor: colors.green[700],
-    borderColor: colors.green[700],
-  },
-  pressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    base: {
+      width: 52,
+      height: 52,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    idle: {
+      backgroundColor: colors.surface,
+      borderColor: colors.green[700],
+    },
+    listening: {
+      backgroundColor: colors.green[700],
+      borderColor: colors.green[700],
+    },
+    pressed: {
+      transform: [{ scale: 0.98 }],
+    },
+    disabled: {
+      opacity: 0.6,
+    },
+  });
+}

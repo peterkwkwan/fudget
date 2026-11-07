@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,7 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { shadow } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 
 const THRESHOLD = 1;
 
@@ -105,6 +105,12 @@ type ShadowsProps = ScrollEdgeState;
  * (or a flex host); place as a sibling over the scroll view.
  */
 export function ScrollEdgeShadows({ top, bottom }: ShadowsProps) {
+  const { shadow } = useTheme();
+  const styles = useMemo(
+    () => createStyles(shadow.scrollEdge.height),
+    [shadow]
+  );
+
   return (
     <>
       {top ? (
@@ -132,7 +138,7 @@ export function ScrollEdgeHost({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[styles.host, style]}>
+    <View style={[hostStyles.host, style]}>
       {children}
       <ScrollEdgeShadows top={edges.top} bottom={edges.bottom} />
     </View>
@@ -140,19 +146,25 @@ export function ScrollEdgeHost({
 }
 
 function EdgeFade({ direction }: { direction: 'down' | 'up' }) {
+  const { isDark } = useTheme();
   // Stacked strips approximate a soft gradient without expo-linear-gradient.
+  const base = isDark ? '0, 0, 0' : '28, 28, 30';
   const opacities =
     direction === 'down'
-      ? [0.07, 0.045, 0.028, 0.014]
-      : [0.014, 0.028, 0.045, 0.07];
+      ? isDark
+        ? [0.35, 0.22, 0.12, 0.05]
+        : [0.07, 0.045, 0.028, 0.014]
+      : isDark
+        ? [0.05, 0.12, 0.22, 0.35]
+        : [0.014, 0.028, 0.045, 0.07];
   return (
-    <View style={styles.fadeCol}>
+    <View style={hostStyles.fadeCol}>
       {opacities.map((opacity, i) => (
         <View
           key={i}
           style={[
-            styles.fadeStrip,
-            { backgroundColor: `rgba(28, 28, 30, ${opacity})` },
+            hostStyles.fadeStrip,
+            { backgroundColor: `rgba(${base}, ${opacity})` },
           ]}
         />
       ))}
@@ -160,23 +172,28 @@ function EdgeFade({ direction }: { direction: 'down' | 'up' }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(edgeHeight: number) {
+  return StyleSheet.create({
+    edge: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      height: edgeHeight,
+      zIndex: 2,
+    },
+    top: {
+      top: 0,
+    },
+    bottom: {
+      bottom: 0,
+    },
+  });
+}
+
+const hostStyles = StyleSheet.create({
   host: {
     flex: 1,
     position: 'relative',
-  },
-  edge: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: shadow.scrollEdge.height,
-    zIndex: 2,
-  },
-  top: {
-    top: 0,
-  },
-  bottom: {
-    bottom: 0,
   },
   fadeCol: {
     flex: 1,

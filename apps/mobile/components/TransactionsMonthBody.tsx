@@ -19,13 +19,8 @@ import { TransactionRow } from '@/components/TransactionRow';
 import { TransactionsEmptyMonth } from '@/components/TransactionsEmptyMonth';
 import { UpcomingRepeatsBar } from '@/components/UpcomingRepeatsBar';
 import { WeekDayStrip } from '@/components/WeekDayStrip';
-import {
-  colors,
-  fonts,
-  radius,
-  space,
-  typography,
-} from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { resolvePeriodBounds, type PeriodFocus } from '@/lib/periods';
 import type { TransactionsDateView } from '@/lib/profile';
 import {
@@ -94,6 +89,8 @@ export function TransactionsMonthBody({
   onRowPress,
   onRowLongPress,
 }: TransactionsMonthBodyProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { edges, scrollProps } = useScrollEdges();
 
@@ -354,7 +351,7 @@ export function TransactionsMonthBody({
   );
 }
 
-function dayNetColor(tone: DayNetTone): string {
+function dayNetColor(tone: DayNetTone, colors: ThemeColors): string {
   if (tone === 'income') return colors.income;
   if (tone === 'expense') return colors.expense;
   return colors.inkMuted;
@@ -367,11 +364,13 @@ function DayNetAmount({
   net: number | null | undefined;
   currency?: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   if (net == null) return null;
   const label = formatDayNet(net, { currency });
   return (
     <StrongText
-      style={[styles.dayNet, { color: dayNetColor(label.tone) }]}
+      style={[styles.dayNet, { color: dayNetColor(label.tone, colors) }]}
       accessibilityLabel={`Day net ${label.text}`}
     >
       {label.text}
@@ -379,7 +378,8 @@ function DayNetAmount({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   list: {
     paddingBottom: space.xxl,
   },
@@ -496,3 +496,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyStrong,
   },
 });
+}
+

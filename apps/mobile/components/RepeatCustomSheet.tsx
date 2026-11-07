@@ -1,7 +1,7 @@
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
-import { useEffect, useState } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -21,7 +21,8 @@ import {
   type RepeatRule,
   type Weekday,
 } from '@/constants/repeatPresets';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { formatDisplayDate } from '@/lib/dates';
 import type { RecurringCadence } from '@/lib/recurring';
 
@@ -64,6 +65,8 @@ export function RepeatCustomSheet({
   onCancel,
   onSave,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const defaultDow = weekdayOfDate(startDate, timeZone);
   const [cadence, setCadence] = useState<RecurringCadence>(
     initial?.cadence ?? 'weekly'
@@ -341,7 +344,8 @@ export function RepeatCustomSheet({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   scrim: {
     flex: 1,
     backgroundColor: colors.overlay,
@@ -456,7 +460,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryPressed: {
-    backgroundColor: colors.green[950],
+    backgroundColor: colors.primaryPressed,
     transform: [{ scale: 0.98 }],
   },
   primaryText: {
@@ -475,3 +479,5 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
 });
+}
+

@@ -1,16 +1,20 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
-import { colors, radius, space } from '@/constants/theme';
+import { radius, space, type ThemeColors } from '@/constants/theme';
 import { useAccountBackupStatus } from '@/hooks/useAccountBackup';
 import { formatBackupDeadline } from '@/lib/accountData';
+import { useTheme } from '@/lib/ThemeProvider';
 
 /**
  * Account (and similar) notice while a wipe backup is within the 30-day window.
  */
 export function RestoreBackupBanner() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { data } = useAccountBackupStatus();
 
   if (!data?.restoreAvailable || !data.expiresAt) {
@@ -38,32 +42,34 @@ export function RestoreBackupBanner() {
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.green[200],
-    backgroundColor: colors.green[50],
-    padding: space.md,
-    gap: space.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bannerPressed: {
-    backgroundColor: colors.green[200],
-  },
-  copy: {
-    flex: 1,
-    gap: space.xs,
-  },
-  title: {
-    color: colors.green[950],
-  },
-  body: {
-    color: colors.inkMuted,
-  },
-  cta: {
-    color: colors.green[700],
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    banner: {
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.green[200],
+      backgroundColor: colors.green[50],
+      padding: space.md,
+      gap: space.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    bannerPressed: {
+      backgroundColor: colors.green[200],
+    },
+    copy: {
+      flex: 1,
+      gap: space.xs,
+    },
+    title: {
+      color: colors.green[950],
+    },
+    body: {
+      color: colors.inkMuted,
+    },
+    cta: {
+      color: colors.green[700],
+      fontWeight: '600',
+    },
+  });
+}

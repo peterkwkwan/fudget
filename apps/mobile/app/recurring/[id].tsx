@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,8 @@ import {
 import { ConnectionRequired } from '@/components/ConnectionRequired';
 import { CaptionText, StrongText, TitleText } from '@/components/StyledText';
 import { RecurringForm } from '@/components/RecurringForm';
-import { colors, radius, space } from '@/constants/theme';
+import { radius, space, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { REPEAT_BLOCKED_COPY } from '@/lib/offline/ux';
 import {
@@ -23,6 +24,8 @@ import { repeatRuleFromSeries } from '@/lib/recurring';
 import type { RecurringSeriesUpdateInput } from '@/lib/recurring';
 
 export default function EditRecurringScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data, isLoading, isError, error } = useRecurringSeries(id);
@@ -143,7 +146,8 @@ export default function EditRecurringScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -170,3 +174,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
 });
+}
+

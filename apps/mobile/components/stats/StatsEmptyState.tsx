@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { CaptionText, StrongText, TitleText } from '@/components/StyledText';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
 import type { PeriodPreset } from '@/lib/periods';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 type Props = {
   /** Compact period label from period bounds (e.g. "October", "2026"). */
@@ -24,6 +25,7 @@ type Props = {
 
 /** Soft ledger mark — three quiet rows fading out (no emoji). */
 function SoftLedgerMark() {
+  const styles = useThemedStyles(createStyles);
   const rows = [
     { width: '72%' as const, opacity: 1 },
     { width: '54%' as const, opacity: 0.7 },
@@ -79,6 +81,7 @@ export function StatsEmptyState({
   onGoToThisMonth,
   interactive = true,
 }: Props) {
+  const styles = useThemedStyles(createStyles);
   const { title, body } = emptyCopy(preset, periodLabel);
   const showActions = interactive && onAddTransaction != null;
 
@@ -117,79 +120,81 @@ export function StatsEmptyState({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space.lg + 4,
-    paddingVertical: space.xxl,
-    gap: space.sm + 6,
-  },
-  ledger: {
-    width: 120,
-    padding: space.md,
-    borderRadius: radius.lg - 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    gap: 10,
-    marginBottom: space.xs,
-  },
-  ledgerRow: {
-    height: 8,
-    borderRadius: radius.sm / 2,
-    backgroundColor: colors.border,
-  },
-  title: {
-    color: colors.green[950],
-    textAlign: 'center',
-    fontSize: 20,
-    lineHeight: 26,
-  },
-  body: {
-    color: colors.inkMuted,
-    textAlign: 'center',
-    ...typography.body,
-    fontSize: 15,
-    lineHeight: 22,
-    maxWidth: 270,
-  },
-  primary: {
-    marginTop: space.sm + 2,
-    minWidth: 200,
-    height: 44,
-    paddingHorizontal: space.lg - 4,
-    borderRadius: radius.md,
-    backgroundColor: colors.green[700],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryPressed: {
-    backgroundColor: colors.green[950],
-  },
-  primaryText: {
-    color: colors.inkInverse,
-    fontFamily: fonts.bodyStrong,
-    fontSize: 16,
-  },
-  secondary: {
-    minWidth: 200,
-    height: 40,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.canvas,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  secondaryText: {
-    color: colors.green[700],
-    fontFamily: fonts.bodyStrong,
-    fontSize: 14,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    wrap: {
+      flexGrow: 1,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingHorizontal: space.lg + 4,
+      paddingVertical: space.xxl,
+      gap: space.sm + 6,
+    },
+    ledger: {
+      width: 120,
+      padding: space.md,
+      borderRadius: radius.lg - 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceMuted,
+      gap: 10,
+      marginBottom: space.xs,
+    },
+    ledgerRow: {
+      height: 8,
+      borderRadius: radius.sm / 2,
+      backgroundColor: colors.border,
+    },
+    title: {
+      color: colors.green[950],
+      textAlign: 'center' as const,
+      fontSize: 20,
+      lineHeight: 26,
+    },
+    body: {
+      color: colors.inkMuted,
+      textAlign: 'center' as const,
+      ...typography.body,
+      fontSize: 15,
+      lineHeight: 22,
+      maxWidth: 270,
+    },
+    primary: {
+      marginTop: space.sm + 2,
+      minWidth: 200,
+      height: 44,
+      paddingHorizontal: space.lg - 4,
+      borderRadius: radius.md,
+      backgroundColor: colors.green[700],
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    primaryPressed: {
+      backgroundColor: colors.primaryPressed,
+    },
+    primaryText: {
+      color: colors.inkInverse,
+      fontFamily: fonts.bodyStrong,
+      fontSize: 16,
+    },
+    secondary: {
+      minWidth: 200,
+      height: 40,
+      paddingHorizontal: space.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.canvas,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    secondaryPressed: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    secondaryText: {
+      color: colors.green[700],
+      fontFamily: fonts.bodyStrong,
+      fontSize: 14,
+    },
+  };
+}

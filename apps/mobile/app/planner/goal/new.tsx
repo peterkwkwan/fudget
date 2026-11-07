@@ -1,10 +1,11 @@
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ConnectionRequired } from '@/components/ConnectionRequired';
 import { GoalForm } from '@/components/planner/GoalForm';
-import { colors } from '@/constants/theme';
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePartnerLink } from '@/hooks/usePartner';
 import {
@@ -16,6 +17,8 @@ import { PLANNER_WRITE_OFFLINE_COPY } from '@/lib/offline/ux';
 import type { PlannerGoalInput } from '@/lib/plannerGoals';
 
 export default function NewGoalScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const create = useCreatePlannerGoal();
   const vehicles = usePlannerVehicles();
@@ -65,6 +68,9 @@ export default function NewGoalScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
 });
+}
+

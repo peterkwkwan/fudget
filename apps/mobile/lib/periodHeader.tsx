@@ -1,8 +1,14 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, fonts, space, typography } from '@/constants/theme';
+import {
+  lightColors,
+  space,
+  typography,
+  type ThemeColors,
+} from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 
 /** Reserve room so left-aligned period controls don’t sit under a top-right gear. */
 const TRAILING_SLOT = 44;
@@ -19,6 +25,9 @@ type NavHeaderChromeProps = {
  */
 function NavHeaderChrome({ children, trailing }: NavHeaderChromeProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View
       style={[
@@ -62,6 +71,9 @@ export function TitleNavHeader({
   title: string;
   trailing?: ReactNode;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <NavHeaderChrome trailing={trailing}>
       <Text
@@ -88,14 +100,17 @@ export function periodBodyScreenOptions() {
 }
 
 /** Options that hide the default title and install our full header. */
-export function periodNavScreenOptions(header: () => ReactNode) {
+export function periodNavScreenOptions(
+  header: () => ReactNode,
+  themeColors: ThemeColors = lightColors
+) {
   return {
     title: '',
     headerTitle: '',
     headerShown: true as const,
     headerShadowVisible: false,
     headerStyle: {
-      backgroundColor: colors.canvas,
+      backgroundColor: themeColors.canvas,
       borderBottomWidth: 0,
       elevation: 0,
       shadowOpacity: 0,
@@ -104,35 +119,37 @@ export function periodNavScreenOptions(header: () => ReactNode) {
   };
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    backgroundColor: colors.canvas,
-  },
-  row: {
-    minHeight: 44,
-    paddingLeft: space.screen,
-    paddingRight: space.screen,
-    paddingBottom: space.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  nav: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'stretch',
-    justifyContent: 'center',
-  },
-  trailingSlot: {
-    width: TRAILING_SLOT,
-    minHeight: TRAILING_SLOT,
-    flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    color: colors.ink,
-    ...typography.pageTitle,
-    textAlign: 'left',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    wrap: {
+      backgroundColor: colors.canvas,
+    },
+    row: {
+      minHeight: 44,
+      paddingLeft: space.screen,
+      paddingRight: space.screen,
+      paddingBottom: space.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.sm,
+    },
+    nav: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: 'stretch',
+      justifyContent: 'center',
+    },
+    trailingSlot: {
+      width: TRAILING_SLOT,
+      minHeight: TRAILING_SLOT,
+      flexShrink: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      color: colors.ink,
+      ...typography.pageTitle,
+      textAlign: 'left',
+    },
+  });
+}

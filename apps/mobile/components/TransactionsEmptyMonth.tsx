@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CalendarIcon } from '@/components/icons';
 import { CaptionText, TitleText } from '@/components/StyledText';
-import { colors, radius, space, typography } from '@/constants/theme';
+import { radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 
 type Props = {
   /** Period nav label, e.g. "December". */
@@ -14,6 +16,9 @@ type Props = {
  * Figma: calendar glyph + title + supporting copy (FAB remains primary add).
  */
 export function TransactionsEmptyMonth({ periodLabel }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.empty} accessibilityRole="summary">
       <View style={styles.iconWell}>
@@ -30,33 +35,35 @@ export function TransactionsEmptyMonth({ periodLabel }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  empty: {
-    flexGrow: 1,
-    width: '100%',
-    paddingHorizontal: space.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.sm,
-  },
-  iconWell: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.lg,
-    backgroundColor: colors.green[50],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: space.sm,
-  },
-  emptyTitle: {
-    color: colors.ink,
-    textAlign: 'center',
-  },
-  emptyBody: {
-    color: colors.inkMuted,
-    textAlign: 'center',
-    ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    empty: {
+      flexGrow: 1,
+      width: '100%',
+      paddingHorizontal: space.xl,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: space.sm,
+    },
+    iconWell: {
+      width: 64,
+      height: 64,
+      borderRadius: radius.lg,
+      backgroundColor: colors.green[50],
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: space.sm,
+    },
+    emptyTitle: {
+      color: colors.ink,
+      textAlign: 'center',
+    },
+    emptyBody: {
+      color: colors.inkMuted,
+      textAlign: 'center',
+      ...typography.body,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+  });
+}

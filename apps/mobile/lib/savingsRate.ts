@@ -1,4 +1,4 @@
-import { colors } from '../constants/theme';
+import { lightColors, type ThemeColors } from '../constants/theme';
 
 /**
  * Period savings rate: (income − expenses) / income.
@@ -28,8 +28,11 @@ export function savingsRatePercent(
  * Break-even and n/a stay muted. Magnitude does not change the tint.
  * Pass the whole percent shown in the UI (`9` means 9%).
  */
-export function savingsRateColor(percent: number | null): string {
-  if (percent == null || percent === 0) return colors.inkMuted;
-  if (percent > 0) return colors.income;
-  return colors.expense;
+export function savingsRateColor(
+  percent: number | null,
+  palette: ThemeColors = lightColors
+): string {
+  if (percent == null || percent === 0) return palette.inkMuted;
+  if (percent > 0) return palette.income;
+  return palette.expense;
 }

@@ -1,7 +1,8 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
-import { colors, radius, space } from '@/constants/theme';
+import { radius, space, type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 export type QuietPeer = {
   label: string;
@@ -19,6 +20,8 @@ type Props = {
 
 /** Fixed-height Spent / Earned / Net row under the donut. */
 export function StatsQuietPeers({ peers, placeholder = false }: Props) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View
       style={styles.row}
@@ -38,39 +41,41 @@ export function StatsQuietPeers({ peers, placeholder = false }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: space.md,
-    // Label 14 + value 18 + gap 2 — keep even when values/bones swap.
-    minHeight: 34,
-    paddingBottom: space.xs,
-  },
-  peer: {
-    alignItems: 'center',
-    gap: 2,
-    minWidth: 72,
-    minHeight: 34,
-    justifyContent: 'center',
-  },
-  label: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  value: {
-    color: colors.inkMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontVariant: ['tabular-nums'],
-  },
-  bone: {
-    width: 56,
-    height: 14,
-    marginTop: 2,
-    borderRadius: radius.sm / 2,
-    backgroundColor: colors.surfaceMuted,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    row: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      justifyContent: 'center' as const,
+      gap: space.md,
+      // Label 14 + value 18 + gap 2 — keep even when values/bones swap.
+      minHeight: 34,
+      paddingBottom: space.xs,
+    },
+    peer: {
+      alignItems: 'center' as const,
+      gap: 2,
+      minWidth: 72,
+      minHeight: 34,
+      justifyContent: 'center' as const,
+    },
+    label: {
+      color: colors.inkMuted,
+      fontSize: 11,
+      lineHeight: 14,
+    },
+    value: {
+      color: colors.inkMuted,
+      fontSize: 13,
+      lineHeight: 18,
+      fontVariant: ['tabular-nums'] as const,
+    },
+    bone: {
+      width: 56,
+      height: 14,
+      marginTop: 2,
+      borderRadius: radius.sm / 2,
+      backgroundColor: colors.surfaceMuted,
+    },
+  };
+}

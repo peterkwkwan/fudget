@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import {
   useAccountBackupStatus,
   useDeleteMyAccount,
@@ -32,6 +33,9 @@ type ConfirmKind = 'wipe' | 'restore' | 'delete' | null;
  * Settings → Danger zone: Wipe my data (30-day restore), Restore, Delete account.
  */
 export function AccountDangerZone() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { signOut } = useAuth();
   const backupQuery = useAccountBackupStatus();
   const wipe = useWipeMyData();
@@ -306,7 +310,8 @@ export function AccountDangerZone() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   block: {
     borderRadius: radius.md,
     borderWidth: 1,
@@ -479,3 +484,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+}
+

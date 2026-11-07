@@ -1,6 +1,7 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { colors, space } from '@/constants/theme';
+import { space, type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 const ROW_COUNT = 5;
 /** Vary label bone widths so the stack reads as real rows, not a solid block. */
@@ -11,6 +12,8 @@ const LABEL_WIDTHS = ['58%', '72%', '46%', '64%', '52%'] as const;
  * Matches CategoryBreakdownList row rhythm so the list does not jump in.
  */
 export function CategoryListSkeleton() {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View
       style={styles.list}
@@ -30,38 +33,40 @@ export function CategoryListSkeleton() {
   );
 }
 
-const styles = StyleSheet.create({
-  list: {
-    gap: 0,
-  },
-  row: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: 6,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  labelBone: {
-    height: 14,
-    borderRadius: 4,
-    backgroundColor: colors.surfaceMuted,
-  },
-  amountBone: {
-    height: 14,
-    width: 56,
-    borderRadius: 4,
-    backgroundColor: colors.surfaceMuted,
-    flexShrink: 0,
-  },
-  track: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.surfaceMuted,
-    width: '100%',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    list: {
+      gap: 0,
+    },
+    row: {
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: 6,
+    },
+    top: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      gap: space.sm,
+    },
+    labelBone: {
+      height: 14,
+      borderRadius: 4,
+      backgroundColor: colors.surfaceMuted,
+    },
+    amountBone: {
+      height: 14,
+      width: 56,
+      borderRadius: 4,
+      backgroundColor: colors.surfaceMuted,
+      flexShrink: 0,
+    },
+    track: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.surfaceMuted,
+      width: '100%' as const,
+    },
+  };
+}

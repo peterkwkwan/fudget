@@ -19,7 +19,8 @@ import {
   GOAL_TYPE_LABELS,
   PLAN_CADENCE_LABELS,
 } from '@/constants/planner';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePartnerLink } from '@/hooks/usePartner';
 import {
@@ -68,6 +69,8 @@ function editParamOn(edit: string | string[] | undefined): boolean {
 }
 
 export default function GoalDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { format } = useFormatMoney();
   const { id, edit } = useLocalSearchParams<{
     id: string;
@@ -405,7 +408,8 @@ export default function GoalDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: space.md, paddingBottom: space.xxl, gap: space.sm },
   centered: {
@@ -454,7 +458,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryPressed: { backgroundColor: colors.green[950] },
+  primaryPressed: { backgroundColor: colors.primaryPressed },
   primaryText: { color: colors.inkInverse },
   secondary: {
     alignSelf: 'flex-start',
@@ -483,3 +487,5 @@ const styles = StyleSheet.create({
   },
   error: { color: colors.danger },
 });
+}
+

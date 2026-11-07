@@ -29,7 +29,8 @@ import { PeriodSelector } from '@/components/stats/PeriodSelector';
 import { StrongText } from '@/components/StyledText';
 import { TransactionsMonthBody } from '@/components/TransactionsMonthBody';
 import { TxnSelectionHeader } from '@/components/TxnSelectionHeader';
-import { colors, radius, space } from '@/constants/theme';
+import { radius, space, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { usePrefetchTransactionMonths } from '@/hooks/useMonthPrefetch';
 import {
   useBulkPatchTransactions,
@@ -57,6 +58,8 @@ import type { Transaction } from '@/lib/transactions';
 import { zonedYmd } from '@/lib/dates';
 
 export default function TransactionsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { profile } = useAuth();
   const timeZone = profile?.timezone || 'UTC';
@@ -425,7 +428,8 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -462,3 +466,5 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
 });
+}
+

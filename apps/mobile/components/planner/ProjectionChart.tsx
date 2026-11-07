@@ -7,10 +7,11 @@ import {
 } from 'react-native';
 
 import { CaptionText } from '@/components/StyledText';
-import { colors, space } from '@/constants/theme';
+import { space, type ThemeColors } from '@/constants/theme';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { niceAxisTicks, tickDomain } from '@/lib/money';
 import type { ProjectionPoint } from '@/lib/plannerMath';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 type Props = {
   data: ProjectionPoint[];
@@ -40,6 +41,7 @@ export function ProjectionChart({
   targetAmount = null,
   emptyLabel,
 }: Props) {
+  const styles = useThemedStyles(createStyles);
   const { formatCompact } = useFormatMoney();
   // Full-bleed ≈ window width; onLayout corrects if insets differ.
   const [chartW, setChartW] = useState(
@@ -226,88 +228,90 @@ export function ProjectionChart({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    width: '100%',
-    alignItems: 'stretch',
-    justifyContent: 'center',
-  },
-  canvas: {
-    width: '100%',
-    height: CHART_H,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    // Full-bleed: square to screen edges (no side gutters / radius).
-    borderRadius: 0,
-  },
-  yLabel: {
-    position: 'absolute',
-    left: 2,
-    color: colors.inkMuted,
-    fontSize: 11,
-    lineHeight: 14,
-    textAlign: 'right',
-  },
-  gridLine: {
-    position: 'absolute',
-    left: PAD_LEFT,
-    right: PAD_RIGHT,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-  },
-  areaStrip: {
-    position: 'absolute',
-    backgroundColor: colors.green[50],
-    opacity: 0.85,
-  },
-  targetDash: {
-    position: 'absolute',
-    height: 2,
-    backgroundColor: colors.green[400],
-    borderRadius: 1,
-  },
-  segment: {
-    position: 'absolute',
-    borderRadius: 2,
-    backgroundColor: colors.green[700],
-  },
-  dot: {
-    position: 'absolute',
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    backgroundColor: colors.green[700],
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  axisRow: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingLeft: PAD_LEFT,
-    paddingRight: PAD_RIGHT,
-    marginTop: space.xs,
-  },
-  axis: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  targetHint: {
-    color: colors.green[400],
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  empty: {
-    width: '100%',
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space.lg,
-  },
-  emptyText: {
-    color: colors.inkMuted,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    wrap: {
+      width: '100%' as const,
+      alignItems: 'stretch' as const,
+      justifyContent: 'center' as const,
+    },
+    canvas: {
+      width: '100%' as const,
+      height: CHART_H,
+      overflow: 'hidden' as const,
+      backgroundColor: colors.surface,
+      // Full-bleed: square to screen edges (no side gutters / radius).
+      borderRadius: 0,
+    },
+    yLabel: {
+      position: 'absolute' as const,
+      left: 2,
+      color: colors.inkMuted,
+      fontSize: 11,
+      lineHeight: 14,
+      textAlign: 'right' as const,
+    },
+    gridLine: {
+      position: 'absolute' as const,
+      left: PAD_LEFT,
+      right: PAD_RIGHT,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.border,
+    },
+    areaStrip: {
+      position: 'absolute' as const,
+      backgroundColor: colors.green[50],
+      opacity: 0.85,
+    },
+    targetDash: {
+      position: 'absolute' as const,
+      height: 2,
+      backgroundColor: colors.green[400],
+      borderRadius: 1,
+    },
+    segment: {
+      position: 'absolute' as const,
+      borderRadius: 2,
+      backgroundColor: colors.green[700],
+    },
+    dot: {
+      position: 'absolute' as const,
+      width: DOT,
+      height: DOT,
+      borderRadius: DOT / 2,
+      backgroundColor: colors.green[700],
+      borderWidth: 2,
+      borderColor: colors.surface,
+    },
+    axisRow: {
+      width: '100%' as const,
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      paddingLeft: PAD_LEFT,
+      paddingRight: PAD_RIGHT,
+      marginTop: space.xs,
+    },
+    axis: {
+      color: colors.inkMuted,
+      fontSize: 11,
+      lineHeight: 14,
+    },
+    targetHint: {
+      color: colors.green[400],
+      fontSize: 11,
+      lineHeight: 14,
+    },
+    empty: {
+      width: '100%' as const,
+      height: 140,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingHorizontal: space.lg,
+    },
+    emptyText: {
+      color: colors.inkMuted,
+      textAlign: 'center' as const,
+    },
+  };
+}

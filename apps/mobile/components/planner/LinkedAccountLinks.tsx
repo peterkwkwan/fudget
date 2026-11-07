@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { CaptionText } from '@/components/StyledText';
-import { colors, fonts } from '@/constants/theme';
+import { fonts, type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 export type LinkedAccountRef = {
   id: string;
@@ -29,6 +30,8 @@ export function LinkedAccountLinks({
   onPressAccount,
   trailingPeriod = false,
 }: Props) {
+  const styles = useThemedStyles(createStyles);
+
   if (accounts.length === 0) return null;
 
   return (
@@ -59,24 +62,26 @@ export function LinkedAccountLinks({
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  nameChunk: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  muted: { color: colors.inkMuted },
-  link: {
-    color: colors.green[700],
-    fontFamily: fonts.bodyStrong,
-    textDecorationLine: 'underline',
-  },
-  plain: {
-    color: colors.inkMuted,
-    fontFamily: fonts.bodyStrong,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    row: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      alignItems: 'center' as const,
+    },
+    nameChunk: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+    },
+    muted: { color: colors.inkMuted },
+    link: {
+      color: colors.green[700],
+      fontFamily: fonts.bodyStrong,
+      textDecorationLine: 'underline' as const,
+    },
+    plain: {
+      color: colors.inkMuted,
+      fontFamily: fonts.bodyStrong,
+    },
+  };
+}

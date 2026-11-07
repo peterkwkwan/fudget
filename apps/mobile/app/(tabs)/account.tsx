@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Pressable, ScrollView, StyleSheet, View as RNView } from 'react-native';
@@ -22,7 +23,8 @@ import {
   StrongText,
 } from '@/components/StyledText';
 import { Text } from '@/components/Themed';
-import { colors, fonts, radius, space } from '@/constants/theme';
+import { fonts, radius, space, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { useAuth } from '@/lib/auth';
 
@@ -30,6 +32,8 @@ import { useAuth } from '@/lib/auth';
 const PRIVACY_POLICY_URL = 'https://peterkwkwan.github.io/fudget/privacy.html';
 
 export default function AccountScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { user, profile, signOut } = useAuth();
   const { settingsBanner } = useOfflineGates();
@@ -146,7 +150,8 @@ export default function AccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   host: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -287,7 +292,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonPressed: {
-    backgroundColor: colors.green[950],
+    backgroundColor: colors.primaryPressed,
     transform: [{ scale: 0.98 }],
   },
   buttonText: {
@@ -295,3 +300,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+}
+

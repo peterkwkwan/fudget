@@ -1,11 +1,13 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
 import type { TransactionType } from '@/constants/categories';
 import { colorForCategory } from '@/constants/chartColors';
-import { colors, fonts, space, typography } from '@/constants/theme';
+import { fonts, space, typography, type ThemeColors } from '@/constants/theme';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
+import { useTheme } from '@/lib/ThemeProvider';
 import type { CategoryTotal } from '@/lib/stats';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 type Props = {
   data: CategoryTotal[];
@@ -35,6 +37,8 @@ const WEDGES = 90;
 /** Outer wrap height — loading, empty, and loaded share this for CLS. */
 export const CATEGORY_DONUT_HEIGHT = SIZE + 12;
 
+const holeSize = SIZE * INNER_RATIO;
+
 export function CategoryPieChart({
   data,
   emptyLabel,
@@ -43,6 +47,8 @@ export function CategoryPieChart({
   loading = false,
 }: Props) {
   const { formatWhole } = useFormatMoney();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const formatCenterMoney = (n: number): string => {
     const sign = n < 0 ? '−' : '';
     return `${sign}${formatWhole(Math.abs(n))}`;
@@ -81,7 +87,7 @@ export function CategoryPieChart({
   let cumulative = 0;
   data.forEach((row, index) => {
     cumulative += row.sum / total;
-    stops.push({ end: cumulative, color: colorForCategory(index, type) });
+    stops.push({ end: cumulative, color: colorForCategory(index, type, colors) });
   });
 
   const colorAt = (t: number): string => {
@@ -147,70 +153,70 @@ export function CategoryPieChart({
   );
 }
 
-const holeSize = SIZE * INNER_RATIO;
-
-const styles = StyleSheet.create({
-  wrap: {
-    height: CATEGORY_DONUT_HEIGHT,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disk: {
-    width: SIZE,
-    height: SIZE,
-    borderRadius: SIZE / 2,
-    overflow: 'hidden',
-    backgroundColor: colors.canvas,
-  },
-  diskMuted: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  wedge: {
-    position: 'absolute',
-  },
-  hole: {
-    position: 'absolute',
-    width: holeSize,
-    height: holeSize,
-    borderRadius: holeSize / 2,
-    backgroundColor: colors.canvas,
-    top: (SIZE - holeSize) / 2,
-    left: (SIZE - holeSize) / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space.xs,
-    gap: 4,
-  },
-  centerLabel: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    lineHeight: 16,
-    fontFamily: fonts.caption,
-  },
-  centerValue: {
-    ...typography.amount,
-    fontSize: 18,
-    lineHeight: 22,
-    textAlign: 'center',
-    maxWidth: '100%',
-  },
-  centerLabelBone: {
-    width: 36,
-    height: 10,
-    borderRadius: 3,
-    backgroundColor: colors.surfaceMuted,
-  },
-  centerValueBone: {
-    width: 72,
-    height: 16,
-    borderRadius: 4,
-    backgroundColor: colors.surfaceMuted,
-  },
-  emptyText: {
-    color: colors.inkMuted,
-    textAlign: 'center',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    wrap: {
+      height: CATEGORY_DONUT_HEIGHT,
+      width: '100%' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    disk: {
+      width: SIZE,
+      height: SIZE,
+      borderRadius: SIZE / 2,
+      overflow: 'hidden' as const,
+      backgroundColor: colors.canvas,
+    },
+    diskMuted: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    wedge: {
+      position: 'absolute' as const,
+    },
+    hole: {
+      position: 'absolute' as const,
+      width: holeSize,
+      height: holeSize,
+      borderRadius: holeSize / 2,
+      backgroundColor: colors.canvas,
+      top: (SIZE - holeSize) / 2,
+      left: (SIZE - holeSize) / 2,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingHorizontal: space.xs,
+      gap: 4,
+    },
+    centerLabel: {
+      color: colors.inkMuted,
+      fontSize: 12,
+      lineHeight: 16,
+      fontFamily: fonts.caption,
+    },
+    centerValue: {
+      ...typography.amount,
+      fontSize: 18,
+      lineHeight: 22,
+      textAlign: 'center' as const,
+      maxWidth: '100%' as const,
+    },
+    centerLabelBone: {
+      width: 36,
+      height: 10,
+      borderRadius: 3,
+      backgroundColor: colors.surfaceMuted,
+    },
+    centerValueBone: {
+      width: 72,
+      height: 16,
+      borderRadius: 4,
+      backgroundColor: colors.surfaceMuted,
+    },
+    emptyText: {
+      color: colors.inkMuted,
+      textAlign: 'center' as const,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+  };
+}

@@ -10,7 +10,8 @@ import {
 import { CaptionText, TitleText } from '@/components/StyledText';
 import { TransactionRow } from '@/components/TransactionRow';
 import type { TransactionType } from '@/constants/categories';
-import { colors, space, typography } from '@/constants/theme';
+import { space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { useCategoryDrilldown } from '@/hooks/useStats';
 
@@ -20,6 +21,8 @@ function asString(value: string | string[] | undefined): string {
 }
 
 export default function CategoryDrilldownScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const params = useLocalSearchParams<{
     category?: string;
@@ -115,7 +118,8 @@ export default function CategoryDrilldownScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -154,3 +158,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+}
+

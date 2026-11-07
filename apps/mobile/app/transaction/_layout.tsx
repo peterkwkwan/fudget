@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
 
-import { colors, fonts, navHeaderStyle } from '@/constants/theme';
+import { fonts, navHeaderStyleFor } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 
 export default function TransactionLayout() {
+  const { colors } = useTheme();
   return (
     <Stack
       screenOptions={{
-        headerStyle: navHeaderStyle,
+        headerStyle: navHeaderStyleFor(colors),
         headerTitleStyle: {
           fontFamily: fonts.title,
           color: colors.ink,

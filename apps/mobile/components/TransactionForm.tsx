@@ -2,7 +2,7 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useMemo, useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -29,7 +29,8 @@ import {
   shortRepeatLabel,
   type RepeatRule,
 } from '@/constants/repeatPresets';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { RepeatCustomSheet } from '@/components/RepeatCustomSheet';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
@@ -115,6 +116,8 @@ export function TransactionForm({
   onDelete,
   deleteBusy = false,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const [amount, setAmount] = useState(() =>
     formatAmountInput(initial?.amount ?? '')
@@ -898,7 +901,8 @@ export function TransactionForm({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -1127,7 +1131,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
   },
   primaryPressed: {
-    backgroundColor: colors.green[950],
+    backgroundColor: colors.primaryPressed,
     transform: [{ scale: 0.98 }],
   },
   primaryText: {
@@ -1246,3 +1250,5 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
 });
+}
+

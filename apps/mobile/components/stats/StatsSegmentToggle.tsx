@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { CaptionText } from '@/components/StyledText';
-import { colors, fonts, radius, space } from '@/constants/theme';
+import { fonts, radius, type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 export type SegmentOption<T extends string> = {
   value: T;
@@ -19,7 +20,7 @@ type Props<T extends string> = {
 
 /**
  * Chip row for Stats Expenses|Income (and Trend Expenses|Income|Net).
- * Figma: selected = green tint + green border; idle = white + hairline.
+ * Figma: selected = green tint + green border; idle = surface + hairline.
  */
 export function StatsSegmentToggle<T extends string>({
   options,
@@ -28,6 +29,8 @@ export function StatsSegmentToggle<T extends string>({
   readOnly = false,
   accessibilityLabel,
 }: Props<T>) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View
       style={styles.row}
@@ -70,35 +73,37 @@ export const TREND_METRIC_OPTIONS = [
   { value: 'net', label: 'Net' },
 ] as const;
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 7,
-    justifyContent: 'flex-start',
-    minHeight: 38,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    height: 38,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-  },
-  chipSelected: {
-    backgroundColor: colors.green[50],
-    borderColor: colors.green[700],
-  },
-  text: {
-    color: colors.ink,
-    fontFamily: fonts.body,
-    fontSize: 13,
-    letterSpacing: 0,
-  },
-  textSelected: {
-    color: colors.green[700],
-    fontFamily: fonts.bodyStrong,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    row: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: 7,
+      justifyContent: 'flex-start' as const,
+      minHeight: 38,
+    },
+    chip: {
+      paddingHorizontal: 12,
+      height: 38,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      justifyContent: 'center' as const,
+    },
+    chipSelected: {
+      backgroundColor: colors.green[50],
+      borderColor: colors.green[700],
+    },
+    text: {
+      color: colors.ink,
+      fontFamily: fonts.body,
+      fontSize: 13,
+      letterSpacing: 0,
+    },
+    textSelected: {
+      color: colors.green[700],
+      fontFamily: fonts.bodyStrong,
+    },
+  };
+}

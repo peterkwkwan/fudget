@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,8 @@ import {
   TransactionForm,
   type TransactionFormSubmit,
 } from '@/components/TransactionForm';
-import { colors, radius, space } from '@/constants/theme';
+import { radius, space, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePlannerVehicles } from '@/hooks/usePlanner';
 import { CATEGORY_FIX_COPY, REPEAT_BLOCKED_COPY } from '@/lib/offline/ux';
@@ -26,6 +27,8 @@ import {
 } from '@/hooks/useTransactions';
 
 export default function EditTransactionScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data, isLoading, isError, error } = useTransaction(id);
@@ -179,7 +182,8 @@ export default function EditTransactionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -233,3 +237,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
 });
+}
+

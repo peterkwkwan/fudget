@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  StyleSheet,
   TextInput,
   View,
 } from 'react-native';
@@ -21,12 +20,14 @@ import {
   type PlanCadence,
   type VehicleType,
 } from '@/constants/planner';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
 import {
   formatAmountInput,
   parseAmountInput,
 } from '@/lib/money';
 import type { PlannerVehicleInput } from '@/lib/plannerVehicles';
+import { useTheme } from '@/lib/ThemeProvider';
+import { useThemedStyles } from '@/lib/useThemedStyles';
 
 export type VehicleFormValues = {
   name: string;
@@ -59,6 +60,8 @@ export function VehicleForm({
   onDelete,
   deleteBusy = false,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [name, setName] = useState(initial?.name ?? '');
   const [vehicleType, setVehicleType] = useState<VehicleType>(
     initial?.vehicle_type ?? 'savings'
@@ -309,10 +312,12 @@ export function VehicleForm({
 }
 
 function FieldLabel({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createStyles);
   return <CaptionText style={styles.label}>{children}</CaptionText>;
 }
 
 function ChipRow({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createStyles);
   return <View style={styles.chips}>{children}</View>;
 }
 
@@ -325,6 +330,7 @@ function Chip({
   selected: boolean;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       onPress={onPress}
@@ -339,95 +345,97 @@ function Chip({
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.canvas },
-  content: {
-    paddingHorizontal: space.screen,
-    paddingVertical: space.md,
-    paddingBottom: space.xxl,
-    gap: space.sm,
-  },
-  label: { color: colors.inkMuted, marginTop: space.sm, fontSize: 13 },
-  input: {
-    borderWidth: 0,
-    borderRadius: radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    minHeight: 50,
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: colors.ink,
-    backgroundColor: colors.surfaceMuted,
-  },
-  notes: { minHeight: 80, textAlignVertical: 'top' },
-  hint: { color: colors.inkMuted, ...typography.caption },
-  defaultRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.sm,
-    marginTop: space.md,
-    paddingVertical: space.sm,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    marginTop: 2,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  checkboxChecked: {
-    borderColor: colors.green[700],
-    backgroundColor: colors.green[700],
-  },
-  defaultCopy: { flex: 1, gap: 2 },
-  defaultTitle: { color: colors.ink },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    paddingHorizontal: 12,
-    height: 38,
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-  chipSelected: {
-    borderColor: colors.green[700],
-    backgroundColor: colors.green[50],
-  },
-  chipText: { color: colors.ink, fontSize: 13 },
-  chipTextSelected: { color: colors.green[700], fontFamily: fonts.bodyStrong },
-  error: { color: colors.danger, marginTop: space.sm },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: space.screen,
-    paddingVertical: space.md,
-    backgroundColor: colors.canvas,
-  },
-  saveBtn: {
-    flex: 1,
-    height: 52,
-    borderRadius: radius.md,
-    backgroundColor: colors.green[700],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  savePressed: { backgroundColor: colors.green[950] },
-  saveDisabled: { opacity: 0.7 },
-  saveText: { color: colors.inkInverse, fontFamily: fonts.bodyStrong },
-  deleteBtn: {
-    height: 52,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-  deletePressed: { backgroundColor: colors.surfaceMuted },
-  deleteText: { color: colors.danger },
-});
+function createStyles(colors: ThemeColors) {
+  return {
+    root: { flex: 1, backgroundColor: colors.canvas },
+    content: {
+      paddingHorizontal: space.screen,
+      paddingVertical: space.md,
+      paddingBottom: space.xxl,
+      gap: space.sm,
+    },
+    label: { color: colors.inkMuted, marginTop: space.sm, fontSize: 13 },
+    input: {
+      borderWidth: 0,
+      borderRadius: radius.md,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      minHeight: 50,
+      fontFamily: fonts.body,
+      fontSize: 15,
+      color: colors.ink,
+      backgroundColor: colors.surfaceMuted,
+    },
+    notes: { minHeight: 80, textAlignVertical: 'top' as const },
+    hint: { color: colors.inkMuted, ...typography.caption },
+    defaultRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'flex-start' as const,
+      gap: space.sm,
+      marginTop: space.md,
+      paddingVertical: space.sm,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      marginTop: 2,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    checkboxChecked: {
+      borderColor: colors.green[700],
+      backgroundColor: colors.green[700],
+    },
+    defaultCopy: { flex: 1, gap: 2 },
+    defaultTitle: { color: colors.ink },
+    chips: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 7 },
+    chip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.sm,
+      paddingHorizontal: 12,
+      height: 38,
+      justifyContent: 'center' as const,
+      backgroundColor: colors.surface,
+    },
+    chipSelected: {
+      borderColor: colors.green[700],
+      backgroundColor: colors.green[50],
+    },
+    chipText: { color: colors.ink, fontSize: 13 },
+    chipTextSelected: { color: colors.green[700], fontFamily: fonts.bodyStrong },
+    error: { color: colors.danger, marginTop: space.sm },
+    footer: {
+      flexDirection: 'row' as const,
+      gap: 12,
+      paddingHorizontal: space.screen,
+      paddingVertical: space.md,
+      backgroundColor: colors.canvas,
+    },
+    saveBtn: {
+      flex: 1,
+      height: 52,
+      borderRadius: radius.md,
+      backgroundColor: colors.green[700],
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    savePressed: { backgroundColor: colors.primaryPressed },
+    saveDisabled: { opacity: 0.7 },
+    saveText: { color: colors.inkInverse, fontFamily: fonts.bodyStrong },
+    deleteBtn: {
+      height: 52,
+      paddingHorizontal: space.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: colors.surface,
+    },
+    deletePressed: { backgroundColor: colors.surfaceMuted },
+    deleteText: { color: colors.danger },
+  };
+}

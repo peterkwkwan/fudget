@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 
 import { CaptionText, StrongText, TitleText } from '@/components/StyledText';
-import { colors, fonts, radius, space, typography } from '@/constants/theme';
+import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import {
   useAcceptPartnerInvite,
@@ -24,6 +25,9 @@ import {
  * Aggregate Stats scope appears only while status === active.
  */
 export function PartnerSection() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const linkQuery = usePartnerLink();
   const createInvite = useCreatePartnerInvite();
   const acceptInvite = useAcceptPartnerInvite();
@@ -312,7 +316,8 @@ export function PartnerSection() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   section: {
     gap: 12,
   },
@@ -369,7 +374,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
   },
   primaryPressed: {
-    backgroundColor: colors.green[950],
+    backgroundColor: colors.primaryPressed,
     transform: [{ scale: 0.98 }],
   },
   primaryText: {
@@ -430,3 +435,5 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
 });
+}
+

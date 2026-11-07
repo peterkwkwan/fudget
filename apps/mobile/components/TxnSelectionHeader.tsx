@@ -1,9 +1,15 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MoreIcon, TrashIcon } from '@/components/icons';
 import { CaptionText, StrongText } from '@/components/StyledText';
-import { chromeHairline, colors, space } from '@/constants/theme';
+import {
+  chromeHairlineFor,
+  space,
+  type ThemeColors,
+} from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 
 type Props = {
   count: number;
@@ -25,6 +31,8 @@ export function TxnSelectionHeader({
   onOverflow,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const label = count === 1 ? '1 selected' : `${count} selected`;
 
   return (
@@ -92,49 +100,52 @@ export function TxnSelectionHeader({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    backgroundColor: colors.canvas,
-    borderBottomWidth: chromeHairline.width,
-    borderBottomColor: chromeHairline.color,
-  },
-  row: {
-    minHeight: 44,
-    paddingLeft: space.md,
-    paddingRight: space.sm,
-    paddingBottom: space.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  cancelBtn: {
-    paddingVertical: space.xs,
-    paddingRight: space.sm,
-  },
-  cancelText: {
-    color: colors.green[700],
-  },
-  count: {
-    flex: 1,
-    minWidth: 0,
-    color: colors.ink,
-    textAlign: 'center',
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  const hairline = chromeHairlineFor(colors);
+  return StyleSheet.create({
+    wrap: {
+      backgroundColor: colors.canvas,
+      borderBottomWidth: hairline.width,
+      borderBottomColor: hairline.color,
+    },
+    row: {
+      minHeight: 44,
+      paddingLeft: space.md,
+      paddingRight: space.sm,
+      paddingBottom: space.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.sm,
+    },
+    cancelBtn: {
+      paddingVertical: space.xs,
+      paddingRight: space.sm,
+    },
+    cancelText: {
+      color: colors.green[700],
+    },
+    count: {
+      flex: 1,
+      minWidth: 0,
+      color: colors.ink,
+      textAlign: 'center',
+    },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.xs,
+    },
+    iconBtn: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pressed: {
+      opacity: 0.7,
+    },
+    disabled: {
+      opacity: 0.4,
+    },
+  });
+}

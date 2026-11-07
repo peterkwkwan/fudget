@@ -1,9 +1,10 @@
-import { useEffect, useRef, type ComponentRef } from 'react';
+import { useMemo, useEffect, useRef, type ComponentRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { GestureDetector, useNativeGesture } from 'react-native-gesture-handler';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
-import { colors, radius, space } from '@/constants/theme';
+import { radius, space, type ThemeColors } from '@/constants/theme';
+import { useTheme } from '@/lib/ThemeProvider';
 import type { PeriodFocus } from '@/lib/periods';
 import {
   WEEKDAY_LETTERS_SUN,
@@ -26,7 +27,7 @@ type Props = {
   currency?: string;
 };
 
-function toneColor(tone: DayNetTone): string {
+function toneColor(tone: DayNetTone, colors: ThemeColors): string {
   if (tone === 'income') return colors.income;
   if (tone === 'expense') return colors.expense;
   return colors.inkMuted;
@@ -40,6 +41,8 @@ export function WeekDayStrip({
   onSelectDay,
   currency,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const count = daysInMonth(focus.year, focus.month);
   // The transactions screen treats a horizontal drag as a month change.
@@ -109,7 +112,7 @@ export function WeekDayStrip({
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.7}
-                  style={[styles.amount, { color: toneColor(label.tone) }]}
+                  style={[styles.amount, { color: toneColor(label.tone, colors) }]}
                 >
                   {label.text}
                 </CaptionText>
@@ -125,7 +128,8 @@ export function WeekDayStrip({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   wrap: {
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -182,3 +186,5 @@ const styles = StyleSheet.create({
     height: 12,
   },
 });
+}
+
