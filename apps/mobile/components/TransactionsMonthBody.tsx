@@ -430,6 +430,7 @@ function createStyles(colors: ThemeColors) {
     gap: space.sm,
     paddingHorizontal: space.screen,
     paddingVertical: space.sm,
+    backgroundColor: colors.canvas,
   },
   sectionHeaderText: {
     flexShrink: 1,
