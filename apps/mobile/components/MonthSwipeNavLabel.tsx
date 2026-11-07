@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useLayoutEffect, useState } from 'react';
+import { useMemo, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { fonts, typography, type ThemeColors } from '@/constants/theme';
+import { isPagerAtPageOffset } from '@/lib/monthSwipe';
 import { useTheme } from '@/lib/ThemeProvider';
 
 /**
@@ -14,6 +15,12 @@ import { useTheme } from '@/lib/ThemeProvider';
  * (May 2026 vs September 2026). Year is always four digits.
  */
 export const LONGEST_MONTH_NAV_LABEL = 'September 2026';
+
+type LabelTrio = {
+  prevLabel: string;
+  navLabel: string;
+  nextLabel: string;
+};
 
 type Props = {
   prevLabel: string;
@@ -67,9 +74,15 @@ export function FixedMonthNavLabel({ label }: FixedLabelProps) {
  * ‹ November 2026 › slides toward October with the swipe (not after settle).
  *
  * Slot width is locked to “September 2026” so chevrons stay put when
- * swiping May ↔ September. Labels are centered in that slot.
+ * swiping May ↔ September. Labels are left-aligned in that slot.
  *
  * Shared values are only written from layout/effects (never during render).
+ *
+ * Settle flash guard: the displayed trio is held in local state. While the
+ * track is still at ±pagerWidth (swipe/chevron snap), we keep the old trio so
+ * the destination month stays in the viewport. In the same useLayoutEffect we
+ * snap translateX → 0 and adopt the new trio before paint — avoiding a frame
+ * where new React strings sit at the old offset (wrong neighbor blink).
  */
 export function MonthSwipeNavLabel({
   prevLabel,
@@ -82,11 +95,38 @@ export function MonthSwipeNavLabel({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const slotSV = useSharedValue(0);
   const [slotW, setSlotW] = useState(0);
+  const [display, setDisplay] = useState<LabelTrio>({
+    prevLabel,
+    navLabel,
+    nextLabel,
+  });
+  const displayRef = useRef(display);
+  displayRef.current = display;
 
   // Mirror React width into the shared value after commit — never in render.
   useLayoutEffect(() => {
     slotSV.value = slotW;
   }, [slotW, slotSV]);
+
+  // Adopt prop trio before paint. If the pager is still on a page offset from
+  // a committed swipe, snap to center in the same turn so text + transform
+  // never disagree on screen.
+  useLayoutEffect(() => {
+    const cur = displayRef.current;
+    if (
+      cur.prevLabel === prevLabel &&
+      cur.navLabel === navLabel &&
+      cur.nextLabel === nextLabel
+    ) {
+      return;
+    }
+    if (isPagerAtPageOffset(translateX.value, pagerWidth.value)) {
+      translateX.value = 0;
+    }
+    const next: LabelTrio = { prevLabel, navLabel, nextLabel };
+    displayRef.current = next;
+    setDisplay(next);
+  }, [prevLabel, navLabel, nextLabel, translateX, pagerWidth]);
 
   const onMeasure = useCallback((event: LayoutChangeEvent) => {
     const w = Math.ceil(event.nativeEvent.layout.width);
@@ -123,9 +163,9 @@ export function MonthSwipeNavLabel({
           style={styles.label}
           numberOfLines={1}
           accessibilityRole="header"
-          accessibilityLabel={navLabel}
+          accessibilityLabel={display.navLabel}
         >
-          {navLabel}
+          {display.navLabel}
         </Text>
       ) : (
         <View
@@ -139,14 +179,14 @@ export function MonthSwipeNavLabel({
               accessibilityElementsHidden
               importantForAccessibility="no"
             >
-              {prevLabel}
+              {display.prevLabel}
             </Animated.Text>
             <Animated.Text
               style={[styles.label, slotStyle]}
               numberOfLines={1}
-              accessibilityLabel={navLabel}
+              accessibilityLabel={display.navLabel}
             >
-              {navLabel}
+              {display.navLabel}
             </Animated.Text>
             <Animated.Text
               style={[styles.label, slotStyle]}
@@ -154,7 +194,7 @@ export function MonthSwipeNavLabel({
               accessibilityElementsHidden
               importantForAccessibility="no"
             >
-              {nextLabel}
+              {display.nextLabel}
             </Animated.Text>
           </Animated.View>
         </View>
@@ -190,40 +230,40 @@ function LongestNavLabelProbe({
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  wrap: {
-    flexGrow: 0,
-    flexShrink: 1,
-    flexBasis: 'auto',
-    alignSelf: 'flex-start',
-    position: 'relative',
-    maxWidth: '100%',
-  },
-  measureLayer: {
-    position: 'absolute',
-    opacity: 0,
-    left: 0,
-    top: 0,
-  },
-  measureLabel: {
-    color: colors.ink,
-    ...typography.month,
-    fontFamily: fonts.bodyStrong,
-  },
-  viewport: {
-    flexGrow: 0,
-    flexShrink: 0,
-    overflow: 'hidden',
-  },
-  strip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  label: {
-    color: colors.ink,
-    ...typography.month,
-    textAlign: 'left',
-    fontFamily: fonts.bodyStrong,
-  },
-});
+    wrap: {
+      flexGrow: 0,
+      // Fixed September-width slot — do not shrink under the chevron row.
+      flexShrink: 0,
+      flexBasis: 'auto',
+      alignSelf: 'flex-start',
+      position: 'relative',
+      maxWidth: '100%',
+    },
+    measureLayer: {
+      position: 'absolute',
+      opacity: 0,
+      left: 0,
+      top: 0,
+    },
+    measureLabel: {
+      color: colors.ink,
+      ...typography.month,
+      fontFamily: fonts.bodyStrong,
+    },
+    viewport: {
+      flexGrow: 0,
+      flexShrink: 0,
+      overflow: 'hidden',
+    },
+    strip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    label: {
+      color: colors.ink,
+      ...typography.month,
+      textAlign: 'left',
+      fontFamily: fonts.bodyStrong,
+    },
+  });
 }
-
