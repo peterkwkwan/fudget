@@ -15,6 +15,7 @@
   - Planner P0: `20261023140000_planner_goal_vehicles.sql` (goal ↔ vehicle links; progress from balances)
   - Transactions: `20261023160000_transactions_date_view.sql` (`profiles.transactions_date_view`)
   - Transactions: `20261107120000_transactions_date_view_calendar.sql` (List · Calendar; drop Week)
+  - Transactions: `20261107123000_transactions_date_view_calendar_repair.sql` (idempotent check repair if 120000 failed mid-run)
   - Stats: `20261023170000_stats_trend_year_bucket.sql` (`p_bucket` includes `year`)
   - Stats: `20261025010000_stats_trend_year_tz.sql` (year + profile-TZ bucket trunc)
   - Account: `20261025020000_account_wipe_restore.sql` (30-day wipe backup + wipe/restore/delete RPCs + purge)
