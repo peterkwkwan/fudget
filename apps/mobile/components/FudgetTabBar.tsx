@@ -24,13 +24,13 @@ import {
   space,
   type ThemeColors,
 } from '@/constants/theme';
+import { addTransactionHref } from '@/lib/addTransactionDate';
 import { guardedPush } from '@/lib/navGuard';
 import { useTheme } from '@/lib/ThemeProvider';
 
 /** Figma Add FAB: 50×50, radius 18 (squircle), no white ring. */
 const FAB_SIZE = 50;
 const FAB_GAP = 56;
-const ADD_TRANSACTION = '/transaction/new';
 
 type FudgetTabBarProps = {
   state: {
@@ -177,7 +177,12 @@ export function FudgetTabBar({ state, onTabPress }: FudgetTabBarProps) {
               styles.fab,
               pressed && styles.fabPressed,
             ]}
-            onPress={() => guardedPush(router, ADD_TRANSACTION)}
+            onPress={() =>
+              guardedPush(
+                router,
+                addTransactionHref(state.routes[state.index]?.name)
+              )
+            }
             accessibilityRole="button"
             accessibilityLabel="Add transaction"
           >
