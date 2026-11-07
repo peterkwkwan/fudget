@@ -2,10 +2,13 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import { useMemo, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useHeaderHeight } from 'expo-router/react-navigation';
+import { useMemo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -13,6 +16,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type ScrollViewInstance,
 } from 'react-native';
 
 import { MicButton } from '@/components/MicButton';
@@ -119,6 +123,32 @@ export function TransactionForm({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
+  const headerHeight = useHeaderHeight();
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const noteFocusedRef = useRef(false);
+  const revealNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const revealNote = useCallback(() => {
+    if (revealNoteTimer.current) clearTimeout(revealNoteTimer.current);
+    // Keyboard padding lands on the same show event. Wait so scrollToEnd
+    // uses the shortened viewport and the note clears the keyboard.
+    revealNoteTimer.current = setTimeout(() => {
+      revealNoteTimer.current = null;
+      if (!noteFocusedRef.current) return;
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, []);
+
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      if (noteFocusedRef.current) revealNote();
+    });
+    return () => {
+      sub.remove();
+      if (revealNoteTimer.current) clearTimeout(revealNoteTimer.current);
+    };
+  }, [revealNote]);
+
   const [amount, setAmount] = useState(() =>
     formatAmountInput(initial?.amount ?? '')
   );
@@ -360,8 +390,13 @@ export function TransactionForm({
         : 'Link this transaction to a Planner account, or leave None.';
 
   return (
-    <View style={styles.root}>
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior="padding"
+      keyboardVerticalOffset={headerHeight}
+    >
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -650,6 +685,16 @@ export function TransactionForm({
           style={[styles.input, styles.noteInput]}
           value={note}
           onChangeText={setNote}
+          onFocus={() => {
+            noteFocusedRef.current = true;
+            if (Keyboard.isVisible()) revealNote();
+          }}
+          onBlur={() => {
+            noteFocusedRef.current = false;
+          }}
+          onContentSizeChange={() => {
+            if (noteFocusedRef.current && Keyboard.isVisible()) revealNote();
+          }}
           placeholder="Add a short note"
           placeholderTextColor={colors.inkSoft}
           multiline
@@ -897,7 +942,7 @@ export function TransactionForm({
           )}
         </Pressable>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
