@@ -11,13 +11,17 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { SharedValue } from 'react-native-reanimated';
 
 import {
   CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from '@/components/icons';
-import { FixedMonthNavLabel } from '@/components/MonthSwipeNavLabel';
+import {
+  FixedMonthNavLabel,
+  MonthSwipeNavLabel,
+} from '@/components/MonthSwipeNavLabel';
 import { CaptionText, PageTitleText, StrongText } from '@/components/StyledText';
 import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
 import {
@@ -30,6 +34,14 @@ import {
 } from '@/lib/periods';
 import { useTheme } from '@/lib/ThemeProvider';
 import { useThemedStyles } from '@/lib/useThemedStyles';
+
+/** Shared with MonthCardPager so the header month slides with the cards. */
+export type PeriodSwipeMotion = {
+  translateX: SharedValue<number>;
+  pagerWidth: SharedValue<number>;
+  prevLabel: string;
+  nextLabel: string;
+};
 
 export type PeriodSelectorProps = {
   preset: PeriodPreset;
@@ -50,6 +62,11 @@ export type PeriodSelectorProps = {
   onPresetChange?: (preset: PeriodPreset) => void;
   onCustomStartChange?: (date: Date) => void;
   onCustomEndChange?: (date: Date) => void;
+  /**
+   * When set (Monthly + card pager), finger-follow the month strip. Settle
+   * recycles show* strings on the UI thread — no remap twitch.
+   */
+  swipeMotion?: PeriodSwipeMotion | null;
   /**
    * When set (Monthly + card pager), ‹ › use the same animate-then-commit path
    * as a pan settle instead of jumping focus immediately.
@@ -74,6 +91,7 @@ export function PeriodSelector({
   onCustomEndChange,
   showModeMenu = true,
   pageTitle,
+  swipeMotion = null,
   onSwipeStep,
 }: PeriodSelectorProps) {
   const insets = useSafeAreaInsets();
@@ -217,8 +235,17 @@ export function PeriodSelector({
         ) : (
           <View style={styles.stepper}>
             <View style={styles.monthSlot}>
-              {/* Settled focus only — no finger-follow strip (avoids settle twitch). */}
-              <FixedMonthNavLabel label={navLabel} />
+              {swipeMotion ? (
+                <MonthSwipeNavLabel
+                  prevLabel={swipeMotion.prevLabel}
+                  navLabel={navLabel}
+                  nextLabel={swipeMotion.nextLabel}
+                  translateX={swipeMotion.translateX}
+                  pagerWidth={swipeMotion.pagerWidth}
+                />
+              ) : (
+                <FixedMonthNavLabel label={navLabel} />
+              )}
             </View>
             <View style={styles.chevronPair}>
               <Pressable

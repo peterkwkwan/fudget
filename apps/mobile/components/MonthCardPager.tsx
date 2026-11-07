@@ -47,9 +47,9 @@ type MonthCardPagerProps = {
    */
   contentReady: boolean;
   /**
-   * Optional external shared values for the sliding track. When omitted the
-   * pager owns internal values. Navbar month label is settle-only and does
-   * not subscribe to these.
+   * Optional external shared values for the sliding track. When provided,
+   * the navbar month strip shares the same translateX / width and recycles
+   * its cells on settle (no remap twitch).
    */
   translateX?: SharedValue<number>;
   pagerWidth?: SharedValue<number>;
@@ -66,8 +66,8 @@ const easeOut = Easing.out(Easing.cubic);
  * Blank-then-fill month pager.
  * Drag left/right: current body translates + fades out; paper-white blanks
  * slide in. After settle, focus commits and content fills when ready
- * (one-shot fade-in). Navbar month label updates from settled focus only —
- * it does not finger-follow this track. Chevron ‹ › uses the same step path.
+ * (one-shot fade-in). Optional shared translateX drives the navbar month
+ * strip (UI-thread recycle on recenter). Chevron ‹ › uses the same step path.
  */
 export const MonthCardPager = forwardRef<
   MonthCardPagerHandle,
