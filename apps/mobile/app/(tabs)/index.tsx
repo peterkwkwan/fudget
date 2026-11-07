@@ -14,7 +14,6 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
 
 import {
   BulkEditSheet,
@@ -76,42 +75,12 @@ export default function TransactionsScreen() {
     defaultSelectedDay(currentPeriodFocus(timeZone), timeZone)
   );
 
-  // Shared with PeriodSelector so the month strip tracks the card swipe.
-  const swipeTranslateX = useSharedValue(0);
-  const swipePagerWidth = useSharedValue(0);
+  // Pager owns swipe motion; navbar label updates only after focus settles.
   const pagerRef = useRef<MonthCardPagerHandle>(null);
 
   const period = useMemo(
     () => resolvePeriodBounds('month', timeZone, { focus }),
     [timeZone, focus]
-  );
-
-  const prevMonthFocus = useMemo(
-    () => shiftPeriodFocus(focus, 'month', -1),
-    [focus.year, focus.month]
-  );
-  const nextMonthFocus = useMemo(
-    () => shiftPeriodFocus(focus, 'month', 1),
-    [focus.year, focus.month]
-  );
-  const prevNavLabel = useMemo(
-    () =>
-      resolvePeriodBounds('month', timeZone, { focus: prevMonthFocus }).navLabel,
-    [timeZone, prevMonthFocus.year, prevMonthFocus.month]
-  );
-  const nextNavLabel = useMemo(
-    () =>
-      resolvePeriodBounds('month', timeZone, { focus: nextMonthFocus }).navLabel,
-    [timeZone, nextMonthFocus.year, nextMonthFocus.month]
-  );
-  const swipeMotion = useMemo(
-    () => ({
-      translateX: swipeTranslateX,
-      pagerWidth: swipePagerWidth,
-      prevLabel: prevNavLabel,
-      nextLabel: nextNavLabel,
-    }),
-    [swipeTranslateX, swipePagerWidth, prevNavLabel, nextNavLabel]
   );
 
   const {
@@ -354,7 +323,6 @@ export default function TransactionsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Same tree as MonthCardPager — settle label rewrite + translateX=0. */}
       {selectionMode ? (
         <TxnSelectionHeader
           count={selectedIds.size}
@@ -372,7 +340,6 @@ export default function TransactionsScreen() {
             timeZone={timeZone}
             showModeMenu={false}
             pageTitle="Transactions"
-            swipeMotion={swipeMotion}
             onSwipeStep={onSwipeStep}
             onFocusChange={setFocus}
           />
@@ -387,8 +354,6 @@ export default function TransactionsScreen() {
         onStep={onMonthStep}
         renderPage={renderPage}
         contentReady={contentReady}
-        translateX={swipeTranslateX}
-        pagerWidth={swipePagerWidth}
       />
 
       <Modal

@@ -115,19 +115,3 @@ export function monthStepDirection(
   return b > a ? 1 : -1;
 }
 
-/** px tolerance when detecting a settled swipe at ±pagerWidth. */
-export const PAGER_PAGE_OFFSET_EPS_PX = 1;
-
-/**
- * True when the pager track sits on a committed adjacent page (±width).
- * MonthSwipeNavLabel uses this so a new label trio is adopted only after
- * snapping translateX back to 0 (avoids settle month-label blink).
- */
-export function isPagerAtPageOffset(
-  translateX: number,
-  pagerWidth: number,
-  epsPx = PAGER_PAGE_OFFSET_EPS_PX
-): boolean {
-  if (!(pagerWidth > 0) || !Number.isFinite(translateX)) return false;
-  return Math.abs(Math.abs(translateX) - pagerWidth) <= epsPx;
-}

@@ -6,7 +6,6 @@ import {
   useState,
 } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
 
 import {
   MonthCardPager,
@@ -65,9 +64,7 @@ export default function StatsScreen() {
   const [pieType, setPieType] = useState<TransactionType>('expense');
   const [trendMetric, setTrendMetric] = useState<StatsMetric>('expense');
 
-  // Shared with PeriodSelector so the month strip tracks the card swipe.
-  const swipeTranslateX = useSharedValue(0);
-  const swipePagerWidth = useSharedValue(0);
+  // Pager owns swipe motion; navbar label updates only after focus settles.
   const pagerRef = useRef<MonthCardPagerHandle>(null);
 
   // Unlink → Pair scope disappears immediately; fall back to personal.
@@ -85,44 +82,6 @@ export default function StatsScreen() {
         customEndInclusive: preset === 'custom' ? customEnd : undefined,
       }),
     [preset, timeZone, focus, customStart, customEnd]
-  );
-
-  const prevMonthFocus = useMemo(
-    () => shiftPeriodFocus(focus, 'month', -1),
-    [focus.year, focus.month]
-  );
-  const nextMonthFocus = useMemo(
-    () => shiftPeriodFocus(focus, 'month', 1),
-    [focus.year, focus.month]
-  );
-  const prevNavLabel = useMemo(
-    () =>
-      resolvePeriodBounds('month', timeZone, { focus: prevMonthFocus }).navLabel,
-    [timeZone, prevMonthFocus.year, prevMonthFocus.month]
-  );
-  const nextNavLabel = useMemo(
-    () =>
-      resolvePeriodBounds('month', timeZone, { focus: nextMonthFocus }).navLabel,
-    [timeZone, nextMonthFocus.year, nextMonthFocus.month]
-  );
-
-  const swipeMotion = useMemo(
-    () =>
-      preset === 'month'
-        ? {
-            translateX: swipeTranslateX,
-            pagerWidth: swipePagerWidth,
-            prevLabel: prevNavLabel,
-            nextLabel: nextNavLabel,
-          }
-        : null,
-    [
-      preset,
-      swipeTranslateX,
-      swipePagerWidth,
-      prevNavLabel,
-      nextNavLabel,
-    ]
   );
 
   const onSwipeStep = useCallback((delta: -1 | 1) => {
@@ -217,7 +176,6 @@ export default function StatsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Same tree as MonthCardPager — settle label rewrite + translateX=0. */}
       <PeriodNavHeader>
         <PeriodSelector
           preset={preset}
@@ -228,7 +186,6 @@ export default function StatsScreen() {
           customEnd={customEnd}
           showModeMenu
           pageTitle="Statistics"
-          swipeMotion={swipeMotion}
           onSwipeStep={preset === 'month' ? onSwipeStep : undefined}
           onPresetChange={setPreset}
           onFocusChange={setFocus}
@@ -250,8 +207,6 @@ export default function StatsScreen() {
         contentReady={
           preset !== 'month' || pairBlocked || contentReady
         }
-        translateX={swipeTranslateX}
-        pagerWidth={swipePagerWidth}
       />
     </View>
   );
