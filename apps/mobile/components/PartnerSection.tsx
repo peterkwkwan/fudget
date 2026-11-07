@@ -314,34 +314,35 @@ export function PartnerSection() {
 
 const styles = StyleSheet.create({
   section: {
-    gap: space.sm,
+    gap: 12,
   },
   title: {
-    color: colors.green[950],
+    color: colors.ink,
+    fontSize: 18,
   },
   blurb: {
     color: colors.inkMuted,
     ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 21,
   },
   block: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     padding: space.md,
-    gap: space.sm,
+    gap: space.md,
   },
   label: {
     color: colors.inkMuted,
-    textTransform: 'uppercase',
+    fontSize: 12,
+    letterSpacing: 0,
   },
   value: {
     color: colors.ink,
+    fontSize: 14,
   },
   code: {
-    color: colors.green[950],
+    color: colors.ink,
     fontFamily: fonts.bodyStrong,
     fontSize: 28,
     lineHeight: 34,
@@ -349,16 +350,18 @@ const styles = StyleSheet.create({
   },
   meta: {
     color: colors.inkMuted,
+    fontSize: 13,
+    lineHeight: 20,
   },
   rowActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
+    gap: 10,
   },
   primary: {
-    flexGrow: 1,
+    flex: 1,
     minWidth: 120,
-    height: 48,
+    height: 52,
     borderRadius: radius.md,
     backgroundColor: colors.green[700],
     alignItems: 'center',
@@ -372,9 +375,12 @@ const styles = StyleSheet.create({
   primaryText: {
     color: colors.inkInverse,
     fontFamily: fonts.bodyStrong,
+    fontSize: 15,
   },
   secondary: {
-    height: 48,
+    flex: 1,
+    minWidth: 120,
+    height: 52,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -392,6 +398,7 @@ const styles = StyleSheet.create({
   secondaryText: {
     color: colors.green[700],
     fontFamily: fonts.bodyStrong,
+    fontSize: 15,
   },
   dangerOutline: {
     height: 44,
@@ -409,10 +416,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyStrong,
   },
   input: {
-    height: 48,
+    height: 50,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 0,
     backgroundColor: colors.surfaceMuted,
     paddingHorizontal: space.md,
     color: colors.ink,

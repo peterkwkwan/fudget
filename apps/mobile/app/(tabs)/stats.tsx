@@ -224,6 +224,7 @@ export default function StatsScreen() {
           customStart={customStart}
           customEnd={customEnd}
           showModeMenu
+          pageTitle="Statistics"
           swipeMotion={swipeMotion}
           onSwipeStep={preset === 'month' ? onSwipeStep : undefined}
           onPresetChange={setPreset}

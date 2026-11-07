@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CaptionText, StrongText } from '@/components/StyledText';
+import { SurfaceCard } from '@/components/SurfaceCard';
 import { colors, radius, space } from '@/constants/theme';
 import type { PeriodFocus } from '@/lib/periods';
 import {
@@ -26,7 +27,7 @@ function toneColor(tone: DayNetTone): string {
   return colors.inkMuted;
 }
 
-/** Full month grid; each day with transactions shows that day's net. */
+/** Full month grid in a white card; each day with transactions shows that day's net. */
 export function MonthDayCalendar({
   focus,
   selectedDay,
@@ -37,95 +38,103 @@ export function MonthDayCalendar({
   const cells = monthGridCells(focus);
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.weekdayRow}>
-        {WEEKDAY_LETTERS_SUN.map((lab, i) => (
-          <View key={`${lab}-${i}`} style={styles.weekdayCell}>
-            <CaptionText style={styles.weekdayLabel}>{lab}</CaptionText>
-          </View>
-        ))}
-      </View>
-      <View style={styles.grid}>
-        {cells.map((day, i) => {
-          if (day == null) {
-            return <View key={`e-${i}`} style={styles.dayCell} />;
-          }
-          const selected = day === selectedDay;
-          const net = dayNets.get(day);
-          const label =
-            net == null
-              ? null
-              : formatDayNet(net, { compact: true, plain: true, currency });
-          return (
-            <Pressable
-              key={day}
-              style={({ pressed }) => [
-                styles.dayCell,
-                selected && styles.dayCellSelected,
-                pressed && styles.pressed,
-              ]}
-              onPress={() => onSelectDay(day)}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={`${day}${
-                label ? `, net ${label.text}` : ', no transactions'
-              }${selected ? ', selected' : ''}`}
-            >
-              <StrongText
-                style={[styles.dayNum, selected && styles.dayNumSelected]}
+    <View style={styles.outer}>
+      <SurfaceCard style={styles.card}>
+        <View style={styles.weekdayRow}>
+          {WEEKDAY_LETTERS_SUN.map((lab, i) => (
+            <View key={`${lab}-${i}`} style={styles.weekdayCell}>
+              <CaptionText style={styles.weekdayLabel}>{lab}</CaptionText>
+            </View>
+          ))}
+        </View>
+        <View style={styles.grid}>
+          {cells.map((day, i) => {
+            if (day == null) {
+              return <View key={`e-${i}`} style={styles.dayCell} />;
+            }
+            const selected = day === selectedDay;
+            const net = dayNets.get(day);
+            const label =
+              net == null
+                ? null
+                : formatDayNet(net, { compact: true, plain: true, currency });
+            return (
+              <Pressable
+                key={day}
+                style={({ pressed }) => [
+                  styles.dayCell,
+                  selected && styles.dayCellSelected,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => onSelectDay(day)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${day}${
+                  label ? `, net ${label.text}` : ', no transactions'
+                }${selected ? ', selected' : ''}`}
               >
-                {day}
-              </StrongText>
-              {label ? (
-                <CaptionText
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.7}
-                  style={[styles.amount, { color: toneColor(label.tone) }]}
+                <StrongText
+                  style={[styles.dayNum, selected && styles.dayNumSelected]}
                 >
-                  {label.text}
-                </CaptionText>
-              ) : (
-                <View style={styles.amountSlot} />
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
+                  {day}
+                </StrongText>
+                {label ? (
+                  <CaptionText
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    style={[styles.amount, { color: toneColor(label.tone) }]}
+                  >
+                    {label.text}
+                  </CaptionText>
+                ) : (
+                  <View style={styles.amountSlot} />
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      </SurfaceCard>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    paddingHorizontal: space.sm + 4,
-    paddingTop: space.sm,
-    paddingBottom: space.xs,
+  outer: {
+    paddingHorizontal: space.screen,
+    paddingBottom: space.md,
+  },
+  card: {
+    padding: 10,
+    gap: 6,
   },
   weekdayRow: {
     flexDirection: 'row',
-    marginBottom: space.xs,
   },
   weekdayCell: {
     width: '14.2857%',
     alignItems: 'center',
   },
   weekdayLabel: {
-    color: colors.inkMuted,
+    color: colors.inkSoft,
     fontSize: 11,
     lineHeight: 14,
+    letterSpacing: 0,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    rowGap: 1,
+    columnGap: 1,
   },
   dayCell: {
     width: '14.2857%',
-    height: 52,
+    height: 47,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    gap: 1,
+    paddingTop: 8,
+    borderRadius: radius.tile,
+    gap: 4,
+    backgroundColor: colors.surface,
   },
   dayCellSelected: {
     backgroundColor: colors.green[50],
@@ -135,20 +144,21 @@ const styles = StyleSheet.create({
   },
   dayNum: {
     color: colors.ink,
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 16,
+    fontFamily: undefined,
   },
   dayNumSelected: {
     color: colors.green[700],
   },
   amount: {
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 8,
+    lineHeight: 10,
     textAlign: 'center',
     width: '100%',
     fontVariant: ['tabular-nums'],
   },
   amountSlot: {
-    height: 12,
+    height: 10,
   },
 });

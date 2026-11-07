@@ -306,6 +306,271 @@ export function MoreIcon({ color, size = 22, style }: IconProps) {
   );
 }
 
+/** Left chevron for month / back affordances. */
+export function ChevronLeftIcon({ color, size = 18, style }: IconProps) {
+  const stroke = Math.max(1.75, size * 0.12);
+  const arm = size * 0.45;
+  return (
+    <View style={[{ width: size, height: size }, style]}>
+      <View
+        style={{
+          position: 'absolute',
+          width: arm,
+          height: stroke,
+          borderRadius: stroke,
+          backgroundColor: color,
+          top: size * 0.28,
+          right: size * 0.28,
+          transform: [{ rotate: '-45deg' }],
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          width: arm,
+          height: stroke,
+          borderRadius: stroke,
+          backgroundColor: color,
+          top: size * 0.52,
+          right: size * 0.28,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
+    </View>
+  );
+}
+
+/** Down chevron for selectors. */
+export function ChevronDownIcon({ color, size = 14, style }: IconProps) {
+  const stroke = Math.max(1.5, size * 0.12);
+  const arm = size * 0.42;
+  return (
+    <View style={[{ width: size, height: size }, style]}>
+      <View
+        style={{
+          position: 'absolute',
+          width: arm,
+          height: stroke,
+          borderRadius: stroke,
+          backgroundColor: color,
+          top: size * 0.38,
+          left: size * 0.12,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          width: arm,
+          height: stroke,
+          borderRadius: stroke,
+          backgroundColor: color,
+          top: size * 0.38,
+          right: size * 0.12,
+          transform: [{ rotate: '-45deg' }],
+        }}
+      />
+    </View>
+  );
+}
+
+/** Bank / landmark for Planner accounts. */
+export function LandmarkIcon({ color, size = 19, style }: IconProps) {
+  const stroke = Math.max(1.5, size * 0.08);
+  return (
+    <View style={[{ width: size, height: size }, style]}>
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.12,
+          right: size * 0.12,
+          top: size * 0.18,
+          height: stroke,
+          backgroundColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.2,
+          right: size * 0.2,
+          top: size * 0.18,
+          height: size * 0.22,
+          borderTopLeftRadius: size * 0.4,
+          borderTopRightRadius: size * 0.4,
+          backgroundColor: color,
+        }}
+      />
+      {[0.28, 0.48, 0.68].map((left) => (
+        <View
+          key={left}
+          style={{
+            position: 'absolute',
+            left: size * left,
+            top: size * 0.42,
+            width: stroke,
+            height: size * 0.32,
+            backgroundColor: color,
+          }}
+        />
+      ))}
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.12,
+          right: size * 0.12,
+          bottom: size * 0.12,
+          height: stroke,
+          backgroundColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
+/** Sliders for Settings entry. */
+export function SlidersIcon({ color, size = 18, style }: IconProps) {
+  const stroke = Math.max(1.5, size * 0.1);
+  return (
+    <View style={[{ width: size, height: size }, style]}>
+      {[0.28, 0.5, 0.72].map((y, i) => (
+        <View key={y}>
+          <View
+            style={{
+              position: 'absolute',
+              left: size * 0.1,
+              right: size * 0.1,
+              top: size * y - stroke / 2,
+              height: stroke,
+              borderRadius: stroke,
+              backgroundColor: color,
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              left: size * (i === 1 ? 0.55 : 0.28),
+              top: size * y - size * 0.12,
+              width: size * 0.2,
+              height: size * 0.24,
+              borderRadius: size * 0.1,
+              borderWidth: stroke,
+              borderColor: color,
+              backgroundColor: 'transparent',
+            }}
+          />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Users for Partner. */
+export function UsersIcon({ color, size = 18, style }: IconProps) {
+  const head = size * 0.28;
+  return (
+    <View style={[{ width: size, height: size }, style]}>
+      <View
+        style={{
+          position: 'absolute',
+          top: size * 0.1,
+          left: size * 0.18,
+          width: head,
+          height: head,
+          borderRadius: head / 2,
+          borderWidth: Math.max(1.4, size * 0.08),
+          borderColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          top: size * 0.14,
+          right: size * 0.18,
+          width: head * 0.85,
+          height: head * 0.85,
+          borderRadius: head / 2,
+          borderWidth: Math.max(1.4, size * 0.08),
+          borderColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: size * 0.1,
+          left: size * 0.08,
+          width: size * 0.42,
+          height: size * 0.28,
+          borderTopLeftRadius: size * 0.3,
+          borderTopRightRadius: size * 0.3,
+          borderWidth: Math.max(1.4, size * 0.08),
+          borderBottomWidth: 0,
+          borderColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: size * 0.1,
+          right: size * 0.08,
+          width: size * 0.36,
+          height: size * 0.24,
+          borderTopLeftRadius: size * 0.28,
+          borderTopRightRadius: size * 0.28,
+          borderWidth: Math.max(1.4, size * 0.08),
+          borderBottomWidth: 0,
+          borderColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
+/** Shield for privacy. */
+export function ShieldIcon({ color, size = 18, style }: IconProps) {
+  const stroke = Math.max(1.5, size * 0.09);
+  return (
+    <View style={[{ width: size, height: size }, style]}>
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.18,
+          right: size * 0.18,
+          top: size * 0.12,
+          bottom: size * 0.12,
+          borderWidth: stroke,
+          borderRadius: size * 0.18,
+          borderBottomLeftRadius: size * 0.4,
+          borderBottomRightRadius: size * 0.4,
+          borderColor: color,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.32,
+          top: size * 0.42,
+          width: size * 0.18,
+          height: stroke,
+          backgroundColor: color,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.4,
+          top: size * 0.38,
+          width: size * 0.28,
+          height: stroke,
+          backgroundColor: color,
+          transform: [{ rotate: '-45deg' }],
+        }}
+      />
+    </View>
+  );
+}
+
 /** Right chevron for tappable rows. */
 export function ChevronRightIcon({ color, size = 18, style }: IconProps) {
   const stroke = Math.max(1.75, size * 0.12);

@@ -14,9 +14,14 @@ export function StrongText(props: TextProps) {
   return <Text {...props} style={[styles.bodyStrong, props.style]} />;
 }
 
-/** Screen / section titles — Fraunces. */
+/** Screen / section titles — DM Sans title. */
 export function TitleText(props: TextProps) {
   return <Text {...props} style={[styles.title, props.style]} />;
+}
+
+/** Large in-page title matching Figma page headers (Transactions, Stats, …). */
+export function PageTitleText(props: TextProps) {
+  return <Text {...props} style={[styles.pageTitle, props.style]} />;
 }
 
 /** Brand / display — Fraunces. */
@@ -41,6 +46,7 @@ const styles = StyleSheet.create({
   body: typography.body,
   bodyStrong: typography.bodyStrong,
   title: typography.title,
+  pageTitle: typography.pageTitle,
   display: typography.display,
   caption: typography.caption,
   mono: {

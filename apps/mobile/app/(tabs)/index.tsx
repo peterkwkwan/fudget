@@ -356,6 +356,7 @@ export default function TransactionsScreen() {
             focus={focus}
             timeZone={timeZone}
             showModeMenu={false}
+            pageTitle="Transactions"
             swipeMotion={swipeMotion}
             onSwipeStep={onSwipeStep}
             onFocusChange={setFocus}

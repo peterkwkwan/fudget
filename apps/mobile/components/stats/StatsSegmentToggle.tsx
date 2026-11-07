@@ -18,9 +18,8 @@ type Props<T extends string> = {
 };
 
 /**
- * Centered chip row for Stats Expenses|Income (and Trend Expenses|Income|Net).
- * Always mount this row — even on quiet/loading months — so the chart/list
- * below does not jump when data arrives.
+ * Chip row for Stats Expenses|Income (and Trend Expenses|Income|Net).
+ * Figma: selected = green tint + green border; idle = white + hairline.
  */
 export function StatsSegmentToggle<T extends string>({
   options,
@@ -75,28 +74,31 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
-    justifyContent: 'center',
-    // Chip minHeight 36 — reserve even before first paint of children.
-    minHeight: 36,
+    gap: 7,
+    justifyContent: 'flex-start',
+    minHeight: 38,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    height: 38,
     borderRadius: radius.sm,
-    backgroundColor: colors.surfaceMuted,
-    minHeight: 36,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     justifyContent: 'center',
   },
   chipSelected: {
-    backgroundColor: colors.green[700],
+    backgroundColor: colors.green[50],
+    borderColor: colors.green[700],
   },
   text: {
-    color: colors.inkMuted,
-    fontFamily: fonts.bodyStrong,
+    color: colors.ink,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    letterSpacing: 0,
   },
   textSelected: {
-    color: colors.inkInverse,
+    color: colors.green[700],
     fontFamily: fonts.bodyStrong,
   },
 });

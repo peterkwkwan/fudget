@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import { PlusIcon } from '@/components/icons';
+import { LandmarkIcon, PlusIcon } from '@/components/icons';
 import { LinkedAccountLinks } from '@/components/planner/LinkedAccountLinks';
 import { PartnerCollapsibleCard } from '@/components/planner/PartnerCollapsibleCard';
 import { ProjectionChart } from '@/components/planner/ProjectionChart';
@@ -20,7 +20,13 @@ import {
   ScrollEdgeHost,
   useScrollEdges,
 } from '@/components/ScrollEdgeShadows';
-import { CaptionText, StrongText, TitleText } from '@/components/StyledText';
+import {
+  CaptionText,
+  PageTitleText,
+  StrongText,
+  TitleText,
+} from '@/components/StyledText';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   GOAL_TYPE_LABELS,
   HORIZON_PRESETS,
@@ -61,9 +67,6 @@ import {
 } from '@/lib/plannerMath';
 import type { PlannerGoal } from '@/lib/plannerGoals';
 import type { PlannerVehicle } from '@/lib/plannerVehicles';
-
-/** Near-white empty fill — lighter than surfaceMuted (#f5f5f7). */
-const EMPTY_FILL = '#fafafa';
 
 const ADD_VEHICLE = '/planner/vehicle/new';
 const ADD_GOAL = '/planner/goal/new';
@@ -134,6 +137,7 @@ export default function PlannerScreen() {
   );
   const [prefsReady, setPrefsReady] = useState(false);
   const { edges, scrollProps } = useScrollEdges();
+  const insets = useSafeAreaInsets();
   const { plannerWriteBlocked } = useOfflineGates();
 
   useEffect(() => {
@@ -318,9 +322,19 @@ export default function PlannerScreen() {
         accessibilityLabel={`${v.name} account`}
       >
         <View style={styles.plannerCardTop}>
-          <StrongText style={styles.plannerCardTitle} numberOfLines={2}>
-            {v.name}
-          </StrongText>
+          <View style={styles.accountSymbol}>
+            <LandmarkIcon color={colors.green[700]} size={19} />
+          </View>
+          <View style={styles.accountCopy}>
+            <StrongText style={styles.plannerCardTitle} numberOfLines={2}>
+              {v.name}
+            </StrongText>
+            <CaptionText style={styles.muted}>
+              {VEHICLE_TYPE_LABELS[v.vehicle_type]} ·{' '}
+              {v.growth_mode === 'grow' ? 'Grows' : 'Shrinks'} · {v.annual_rate}%{' '}
+              yearly
+            </CaptionText>
+          </View>
           <Pressable
             onPress={() => pushWrite(detailHref)}
             hitSlop={8}
@@ -330,17 +344,13 @@ export default function PlannerScreen() {
             <CaptionText style={styles.editLink}>Edit</CaptionText>
           </Pressable>
         </View>
-        <CaptionText style={styles.muted}>
-          {VEHICLE_TYPE_LABELS[v.vehicle_type]} ·{' '}
-          {v.growth_mode === 'grow' ? 'Grows' : 'Shrinks'} · {v.annual_rate}%{' '}
-          {v.compound_period === 'yearly' ? 'yearly' : 'monthly'}
-        </CaptionText>
-        <CaptionText style={styles.muted}>
-          {format(v.balance)}
-          {v.plan_amount != null && v.plan_cadence
-            ? ` · plan ${format(v.plan_amount)} ${PLAN_CADENCE_LABELS[v.plan_cadence].toLowerCase()}`
-            : ''}
-        </CaptionText>
+        <StrongText style={styles.accountBalance}>{format(v.balance)}</StrongText>
+        {v.plan_amount != null && v.plan_cadence ? (
+          <CaptionText style={styles.muted}>
+            Plan {format(v.plan_amount)}{' '}
+            {PLAN_CADENCE_LABELS[v.plan_cadence].toLowerCase()}
+          </CaptionText>
+        ) : null}
       </Pressable>
     );
   }
@@ -459,7 +469,10 @@ export default function PlannerScreen() {
     <ScrollEdgeHost edges={edges} style={styles.container}>
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: Math.max(insets.top, space.sm) + 12 },
+      ]}
       {...scrollProps}
       refreshControl={
         <RefreshControl
@@ -497,6 +510,10 @@ export default function PlannerScreen() {
         </View>
       ) : (
         <>
+          <PageTitleText style={styles.pageTitle} accessibilityRole="header">
+            Planner
+          </PageTitleText>
+
           {scopeBlock}
 
           <View
@@ -668,6 +685,7 @@ export default function PlannerScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Add account"
               >
+                <PlusIcon color={colors.green[700]} size={12} />
                 <CaptionText style={styles.secondaryText}>
                   Add account
                 </CaptionText>
@@ -718,6 +736,7 @@ export default function PlannerScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Add goal"
               >
+                <PlusIcon color={colors.green[700]} size={12} />
                 <CaptionText style={styles.secondaryText}>Add goal</CaptionText>
               </Pressable>
             ) : null}
@@ -771,7 +790,15 @@ export default function PlannerScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   scroll: { flex: 1 },
-  content: { padding: space.md, paddingBottom: space.xxl, gap: space.sm },
+  content: {
+    paddingHorizontal: space.screen,
+    paddingBottom: space.xxl,
+    gap: space.sm,
+  },
+  pageTitle: {
+    color: colors.ink,
+    marginBottom: space.sm,
+  },
   centered: {
     paddingVertical: space.xxl,
     alignItems: 'center',
@@ -782,7 +809,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: space.lg,
-    marginBottom: space.xs,
+    marginBottom: space.sm,
   },
   sectionHeadFirst: {
     marginTop: 0,
@@ -792,15 +819,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
   },
-  sectionTitle: { color: colors.green[950], fontSize: 20 },
+  sectionTitle: {
+    color: colors.ink,
+    ...typography.section,
+  },
   headerAdd: {
-    paddingHorizontal: space.md,
-    height: 36,
-    borderRadius: radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    height: 34,
+    borderRadius: radius.tile,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: colors.surface,
   },
   dashedEmpty: {
@@ -813,7 +844,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: colors.border,
     borderRadius: radius.lg,
-    backgroundColor: EMPTY_FILL,
+    backgroundColor: colors.surface,
   },
   dashedEmptyPressed: {
     backgroundColor: colors.green[50],
@@ -826,13 +857,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   chip: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: space.sm,
-    paddingVertical: 8,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    height: 38,
+    justifyContent: 'center',
     backgroundColor: colors.surface,
   },
   showChip: {
@@ -847,7 +879,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     opacity: 0.65,
   },
-  chipText: { color: colors.ink },
+  chipText: { color: colors.ink, fontSize: 13 },
   chipTextSelected: {
     color: colors.green[700],
     fontFamily: fonts.bodyStrong,
@@ -861,7 +893,7 @@ const styles = StyleSheet.create({
   },
   showLabel: {
     color: colors.inkMuted,
-    fontFamily: fonts.bodyStrong,
+    fontSize: 12,
   },
   showHint: {
     color: colors.inkMuted,
@@ -875,27 +907,27 @@ const styles = StyleSheet.create({
   },
   customInput: {
     width: 64,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 0,
     borderRadius: radius.md,
     paddingHorizontal: space.sm,
     paddingVertical: 8,
     fontFamily: fonts.body,
     color: colors.ink,
+    backgroundColor: colors.surfaceMuted,
   },
-  /** Break out of `content` horizontal padding so the chart is edge-to-edge. */
   chartBleed: {
-    marginHorizontal: -space.md,
+    marginHorizontal: 0,
     alignSelf: 'stretch',
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: space.sm,
+    gap: 12,
   },
-  summaryEnd: { alignItems: 'flex-end' },
-  amount: { color: colors.ink, ...typography.amount, fontSize: 18 },
-  muted: { color: colors.inkMuted },
+  summaryEnd: { alignItems: 'flex-start', flex: 1 },
+  amount: { color: colors.ink, ...typography.amount, fontSize: 15 },
+  muted: { color: colors.inkMuted, fontSize: 11 },
   secondary: {
     paddingHorizontal: space.md,
     height: 40,
@@ -904,36 +936,48 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
   secondaryText: {
     color: colors.green[700],
     fontFamily: fonts.bodyStrong,
+    fontSize: 12,
   },
-  plannerCardTitle: { color: colors.ink, flex: 1, paddingRight: space.sm },
-  /** Accounts + Goals lists — rounded bordered cards (~14 radius, muted fill). */
+  plannerCardTitle: { color: colors.ink, fontSize: 15 },
+  accountCopy: { flex: 1, gap: 4, minWidth: 0 },
+  accountSymbol: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.green[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountBalance: {
+    color: colors.ink,
+    fontSize: 22,
+    letterSpacing: -0.6,
+    marginTop: 4,
+  },
   plannerCard: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: colors.surfaceMuted,
-    gap: 4,
+    borderRadius: radius.lg,
+    padding: space.md,
+    backgroundColor: colors.surface,
+    gap: 14,
     marginBottom: 2,
   },
   plannerCardPressed: {
     backgroundColor: colors.green[50],
-    borderColor: colors.green[200],
   },
   plannerCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
+    gap: 10,
   },
   editLink: {
     color: colors.green[700],
     fontFamily: fonts.bodyStrong,
+    fontSize: 13,
   },
   scopeBlock: {
     gap: space.sm,
@@ -942,21 +986,22 @@ const styles = StyleSheet.create({
   scopeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
+    gap: 7,
   },
   scopeChip: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    paddingVertical: 8,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    height: 38,
+    justifyContent: 'center',
     backgroundColor: colors.surface,
   },
   scopeChipSelected: {
     borderColor: colors.green[700],
     backgroundColor: colors.green[50],
   },
-  scopeText: { color: colors.ink },
+  scopeText: { color: colors.ink, fontSize: 13 },
   scopeTextSelected: {
     color: colors.green[700],
     fontFamily: fonts.bodyStrong,

@@ -393,7 +393,6 @@ export function TransactionForm({
           </View>
         ) : null}
 
-        <CaptionText style={styles.label}>Type</CaptionText>
         <View style={styles.segment}>
           {(
             [
@@ -447,19 +446,27 @@ export function TransactionForm({
           </CaptionText>
         ) : null}
 
-        <CaptionText style={styles.label}>{amountLabel}</CaptionText>
-        <TextInput
-          style={[styles.input, highlightVoice && amount ? styles.inputHighlight : null]}
-          value={amount}
-          onChangeText={(v) => setAmount(formatAmountInput(v))}
-          keyboardType="decimal-pad"
-          placeholder="0.00"
-          placeholderTextColor={colors.inkMuted}
-          accessibilityLabel={amountLabel}
-        />
+        <View style={styles.amountCard}>
+          <View style={styles.amountMeta}>
+            <CaptionText style={styles.amountMetaLabel}>Amount</CaptionText>
+            <StrongText style={styles.amountMetaCurrency}>{currency}</StrongText>
+          </View>
+          <TextInput
+            style={[
+              styles.amountInput,
+              highlightVoice && amount ? styles.inputHighlight : null,
+            ]}
+            value={amount}
+            onChangeText={(v) => setAmount(formatAmountInput(v))}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor={colors.inkSoft}
+            accessibilityLabel={amountLabel}
+          />
+        </View>
 
         {!isTransfer ? (
-          <>
+          <View style={styles.formCard}>
             <View style={styles.categoryLabelRow}>
               <CaptionText style={styles.categoryLabel}>Category</CaptionText>
               {pendingSync ? <PendingSyncDot /> : null}
@@ -487,7 +494,7 @@ export function TransactionForm({
                 );
               })}
             </View>
-          </>
+          </View>
         ) : pendingSync ? (
           <View style={styles.categoryLabelRow}>
             <CaptionText style={styles.categoryLabel}>Transfer</CaptionText>
@@ -495,55 +502,57 @@ export function TransactionForm({
           </View>
         ) : null}
 
-        <View style={styles.dateRepeatRow}>
-          <View
-            style={
-              allowRepeat && !isTransfer ? styles.dateCol : styles.dateColFull
-            }
-          >
-            <CaptionText style={styles.labelTight}>Date</CaptionText>
-            <Pressable
-              style={styles.input}
-              onPress={() => setShowPicker(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Choose date"
+        <View style={styles.formCard}>
+          <CaptionText style={styles.detailsHeading}>Details</CaptionText>
+          <View style={styles.dateRepeatRow}>
+            <View
+              style={
+                allowRepeat && !isTransfer ? styles.dateCol : styles.dateColFull
+              }
             >
-              <Text style={styles.dateText}>
-                {formatDisplayDate(occurredAt, timeZone)}
-              </Text>
-            </Pressable>
-          </View>
-          {allowRepeat && !isTransfer ? (
-            <View style={styles.repeatCol}>
-              <CaptionText style={styles.labelTight}>Repeat</CaptionText>
+              <CaptionText style={styles.labelTight}>Date</CaptionText>
               <Pressable
-                style={[
-                  styles.input,
-                  repeatRule != null && !repeatBlocked && styles.repeatActive,
-                  repeatBlocked && styles.disabled,
-                ]}
-                onPress={() => {
-                  if (repeatBlocked) return;
-                  setShowRepeatSheet(true);
-                }}
-                disabled={repeatBlocked}
+                style={styles.input}
+                onPress={() => setShowPicker(true)}
                 accessibilityRole="button"
-                accessibilityState={{ disabled: repeatBlocked }}
-                accessibilityLabel="Choose how often this repeats"
+                accessibilityLabel="Choose date"
               >
-                <Text
-                  style={[
-                    styles.dateText,
-                    repeatRule != null && styles.repeatActiveText,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {shortRepeatLabel(repeatRule)}
+                <Text style={styles.dateText}>
+                  {formatDisplayDate(occurredAt, timeZone)}
                 </Text>
               </Pressable>
             </View>
-          ) : null}
-        </View>
+            {allowRepeat && !isTransfer ? (
+              <View style={styles.repeatCol}>
+                <CaptionText style={styles.labelTight}>Repeat</CaptionText>
+                <Pressable
+                  style={[
+                    styles.input,
+                    repeatRule != null && !repeatBlocked && styles.repeatActive,
+                    repeatBlocked && styles.disabled,
+                  ]}
+                  onPress={() => {
+                    if (repeatBlocked) return;
+                    setShowRepeatSheet(true);
+                  }}
+                  disabled={repeatBlocked}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: repeatBlocked }}
+                  accessibilityLabel="Choose how often this repeats"
+                >
+                  <Text
+                    style={[
+                      styles.dateText,
+                      repeatRule != null && styles.repeatActiveText,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {shortRepeatLabel(repeatRule)}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
         {showPicker ? (
           <DateTimePicker
             value={occurredAt}
@@ -639,13 +648,14 @@ export function TransactionForm({
           value={note}
           onChangeText={setNote}
           placeholder="Add a short note"
-          placeholderTextColor={colors.inkMuted}
+          placeholderTextColor={colors.inkSoft}
           multiline
           maxLength={500}
           textAlignVertical="top"
           accessibilityLabel="Optional note"
         />
         <CaptionText style={styles.counter}>{note.length}/500</CaptionText>
+        </View>
 
         {displayError ? <Text style={styles.error}>{displayError}</Text> : null}
 
@@ -898,44 +908,87 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
   content: {
-    paddingHorizontal: space.md,
-    paddingVertical: space.lg,
-    gap: space.sm,
+    paddingHorizontal: space.screen,
+    paddingVertical: space.md,
+    gap: 16,
     paddingBottom: space.lg,
+  },
+  amountCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    gap: 10,
+  },
+  amountMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  amountMetaLabel: {
+    color: colors.inkMuted,
+    fontSize: 13,
+    letterSpacing: 0,
+  },
+  amountMetaCurrency: {
+    color: colors.inkMuted,
+    fontSize: 12,
+  },
+  amountInput: {
+    ...typography.body,
+    fontSize: 36,
+    lineHeight: 42,
+    letterSpacing: -1.2,
+    color: colors.ink,
+    padding: 0,
+    margin: 0,
+  },
+  formCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: space.md,
+    gap: 14,
+  },
+  detailsHeading: {
+    color: colors.ink,
+    fontSize: 15,
+    letterSpacing: 0,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: space.md,
-    paddingTop: space.sm + 4,
+    gap: 12,
+    paddingHorizontal: space.screen,
+    paddingTop: space.md,
     paddingBottom: space.md + 4,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
     backgroundColor: colors.canvas,
   },
   label: {
     marginTop: space.sm,
     color: colors.inkMuted,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    letterSpacing: 0,
   },
   categoryLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
-    marginTop: space.sm,
   },
   categoryLabel: {
-    color: colors.inkMuted,
-    textTransform: 'uppercase',
+    color: colors.ink,
+    fontSize: 15,
+    letterSpacing: 0,
   },
   labelTight: {
     color: colors.inkMuted,
-    textTransform: 'uppercase',
-    marginBottom: space.xs,
+    fontSize: 13,
+    marginBottom: space.sm,
+    letterSpacing: 0,
   },
   hint: {
     color: colors.inkMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   hintRow: {
     flexDirection: 'row',
@@ -946,31 +999,33 @@ const styles = StyleSheet.create({
     color: colors.green[700],
     fontFamily: fonts.bodyStrong,
     textDecorationLine: 'underline',
+    fontSize: 12,
   },
   dateRepeatRow: {
-    flexDirection: 'row',
-    gap: space.sm,
-    alignItems: 'flex-start',
+    flexDirection: 'column',
+    gap: space.md,
+    alignItems: 'stretch',
   },
   dateCol: {
-    flex: 1.2,
+    width: '100%',
   },
   dateColFull: {
-    flex: 1,
+    width: '100%',
   },
   repeatCol: {
-    flex: 1,
+    width: '100%',
   },
   segment: {
     flexDirection: 'row',
-    gap: space.sm,
+    gap: 4,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: 4,
   },
   segmentBtn: {
     flex: 1,
-    height: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    height: 42,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
@@ -978,44 +1033,48 @@ const styles = StyleSheet.create({
   segmentBtnSelected: {
     backgroundColor: colors.green[700],
   },
-  /** Disabled Transfer chip: grey paper, not faded green. */
+  /** Disabled Transfer chip: soft muted fill. */
   segmentBtnDisabled: {
     backgroundColor: colors.surfaceMuted,
-    borderColor: colors.chromeBorder,
   },
   segmentText: {
     color: colors.green[700],
+    fontSize: 14,
   },
   segmentTextSelected: {
     color: colors.inkInverse,
   },
   segmentTextDisabled: {
-    color: '#636366',
+    color: colors.inkSoft,
   },
   input: {
-    minHeight: 48,
+    minHeight: 50,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 0,
     backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: space.md,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     justifyContent: 'center',
     ...typography.body,
+    fontSize: 15,
     color: colors.ink,
   },
   inputHighlight: {
+    borderWidth: 1,
     borderColor: colors.green[700],
   },
   repeatActive: {
+    borderWidth: 1,
     borderColor: colors.green[700],
     backgroundColor: colors.green[50],
   },
   repeatActiveText: {
-    color: colors.green[950],
+    color: colors.green[700],
     fontFamily: fonts.bodyStrong,
   },
   dateText: {
     ...typography.body,
+    fontSize: 15,
     color: colors.ink,
   },
   doneDate: {
@@ -1023,8 +1082,8 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
   },
   noteInput: {
-    minHeight: 96,
-    paddingVertical: space.sm,
+    minHeight: 80,
+    paddingVertical: 14,
   },
   counter: {
     alignSelf: 'flex-end',
@@ -1033,15 +1092,16 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
+    gap: 7,
   },
   chip: {
-    paddingHorizontal: space.sm + 4,
-    paddingVertical: space.sm,
+    paddingHorizontal: 10,
+    height: 34,
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+    justifyContent: 'center',
   },
   chipSelected: {
     borderColor: colors.green[700],
@@ -1049,15 +1109,17 @@ const styles = StyleSheet.create({
   },
   chipText: {
     ...typography.caption,
+    fontSize: 12,
+    letterSpacing: 0,
     color: colors.ink,
   },
   chipTextSelected: {
-    color: colors.green[950],
+    color: colors.green[700],
     fontFamily: fonts.bodyStrong,
   },
   primary: {
     flex: 1,
-    height: 48,
+    height: 52,
     borderRadius: radius.md,
     backgroundColor: colors.green[700],
     alignItems: 'center',
@@ -1076,7 +1138,7 @@ const styles = StyleSheet.create({
   },
   danger: {
     marginTop: space.md,
-    height: 48,
+    height: 52,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.danger,
@@ -1103,19 +1165,15 @@ const styles = StyleSheet.create({
   },
   voiceBanner: {
     padding: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     gap: space.xs,
     marginBottom: space.xs,
   },
   voiceLive: {
     padding: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     gap: space.xs,
     marginBottom: space.xs,
   },
@@ -1129,7 +1187,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   voiceTitle: {
-    color: colors.green[950],
+    color: colors.ink,
   },
   voiceBody: {
     color: colors.inkMuted,
@@ -1150,11 +1208,9 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
     paddingBottom: space.xl,
     maxHeight: '70%',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   sheetTitle: {
-    color: colors.green[950],
+    color: colors.ink,
   },
   sheetSubtitle: {
     color: colors.inkMuted,

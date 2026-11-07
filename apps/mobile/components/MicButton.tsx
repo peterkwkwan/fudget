@@ -40,16 +40,16 @@ export function MicButton({ listening, onPress, disabled }: Props) {
 
 const styles = StyleSheet.create({
   base: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     borderRadius: radius.md,
-    borderWidth: 1.5,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   idle: {
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.surface,
     borderColor: colors.green[700],
   },
   listening: {

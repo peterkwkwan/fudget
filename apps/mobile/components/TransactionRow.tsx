@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CategoryIconTile } from '@/components/CategoryIconTile';
 import { PendingSyncDot } from '@/components/PendingSyncDot';
 import { CaptionText, StrongText } from '@/components/StyledText';
 import { colors, space, typography } from '@/constants/theme';
@@ -19,6 +20,8 @@ type Props = {
   selectionMode?: boolean;
   /** When grouped under a day heading, omit the date from the meta line. */
   hideDate?: boolean;
+  /** Hide bottom hairline (last row in a card group). */
+  hideSeparator?: boolean;
   /** Local edit still waiting to reach the cloud. Hidden when false. */
   pending?: boolean;
   /** Push failed because this category is no longer allowed. */
@@ -32,6 +35,7 @@ export function TransactionRow({
   selected = false,
   selectionMode = false,
   hideDate = false,
+  hideSeparator = false,
   pending = false,
   categoryFix = false,
 }: Props) {
@@ -84,6 +88,7 @@ export function TransactionRow({
       delayLongPress={600}
       style={({ pressed }) => [
         styles.row,
+        hideSeparator && styles.rowNoSeparator,
         selected && styles.selected,
         pressed && !selected && styles.pressed,
       ]}
@@ -99,13 +104,18 @@ export function TransactionRow({
           accessibilityElementsHidden
           importantForAccessibility="no"
         />
-      ) : null}
+      ) : (
+        <CategoryIconTile
+          category={transaction.category}
+          type={transaction.type}
+        />
+      )}
       <View style={styles.left}>
         <View style={styles.categoryRow}>
           <StrongText style={styles.category}>{transaction.category}</StrongText>
           {!categoryFix && pending ? <PendingSyncDot /> : null}
         </View>
-        {transaction.note ? (
+        {transaction.note && !hideDate ? (
           <CaptionText style={styles.note} numberOfLines={1}>
             {transaction.note}
           </CaptionText>
@@ -124,14 +134,18 @@ export function TransactionRow({
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 56,
+    minHeight: 69,
     paddingVertical: space.sm + 4,
-    paddingHorizontal: space.md,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  rowNoSeparator: {
+    borderBottomWidth: 0,
   },
   selected: {
     backgroundColor: colors.green[50],
@@ -148,7 +162,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.surface,
   },
   checkSelected: {
     borderColor: colors.green[700],
@@ -156,7 +170,7 @@ const styles = StyleSheet.create({
   },
   left: {
     flex: 1,
-    gap: 2,
+    gap: 5,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -165,19 +179,26 @@ const styles = StyleSheet.create({
   },
   category: {
     color: colors.ink,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: undefined,
   },
   note: {
     color: colors.inkMuted,
   },
   meta: {
     color: colors.inkMuted,
+    fontSize: 11,
+    lineHeight: 14,
   },
   pending: {
     color: colors.inkMuted,
   },
   amount: {
     ...typography.amount,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: -0.3,
+    fontFamily: undefined,
   },
 });

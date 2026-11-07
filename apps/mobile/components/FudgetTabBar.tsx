@@ -17,10 +17,11 @@ import {
   PlusIcon,
   UserIcon,
 } from '@/components/icons';
-import { chromeHairline, colors, fonts, space } from '@/constants/theme';
+import { chromeHairline, colors, fonts, radius, space } from '@/constants/theme';
 import { guardedPush } from '@/lib/navGuard';
 
-const FAB_SIZE = 60;
+/** Figma Add FAB: 50×50, radius 18 (squircle), no white ring. */
+const FAB_SIZE = 50;
 const FAB_GAP = 56;
 const ADD_TRANSACTION = '/transaction/new';
 
@@ -45,9 +46,8 @@ const TABS: {
 ];
 
 /**
- * Concept B tab bar: Transactions · Stats · raised Add FAB · Planner · Account.
- * Center FAB gap keeps the four tabs evenly spaced and Stats clear of the FAB.
- * FAB gently pulses brand rings/scale unless reduce-motion is on.
+ * Tab bar: Transactions · Stats · raised Add FAB · Planner · Account.
+ * FAB gently pulses unless reduce-motion is on.
  */
 export function FudgetTabBar({ state, onTabPress }: FudgetTabBarProps) {
   const router = useRouter();
@@ -95,19 +95,15 @@ export function FudgetTabBar({ state, onTabPress }: FudgetTabBarProps) {
 
   const fabScale = pulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.06],
+    outputRange: [1, 1.05],
   });
   const ringScale = pulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [1.08, 1.22],
+    outputRange: [1.08, 1.2],
   });
   const ringOpacity = pulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.18, 0.46],
-  });
-  const softRingOpacity = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.08, 0.2],
+    outputRange: [0.14, 0.36],
   });
 
   function renderTab(routeName: string) {
@@ -131,11 +127,11 @@ export function FudgetTabBar({ state, onTabPress }: FudgetTabBarProps) {
         accessibilityState={{ selected: focused }}
         accessibilityLabel={meta.label}
       >
-        <Icon color={color} size={22} />
+        <Icon color={color} size={21} />
         <Text
           style={[
             styles.tabLabel,
-            { color, fontFamily: focused ? fonts.bodyStrong : fonts.caption },
+            { color, fontFamily: focused ? fonts.bodyStrong : fonts.body },
           ]}
         >
           {meta.label}
@@ -153,35 +149,16 @@ export function FudgetTabBar({ state, onTabPress }: FudgetTabBarProps) {
     >
       <View style={styles.fabWrap} pointerEvents="box-none">
         {!reduceMotion ? (
-          <>
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.fabSoftRing,
-                {
-                  opacity: softRingOpacity,
-                  transform: [{ scale: ringScale }],
-                },
-              ]}
-            />
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.fabRing,
-                {
-                  opacity: ringOpacity,
-                  transform: [
-                    {
-                      scale: pulse.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1.02, 1.12],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          </>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.fabRing,
+              {
+                opacity: ringOpacity,
+                transform: [{ scale: ringScale }],
+              },
+            ]}
+          />
         ) : null}
         <Animated.View
           style={{ transform: [{ scale: reduceMotion ? 1 : fabScale }] }}
@@ -195,7 +172,7 @@ export function FudgetTabBar({ state, onTabPress }: FudgetTabBarProps) {
             accessibilityRole="button"
             accessibilityLabel="Add transaction"
           >
-            <PlusIcon color={colors.inkInverse} size={30} />
+            <PlusIcon color={colors.inkInverse} size={26} />
           </Pressable>
         </Animated.View>
       </View>
@@ -216,26 +193,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopWidth: chromeHairline.width,
     borderTopColor: chromeHairline.color,
-    paddingTop: 10,
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 4,
-    paddingTop: 10,
-    paddingBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    height: 76,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     paddingVertical: 6,
     paddingHorizontal: 4,
     minHeight: 44,
   },
   tabLabel: {
-    fontSize: 11,
-    letterSpacing: 0.2,
+    fontSize: 10,
+    letterSpacing: 0,
   },
   fabGap: {
     width: FAB_GAP,
@@ -244,7 +220,7 @@ const styles = StyleSheet.create({
   fabWrap: {
     position: 'absolute',
     left: '50%',
-    top: -28,
+    top: -18,
     marginLeft: -FAB_SIZE / 2,
     width: FAB_SIZE,
     height: FAB_SIZE,
@@ -252,30 +228,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  fabSoftRing: {
-    position: 'absolute',
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
-    backgroundColor: colors.green[700],
-  },
   fabRing: {
     position: 'absolute',
     width: FAB_SIZE,
     height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
-    borderWidth: 2,
-    borderColor: colors.green[700],
+    borderRadius: radius.fab,
+    backgroundColor: colors.green[700],
   },
   fab: {
     width: FAB_SIZE,
     height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
+    borderRadius: radius.fab,
     backgroundColor: colors.green[700],
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.canvas,
   },
   fabPressed: {
     backgroundColor: colors.green[950],

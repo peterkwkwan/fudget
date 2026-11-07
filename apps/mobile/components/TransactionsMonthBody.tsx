@@ -14,12 +14,12 @@ import {
   useScrollEdges,
 } from '@/components/ScrollEdgeShadows';
 import { CaptionText, StrongText, TitleText } from '@/components/StyledText';
+import { SurfaceCard } from '@/components/SurfaceCard';
 import { TransactionRow } from '@/components/TransactionRow';
 import { TransactionsEmptyMonth } from '@/components/TransactionsEmptyMonth';
 import { UpcomingRepeatsBar } from '@/components/UpcomingRepeatsBar';
 import { WeekDayStrip } from '@/components/WeekDayStrip';
 import {
-  chromeHairline,
   colors,
   fonts,
   radius,
@@ -147,24 +147,35 @@ export function TransactionsMonthBody({
   // Selection chrome only on the active center card.
   const showSelection = active && selectionMode;
 
-  function renderRow(item: Transaction) {
+  function renderRow(item: Transaction, index: number, total: number) {
+    const first = index === 0;
+    const last = index === total - 1;
     return (
-      <TransactionRow
-        transaction={item}
-        hideDate
-        pending={pendingIds.has(item.id)}
-        categoryFix={categoryFixIds.has(item.id)}
-        selectionMode={showSelection}
-        selected={showSelection && selectedIds.has(item.id)}
-        onPress={() => {
-          if (!active) return;
-          onRowPress(item);
-        }}
-        onLongPress={() => {
-          if (!active) return;
-          onRowLongPress(item.id);
-        }}
-      />
+      <View
+        style={[
+          styles.rowInCard,
+          first && styles.rowInCardFirst,
+          last && styles.rowInCardLast,
+        ]}
+      >
+        <TransactionRow
+          transaction={item}
+          hideDate
+          hideSeparator={last}
+          pending={pendingIds.has(item.id)}
+          categoryFix={categoryFixIds.has(item.id)}
+          selectionMode={showSelection}
+          selected={showSelection && selectedIds.has(item.id)}
+          onPress={() => {
+            if (!active) return;
+            onRowPress(item);
+          }}
+          onLongPress={() => {
+            if (!active) return;
+            onRowLongPress(item.id);
+          }}
+        />
+      </View>
     );
   }
 
@@ -203,15 +214,17 @@ export function TransactionsMonthBody({
       ) : null}
       {monthHasTransactions &&
       (dateView === 'week' || dateView === 'month') ? (
-        <View
-          style={[
-            styles.dayHeading,
-            dateView === 'month' && styles.dayHeadingBelowCalendar,
-          ]}
-        >
-          <StrongText style={styles.dayHeadingText}>
-            {selectedDayHeading}
-          </StrongText>
+        <View style={styles.dayHeading}>
+          <View style={styles.dayHeadingCopy}>
+            <StrongText style={styles.dayHeadingText}>
+              {selectedDayHeading}
+            </StrongText>
+            <CaptionText style={styles.dayHeadingMeta}>
+              {dayRows.length === 1
+                ? '1 transaction'
+                : `${dayRows.length} transactions`}
+            </CaptionText>
+          </View>
           <DayNetAmount net={dayNets.get(selectedDay)} currency={currency} />
         </View>
       ) : null}
@@ -223,10 +236,12 @@ export function TransactionsMonthBody({
   );
 
   const emptyDay = (
-    <View style={styles.emptyDay}>
-      <CaptionText style={styles.emptyBody}>
-        No transactions this day
-      </CaptionText>
+    <View style={styles.emptyDayWrap}>
+      <SurfaceCard padded style={styles.emptyDayCard}>
+        <CaptionText style={styles.emptyBody}>
+          No transactions this day. Tap + to add an expense or income.
+        </CaptionText>
+      </SurfaceCard>
     </View>
   );
 
@@ -293,7 +308,9 @@ export function TransactionsMonthBody({
               />
             </View>
           )}
-          renderItem={({ item }) => renderRow(item)}
+          renderItem={({ item, index, section }) =>
+            renderRow(item, index, section.data.length)
+          }
           refreshing={active && isRefetching}
           onRefresh={active ? () => onRefetch() : undefined}
           contentContainerStyle={
@@ -307,7 +324,9 @@ export function TransactionsMonthBody({
           keyExtractor={(item) => item.id}
           {...scrollProps}
           ListHeaderComponent={sharedHeader}
-          renderItem={({ item }) => renderRow(item)}
+          renderItem={({ item, index }) =>
+            renderRow(item, index, dayRows.length)
+          }
           refreshing={active && isRefetching}
           onRefresh={active ? () => onRefetch() : undefined}
           contentContainerStyle={
@@ -373,49 +392,62 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl,
     paddingTop: space.lg,
   },
-  emptyDay: {
-    paddingHorizontal: space.xl,
-    paddingVertical: space.lg,
+  emptyDayWrap: {
+    paddingHorizontal: space.screen,
+    paddingBottom: space.lg,
+  },
+  emptyDayCard: {
+    alignItems: 'center',
+  },
+  rowInCard: {
+    marginHorizontal: space.screen,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  rowInCardFirst: {
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+  },
+  rowInCardLast: {
+    borderBottomLeftRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
+    marginBottom: space.md,
   },
   dayHeading: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: space.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    backgroundColor: colors.surfaceMuted,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: space.screen,
+    paddingBottom: 14,
   },
-  /** Stronger than a hairline so the month grid and this row stay separate. */
-  dayHeadingBelowCalendar: {
-    borderTopWidth: chromeHairline.width,
-    borderTopColor: chromeHairline.color,
+  dayHeadingCopy: {
+    flexShrink: 1,
+    gap: 4,
   },
   dayHeadingText: {
-    flexShrink: 1,
-    color: colors.green[700],
-    fontSize: 13,
+    color: colors.ink,
+    fontSize: 14,
     lineHeight: 18,
+  },
+  dayHeadingMeta: {
+    color: colors.inkMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.sm,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.screen,
     paddingVertical: space.sm,
-    backgroundColor: colors.surfaceMuted,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   sectionHeaderText: {
     flexShrink: 1,
-    color: colors.green[700],
-    fontSize: 13,
+    color: colors.ink,
+    fontSize: 14,
     lineHeight: 18,
   },
   dayNet: {
@@ -435,7 +467,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   emptyTitle: {
-    color: colors.green[950],
+    color: colors.ink,
     textAlign: 'center',
   },
   emptyBody: {
@@ -454,6 +486,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
   secondaryPressed: {
     backgroundColor: colors.surfaceMuted,

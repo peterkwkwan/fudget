@@ -45,25 +45,23 @@ export function CategoryBreakdownList({ data, onSelect, type }: Props) {
               >
                 {row.category}
               </StrongText>
-              <View style={styles.figures}>
-                <StrongText style={[styles.pct, { color: amountColor }]}>
-                  {pct}%
-                </StrongText>
-                <CaptionText style={styles.amount}>
-                  {amountLabel}
-                </CaptionText>
-              </View>
+              <CaptionText style={styles.amount}>{amountLabel}</CaptionText>
             </View>
-            <View style={styles.track}>
-              <View
-                style={[
-                  styles.fill,
-                  {
-                    width: `${Math.min(100, Math.max(0, pct))}%`,
-                    backgroundColor: colorForCategory(index, type),
-                  },
-                ]}
-              />
+            <View style={styles.shareRow}>
+              <View style={styles.track}>
+                <View
+                  style={[
+                    styles.fill,
+                    {
+                      width: `${Math.min(100, Math.max(0, pct))}%`,
+                      backgroundColor: colorForCategory(index, type),
+                    },
+                  ]}
+                />
+              </View>
+              <StrongText style={[styles.pct, { color: amountColor }]}>
+                {pct}%
+              </StrongText>
             </View>
           </>
         );
@@ -101,17 +99,17 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   row: {
-    paddingVertical: 10,
+    paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    gap: 6,
+    gap: 10,
   },
   pressed: {
     backgroundColor: colors.surfaceMuted,
   },
   top: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.sm,
   },
@@ -120,23 +118,24 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: fonts.bodyStrong,
+    fontFamily: fonts.caption,
   },
   categoryEmphasis: {
     fontSize: 15,
     lineHeight: 20,
-    fontFamily: fonts.amount,
+    fontFamily: fonts.bodyStrong,
   },
-  figures: {
+  shareRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: space.sm,
-    flexShrink: 0,
+    alignItems: 'center',
+    gap: 10,
   },
   pct: {
     ...typography.amount,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 14,
+    width: 36,
+    textAlign: 'right',
   },
   amount: {
     color: colors.inkMuted,
@@ -145,9 +144,10 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   track: {
+    flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.canvas,
     overflow: 'hidden',
   },
   fill: {

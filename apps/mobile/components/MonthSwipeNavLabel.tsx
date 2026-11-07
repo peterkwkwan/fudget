@@ -6,7 +6,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { colors, fonts } from '@/constants/theme';
+import { colors, fonts, typography } from '@/constants/theme';
 
 /**
  * Longest Monthly nav label — fixed slot so ‹ › do not shift
@@ -184,10 +184,11 @@ function LongestNavLabelProbe({
 const styles = StyleSheet.create({
   wrap: {
     flexGrow: 0,
-    flexShrink: 0,
+    flexShrink: 1,
     flexBasis: 'auto',
-    alignSelf: 'center',
+    alignSelf: 'flex-start',
     position: 'relative',
+    maxWidth: '100%',
   },
   measureLayer: {
     position: 'absolute',
@@ -197,8 +198,7 @@ const styles = StyleSheet.create({
   },
   measureLabel: {
     color: colors.ink,
-    fontSize: 17,
-    lineHeight: 22,
+    ...typography.month,
     fontFamily: fonts.bodyStrong,
   },
   viewport: {
@@ -212,9 +212,8 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.ink,
-    fontSize: 17,
-    lineHeight: 22,
-    textAlign: 'center',
+    ...typography.month,
+    textAlign: 'left',
     fontFamily: fonts.bodyStrong,
   },
 });

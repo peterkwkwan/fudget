@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { chromeHairline, colors, fonts, space } from '@/constants/theme';
+import { colors, fonts, space, typography } from '@/constants/theme';
 
 /** Reserve room so left-aligned period controls don’t sit under a top-right gear. */
 const TRAILING_SLOT = 44;
@@ -14,9 +14,8 @@ type NavHeaderChromeProps = {
 };
 
 /**
- * Shared tab header chrome (safe-area + 44pt row + bottom pad + hairline).
- * Source of truth for header bar height across Transactions, Stats, Planner,
- * and Account — keep padding/minHeight in sync here only.
+ * Shared tab header chrome (safe-area + content + soft canvas).
+ * Figma page headers have no bottom hairline — soft canvas continues into body.
  */
 function NavHeaderChrome({ children, trailing }: NavHeaderChromeProps) {
   const insets = useSafeAreaInsets();
@@ -25,7 +24,7 @@ function NavHeaderChrome({ children, trailing }: NavHeaderChromeProps) {
       style={[
         styles.wrap,
         {
-          paddingTop: Math.max(insets.top, space.sm),
+          paddingTop: Math.max(insets.top, space.sm) + 4,
           backgroundColor: colors.canvas,
         },
       ]}
@@ -45,7 +44,6 @@ function NavHeaderChrome({ children, trailing }: NavHeaderChromeProps) {
  * Rendered in the **screen body** (same React tree as MonthCardPager) so
  * month-label rewrite and settle `translateX = 0` share one pre-paint commit.
  * Stack header is hidden via {@link periodBodyScreenOptions}.
- * Period cluster (‹ Month Year ›) is left-aligned; optional `trailing` stays right.
  */
 export function PeriodNavHeader({
   children,
@@ -55,7 +53,7 @@ export function PeriodNavHeader({
 }
 
 /**
- * Titled tab header (Planner / Account) — same chrome height as PeriodNavHeader.
+ * Titled tab header (Planner / Account) — same chrome as PeriodNavHeader.
  */
 export function TitleNavHeader({
   title,
@@ -98,7 +96,6 @@ export function periodNavScreenOptions(header: () => ReactNode) {
     headerShadowVisible: false,
     headerStyle: {
       backgroundColor: colors.canvas,
-      // Custom header draws its own chrome hairline.
       borderBottomWidth: 0,
       elevation: 0,
       shadowOpacity: 0,
@@ -110,15 +107,12 @@ export function periodNavScreenOptions(header: () => ReactNode) {
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.canvas,
-    borderBottomWidth: chromeHairline.width,
-    borderBottomColor: chromeHairline.color,
   },
   row: {
     minHeight: 44,
-    // Symmetric insets: left chevron cluster and right mode dropdown share md.
-    paddingLeft: space.md,
-    paddingRight: space.md,
-    paddingBottom: space.sm,
+    paddingLeft: space.screen,
+    paddingRight: space.screen,
+    paddingBottom: space.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
@@ -126,7 +120,6 @@ const styles = StyleSheet.create({
   nav: {
     flex: 1,
     minWidth: 0,
-    // Stretch so Stats can space-between left period + right mode dropdown.
     alignItems: 'stretch',
     justifyContent: 'center',
   },
@@ -139,10 +132,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.ink,
-    fontFamily: fonts.title,
-    // Match PeriodSelector navLabel so titled tabs share the period row height.
-    fontSize: 17,
-    lineHeight: 22,
+    ...typography.pageTitle,
     textAlign: 'left',
   },
 });

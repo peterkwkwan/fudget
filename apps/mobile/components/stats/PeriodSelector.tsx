@@ -13,13 +13,17 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SharedValue } from 'react-native-reanimated';
 
-import { CalendarIcon } from '@/components/icons';
+import {
+  CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@/components/icons';
 import {
   FixedMonthNavLabel,
   MonthSwipeNavLabel,
 } from '@/components/MonthSwipeNavLabel';
-import { CaptionText, StrongText } from '@/components/StyledText';
-import { colors, fonts, radius, space } from '@/constants/theme';
+import { CaptionText, PageTitleText, StrongText } from '@/components/StyledText';
+import { colors, fonts, radius, space, typography } from '@/constants/theme';
 import {
   formatCompactDate,
   periodModeLabel,
@@ -45,6 +49,11 @@ export type PeriodSelectorProps = {
   onFocusChange: (focus: PeriodFocus) => void;
   /** Stats shows Monthly/Yearly/Period; Transactions is month-only. Default true. */
   showModeMenu?: boolean;
+  /**
+   * When set, renders a Figma page-title row above the month stepper.
+   * Stats puts the mode dropdown on this row; Transactions passes title only.
+   */
+  pageTitle?: string;
   /** Required when showModeMenu (Stats Period mode). */
   customStart?: Date;
   customEnd?: Date;
@@ -79,6 +88,7 @@ export function PeriodSelector({
   onCustomStartChange,
   onCustomEndChange,
   showModeMenu = true,
+  pageTitle,
   swipeMotion = null,
   onSwipeStep,
 }: PeriodSelectorProps) {
@@ -152,8 +162,41 @@ export function PeriodSelector({
     onFocusChange(shiftPeriodFocus(focus, effectivePreset, delta));
   };
 
+  const modeTrigger = showModeMenu ? (
+    <View ref={modeTriggerRef} collapsable={false}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.modeTrigger,
+          pressed && styles.pressed,
+        ]}
+        onPress={openModeMenu}
+        accessibilityRole="button"
+        accessibilityLabel={`Period mode ${periodModeLabel(preset)}. Change mode.`}
+        accessibilityHint="Opens Monthly, Yearly, or Period options"
+      >
+        <CaptionText style={styles.modeTriggerText}>
+          {periodModeLabel(preset)}
+        </CaptionText>
+        <CaptionText style={styles.modeCaret}>▾</CaptionText>
+      </Pressable>
+    </View>
+  ) : null;
+
   return (
     <View style={styles.wrap}>
+      {pageTitle ? (
+        <View style={styles.pageTitleRow}>
+          <PageTitleText
+            style={styles.pageTitle}
+            numberOfLines={1}
+            accessibilityRole="header"
+          >
+            {pageTitle}
+          </PageTitleText>
+          {modeTrigger}
+        </View>
+      ) : null}
+
       <View
         style={styles.bar}
         accessibilityRole="toolbar"
@@ -187,69 +230,51 @@ export function PeriodSelector({
           </View>
         ) : (
           <View style={styles.stepper}>
-            <Pressable
-              onPress={() => step(-1)}
-              style={({ pressed }) => [
-                styles.chevronBtn,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={
-                effectivePreset === 'month' ? 'Previous month' : 'Previous year'
-              }
-              hitSlop={CHEVRON_HIT_SLOP}
-            >
-              <StrongText style={styles.chevronGlyph}>‹</StrongText>
-            </Pressable>
-            {swipeMotion ? (
-              <MonthSwipeNavLabel
-                prevLabel={swipeMotion.prevLabel}
-                navLabel={navLabel}
-                nextLabel={swipeMotion.nextLabel}
-                translateX={swipeMotion.translateX}
-                pagerWidth={swipeMotion.pagerWidth}
-              />
-            ) : (
-              <FixedMonthNavLabel label={navLabel} />
-            )}
-            <Pressable
-              onPress={() => step(1)}
-              style={({ pressed }) => [
-                styles.chevronBtn,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={
-                effectivePreset === 'month' ? 'Next month' : 'Next year'
-              }
-              hitSlop={CHEVRON_HIT_SLOP}
-            >
-              <StrongText style={styles.chevronGlyph}>›</StrongText>
-            </Pressable>
-          </View>
-        )}
-
-        {showModeMenu ? (
-          <View style={styles.modeMenuSlot} pointerEvents="box-none">
-            <View ref={modeTriggerRef} collapsable={false}>
+            <View style={styles.monthSlot}>
+              {swipeMotion ? (
+                <MonthSwipeNavLabel
+                  prevLabel={swipeMotion.prevLabel}
+                  navLabel={navLabel}
+                  nextLabel={swipeMotion.nextLabel}
+                  translateX={swipeMotion.translateX}
+                  pagerWidth={swipeMotion.pagerWidth}
+                />
+              ) : (
+                <FixedMonthNavLabel label={navLabel} />
+              )}
+            </View>
+            <View style={styles.chevronPair}>
               <Pressable
+                onPress={() => step(-1)}
                 style={({ pressed }) => [
-                  styles.modeTrigger,
+                  styles.chevronBtn,
                   pressed && styles.pressed,
                 ]}
-                onPress={openModeMenu}
                 accessibilityRole="button"
-                accessibilityLabel={`Period mode ${periodModeLabel(preset)}. Change mode.`}
-                accessibilityHint="Opens Monthly, Yearly, or Period options"
+                accessibilityLabel={
+                  effectivePreset === 'month'
+                    ? 'Previous month'
+                    : 'Previous year'
+                }
               >
-                <CaptionText style={styles.modeTriggerText}>
-                  {periodModeLabel(preset)}
-                </CaptionText>
-                <CaptionText style={styles.modeCaret}>▾</CaptionText>
+                <ChevronLeftIcon color={colors.ink} size={18} />
+              </Pressable>
+              <Pressable
+                onPress={() => step(1)}
+                style={({ pressed }) => [
+                  styles.chevronBtn,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  effectivePreset === 'month' ? 'Next month' : 'Next year'
+                }
+              >
+                <ChevronRightIcon color={colors.ink} size={18} />
               </Pressable>
             </View>
           </View>
-        ) : null}
+        )}
       </View>
 
       {showModeMenu ? (
@@ -334,58 +359,59 @@ export function PeriodSelector({
   );
 }
 
-/**
- * Restores a ~32px tap target after the chevron button stopped using a fixed
- * box. Hit slop does not move the glyph, so the mark stays on the 16px inset.
- */
-const CHEVRON_HIT_SLOP = { top: 8, bottom: 8, left: 14, right: 14 };
-
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
-    gap: space.xs,
+    gap: 22,
+  },
+  pageTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+  },
+  pageTitle: {
+    flex: 1,
+    color: colors.ink,
+    ...typography.pageTitle,
   },
   bar: {
-    // ‹ Month Year › left-aligned. Stats pins [Monthly] absolutely on the
-    // right so it does not shift the cluster.
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
     flexWrap: 'nowrap',
-    minHeight: 36,
+    minHeight: 34,
     alignSelf: 'stretch',
     width: '100%',
-    position: 'relative',
   },
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    // Slightly wider gap for the longer “September 2026” slot.
+    justifyContent: 'space-between',
     gap: space.sm,
-    // Hug ‹ label › — fixed longest-label slot keeps chevrons from shifting.
-    flexGrow: 0,
-    flexShrink: 0,
+    flex: 1,
+    minWidth: 0,
   },
-  modeMenuSlot: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
+  monthSlot: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'flex-start',
+  },
+  chevronPair: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
   },
   chevronBtn: {
-    // Hug the glyph. A fixed 32px box centered ‹ › and pushed the visible
-    // mark in from the 16px header inset used by Planner / Account titles.
-    minHeight: 32,
+    width: 34,
+    height: 34,
+    borderRadius: radius.tile,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
-  },
-  chevronGlyph: {
-    color: colors.ink,
-    fontSize: 22,
-    lineHeight: 26,
   },
   periodRange: {
     flexDirection: 'row',
@@ -419,33 +445,31 @@ const styles = StyleSheet.create({
   modeTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    // Slightly larger tap target (Stats-only); keep compact, not oversized.
-    paddingVertical: 8,
+    gap: 6,
+    paddingVertical: 6,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.sm,
     backgroundColor: colors.surface,
-    minHeight: 36,
+    minHeight: 32,
   },
   modeTriggerText: {
     color: colors.green[700],
-    fontFamily: fonts.bodyStrong,
-    fontSize: 14,
+    fontFamily: fonts.caption,
+    fontSize: 12,
   },
   modeCaret: {
     color: colors.green[700],
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 14,
   },
   pressed: {
     opacity: 0.75,
   },
   menuBackdrop: {
     flex: 1,
-    // Light dim only — menu is top-anchored under the trigger, not a bottom sheet.
-    backgroundColor: 'rgba(28, 28, 30, 0.2)',
+    backgroundColor: 'rgba(32, 41, 35, 0.2)',
   },
   menuSheet: {
     backgroundColor: colors.surface,
@@ -454,8 +478,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     overflow: 'hidden',
     minWidth: 148,
-    // Soft elevation so it reads as a compact header menu.
-    shadowColor: '#000',
+    shadowColor: '#202923',
     shadowOpacity: 0.12,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },

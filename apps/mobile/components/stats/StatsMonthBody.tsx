@@ -269,7 +269,7 @@ export function StatsMonthBody({
   ) : null;
 
   const byCategoryChrome = (
-    <View style={styles.section}>
+    <View style={styles.cardSection}>
       <StrongText style={styles.sectionTitle}>By category</StrongText>
       <StatsSegmentToggle
         options={PIE_TYPE_OPTIONS}
@@ -282,7 +282,7 @@ export function StatsMonthBody({
   );
 
   const trendBlock = showTrend ? (
-    <View style={styles.section}>
+    <View style={styles.cardSection}>
       <TitleText style={styles.trendTitle}>Trend</TitleText>
       <StatsSegmentToggle
         options={TREND_METRIC_OPTIONS}
@@ -415,10 +415,10 @@ export function StatsMonthBody({
             ) : preset === 'month' ||
               knownActiveMonth ||
               !(awaitingTotals || loading) ? (
-              <>
+              <View style={styles.categoryCard}>
                 {byCategoryChrome}
                 <View style={styles.section}>{categoryBody}</View>
-              </>
+              </View>
             ) : (
               <View style={styles.centered}>
                 <ActivityIndicator size="large" color={colors.green[700]} />
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.screen,
     paddingTop: space.md,
     paddingBottom: space.xxl,
     gap: space.lg,
@@ -516,25 +516,39 @@ const styles = StyleSheet.create({
   section: {
     gap: space.sm,
   },
+  cardSection: {
+    gap: space.md,
+  },
+  categoryCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: space.md,
+    gap: space.md,
+  },
   sectionTitle: {
     color: colors.ink,
-    fontSize: 17,
-    lineHeight: 22,
-    textAlign: 'center',
+    ...typography.section,
+    textAlign: 'left',
   },
   trendTitle: {
     color: colors.ink,
+    ...typography.section,
   },
   savingsRate: {
-    color: colors.inkMuted,
+    color: colors.expense,
     textAlign: 'center',
     fontSize: 12,
     lineHeight: 16,
-    marginTop: -space.xs,
+    backgroundColor: colors.expenseTint,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'center',
+    fontFamily: fonts.caption,
   },
-  /** Break out of `content` horizontal padding so the chart is edge-to-edge. */
   chartBleed: {
-    marginHorizontal: -space.md,
+    marginHorizontal: 0,
     alignSelf: 'stretch',
   },
 });

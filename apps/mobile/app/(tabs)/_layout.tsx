@@ -3,11 +3,7 @@ import { Tabs } from 'expo-router';
 import { FudgetTabBar } from '@/components/FudgetTabBar';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors, fonts, navHeaderStyle } from '@/constants/theme';
-import {
-  periodBodyScreenOptions,
-  periodNavScreenOptions,
-  TitleNavHeader,
-} from '@/lib/periodHeader';
+import { periodBodyScreenOptions } from '@/lib/periodHeader';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -70,15 +66,12 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="planner"
-        options={periodNavScreenOptions(() => (
-          <TitleNavHeader title="Planner" />
-        ))}
+        // Figma: large in-page title lives in the screen body.
+        options={periodBodyScreenOptions()}
       />
       <Tabs.Screen
         name="account"
-        options={periodNavScreenOptions(() => (
-          <TitleNavHeader title="Account" />
-        ))}
+        options={periodBodyScreenOptions()}
       />
     </Tabs>
   );
