@@ -76,9 +76,10 @@ export default function TransactionsScreen() {
     defaultSelectedDay(currentPeriodFocus(timeZone), timeZone)
   );
 
-  // Shared track motion — label strip finger-follows; recycle on settle.
+  // Shared with month label: exit with swipe, blank until contentReady.
   const swipeTranslateX = useSharedValue(0);
   const swipePagerWidth = useSharedValue(0);
+  const swipeFillOpacity = useSharedValue(1);
   const pagerRef = useRef<MonthCardPagerHandle>(null);
 
   const period = useMemo(
@@ -86,32 +87,13 @@ export default function TransactionsScreen() {
     [timeZone, focus]
   );
 
-  const prevMonthFocus = useMemo(
-    () => shiftPeriodFocus(focus, 'month', -1),
-    [focus.year, focus.month]
-  );
-  const nextMonthFocus = useMemo(
-    () => shiftPeriodFocus(focus, 'month', 1),
-    [focus.year, focus.month]
-  );
-  const prevNavLabel = useMemo(
-    () =>
-      resolvePeriodBounds('month', timeZone, { focus: prevMonthFocus }).navLabel,
-    [timeZone, prevMonthFocus.year, prevMonthFocus.month]
-  );
-  const nextNavLabel = useMemo(
-    () =>
-      resolvePeriodBounds('month', timeZone, { focus: nextMonthFocus }).navLabel,
-    [timeZone, nextMonthFocus.year, nextMonthFocus.month]
-  );
   const swipeMotion = useMemo(
     () => ({
       translateX: swipeTranslateX,
       pagerWidth: swipePagerWidth,
-      prevLabel: prevNavLabel,
-      nextLabel: nextNavLabel,
+      fillOpacity: swipeFillOpacity,
     }),
-    [swipeTranslateX, swipePagerWidth, prevNavLabel, nextNavLabel]
+    [swipeTranslateX, swipePagerWidth, swipeFillOpacity]
   );
 
   const {
@@ -388,6 +370,7 @@ export default function TransactionsScreen() {
         contentReady={contentReady}
         translateX={swipeTranslateX}
         pagerWidth={swipePagerWidth}
+        fillOpacity={swipeFillOpacity}
       />
 
       <Modal

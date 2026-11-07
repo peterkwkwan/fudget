@@ -115,36 +115,4 @@ export function monthStepDirection(
   return b > a ? 1 : -1;
 }
 
-/** px tolerance when detecting a settled swipe at ±pagerWidth. */
-export const PAGER_PAGE_OFFSET_EPS_PX = 1;
-
-/**
- * True when the pager track sits on a committed adjacent page (±width).
- * Month label recycle adopts the pending trio when leaving this offset.
- */
-export function isPagerAtPageOffset(
-  translateX: number,
-  pagerWidth: number,
-  epsPx = PAGER_PAGE_OFFSET_EPS_PX
-): boolean {
-  'worklet';
-  if (!(pagerWidth > 0) || !Number.isFinite(translateX)) return false;
-  return Math.abs(Math.abs(translateX) - pagerWidth) <= epsPx;
-}
-
-/**
- * True when a translateX transition is a settle recenter (page offset → 0).
- * Used by the nav label to recycle show* strings on the UI thread.
- */
-export function isPagerSettleRecenter(
-  prevTranslateX: number,
-  nextTranslateX: number,
-  pagerWidth: number,
-  epsPx = PAGER_PAGE_OFFSET_EPS_PX
-): boolean {
-  'worklet';
-  if (!(pagerWidth > 0)) return false;
-  if (!isPagerAtPageOffset(prevTranslateX, pagerWidth, epsPx)) return false;
-  return Math.abs(nextTranslateX) <= epsPx;
-}
 

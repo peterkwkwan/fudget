@@ -65,9 +65,10 @@ export default function StatsScreen() {
   const [pieType, setPieType] = useState<TransactionType>('expense');
   const [trendMetric, setTrendMetric] = useState<StatsMetric>('expense');
 
-  // Shared track motion — label strip finger-follows; recycle on settle.
+  // Shared with month label: exit with swipe, blank until contentReady.
   const swipeTranslateX = useSharedValue(0);
   const swipePagerWidth = useSharedValue(0);
+  const swipeFillOpacity = useSharedValue(1);
   const pagerRef = useRef<MonthCardPagerHandle>(null);
 
   // Unlink → Pair scope disappears immediately; fall back to personal.
@@ -87,41 +88,16 @@ export default function StatsScreen() {
     [preset, timeZone, focus, customStart, customEnd]
   );
 
-  const prevMonthFocus = useMemo(
-    () => shiftPeriodFocus(focus, 'month', -1),
-    [focus.year, focus.month]
-  );
-  const nextMonthFocus = useMemo(
-    () => shiftPeriodFocus(focus, 'month', 1),
-    [focus.year, focus.month]
-  );
-  const prevNavLabel = useMemo(
-    () =>
-      resolvePeriodBounds('month', timeZone, { focus: prevMonthFocus }).navLabel,
-    [timeZone, prevMonthFocus.year, prevMonthFocus.month]
-  );
-  const nextNavLabel = useMemo(
-    () =>
-      resolvePeriodBounds('month', timeZone, { focus: nextMonthFocus }).navLabel,
-    [timeZone, nextMonthFocus.year, nextMonthFocus.month]
-  );
   const swipeMotion = useMemo(
     () =>
       preset === 'month'
         ? {
             translateX: swipeTranslateX,
             pagerWidth: swipePagerWidth,
-            prevLabel: prevNavLabel,
-            nextLabel: nextNavLabel,
+            fillOpacity: swipeFillOpacity,
           }
         : null,
-    [
-      preset,
-      swipeTranslateX,
-      swipePagerWidth,
-      prevNavLabel,
-      nextNavLabel,
-    ]
+    [preset, swipeTranslateX, swipePagerWidth, swipeFillOpacity]
   );
 
   const onSwipeStep = useCallback((delta: -1 | 1) => {
@@ -250,6 +226,7 @@ export default function StatsScreen() {
         }
         translateX={swipeTranslateX}
         pagerWidth={swipePagerWidth}
+        fillOpacity={swipeFillOpacity}
       />
     </View>
   );

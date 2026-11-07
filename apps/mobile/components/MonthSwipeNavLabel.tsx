@@ -1,26 +1,12 @@
 import { useMemo, useCallback, useLayoutEffect, useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  type LayoutChangeEvent,
-  type StyleProp,
-  type TextStyle,
-} from 'react-native';
+import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
-  useAnimatedProps,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
 
 import { fonts, typography, type ThemeColors } from '@/constants/theme';
-import {
-  isPagerAtPageOffset,
-  isPagerSettleRecenter,
-} from '@/lib/monthSwipe';
 import { useTheme } from '@/lib/ThemeProvider';
 
 /**
@@ -29,16 +15,17 @@ import { useTheme } from '@/lib/ThemeProvider';
  */
 export const LONGEST_MONTH_NAV_LABEL = 'September 2026';
 
-const AnimatedLabelInput = Animated.createAnimatedComponent(TextInput);
-
 type Props = {
-  prevLabel: string;
   navLabel: string;
-  nextLabel: string;
   /** Same translateX as MonthCardPager’s track. */
   translateX: SharedValue<number>;
   /** Pager width SharedValue from MonthCardPager. */
   pagerWidth: SharedValue<number>;
+  /**
+   * Same fill opacity as the pager body (0 while blank / loading, 1 when
+   * contentReady). Label exits with the swipe then stays absent until fill.
+   */
+  fillOpacity: SharedValue<number>;
 };
 
 type FixedLabelProps = {
@@ -78,80 +65,28 @@ export function FixedMonthNavLabel({ label }: FixedLabelProps) {
 }
 
 /**
- * Finger-follow month strip synced to the card pager’s translateX.
+ * Single current-month label that finger-follows the card pager.
  *
- * Settle without twitch: painted strings live in SharedValues (`show*`).
- * When focus commits, React writes the new trio into `pending*` while the
- * track is still at ±pagerWidth (destination month stays visible in the
- * next/prev cell). When the pager snaps `translateX → 0`, a UI-thread
- * reaction copies `pending* → show*` in that same frame — recycle without
- * teleporting glyphs backward. No React text rewrite racing the transform.
+ * - Drag / snap: label translates + fades out with the page (no prev/next peek).
+ * - After commit while loading: fillOpacity stays 0 → label absent.
+ * - When contentReady: fillOpacity fades in → settled label + page together.
+ *
+ * Slot width stays locked to “September 2026” so chevrons do not shift.
  */
 export function MonthSwipeNavLabel({
-  prevLabel,
   navLabel,
-  nextLabel,
   translateX,
   pagerWidth,
+  fillOpacity,
 }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const slotSV = useSharedValue(0);
   const [slotW, setSlotW] = useState(0);
 
-  const pendingPrev = useSharedValue(prevLabel);
-  const pendingCurr = useSharedValue(navLabel);
-  const pendingNext = useSharedValue(nextLabel);
-  const showPrev = useSharedValue(prevLabel);
-  const showCurr = useSharedValue(navLabel);
-  const showNext = useSharedValue(nextLabel);
-
   useLayoutEffect(() => {
     slotSV.value = slotW;
   }, [slotW, slotSV]);
-
-  // Stage the new trio. Adopt immediately when already centered (external
-  // focus jump). During a committed swipe we stay on the old show* until
-  // translateX hits 0 — see useAnimatedReaction below.
-  useLayoutEffect(() => {
-    pendingPrev.value = prevLabel;
-    pendingCurr.value = navLabel;
-    pendingNext.value = nextLabel;
-    const atRest =
-      pagerWidth.value <= 0 ||
-      !isPagerAtPageOffset(translateX.value, pagerWidth.value);
-    if (atRest && Math.abs(translateX.value) <= 1) {
-      showPrev.value = prevLabel;
-      showCurr.value = navLabel;
-      showNext.value = nextLabel;
-    }
-  }, [
-    prevLabel,
-    navLabel,
-    nextLabel,
-    pendingPrev,
-    pendingCurr,
-    pendingNext,
-    showPrev,
-    showCurr,
-    showNext,
-    translateX,
-    pagerWidth,
-  ]);
-
-  useAnimatedReaction(
-    () => translateX.value,
-    (tx, prevTx) => {
-      'worklet';
-      if (prevTx == null) return;
-      if (!isPagerSettleRecenter(prevTx, tx, pagerWidth.value)) return;
-      // Same UI frame as pager recenter — recycle offscreen cells only.
-      showPrev.value = pendingPrev.value;
-      showCurr.value = pendingCurr.value;
-      showNext.value = pendingNext.value;
-    },
-    [translateX, pagerWidth, pendingPrev, pendingCurr, pendingNext, showPrev, showCurr, showNext]
-  );
 
   const onMeasure = useCallback((event: LayoutChangeEvent) => {
     const w = Math.ceil(event.nativeEvent.layout.width);
@@ -159,19 +94,18 @@ export function MonthSwipeNavLabel({
     setSlotW((prevW) => (prevW === w ? prevW : w));
   }, []);
 
-  const stripStyle = useAnimatedStyle(() => {
+  // Match MonthCardPager currentStyle: slide with the track + exit fade,
+  // gated by the shared fill opacity (blank until contentReady).
+  const labelStyle = useAnimatedStyle(() => {
     const pw = pagerWidth.value;
     const lw = slotSV.value;
-    if (!(pw > 0) || !(lw > 0)) {
-      return { transform: [{ translateX: -lw }] };
-    }
-    const progress = translateX.value / pw;
+    const exit = pw > 0 ? Math.min(1, Math.abs(translateX.value) / pw) : 0;
+    const progress = pw > 0 ? translateX.value / pw : 0;
     return {
-      transform: [{ translateX: -lw + progress * lw }],
+      opacity: fillOpacity.value * (1 - exit),
+      transform: [{ translateX: progress * (lw > 0 ? lw : 0) }],
     };
   });
-
-  const slotStyle = slotW > 0 ? { width: slotW } : undefined;
 
   return (
     <View
@@ -179,77 +113,19 @@ export function MonthSwipeNavLabel({
       collapsable={false}
     >
       <LongestNavLabelProbe styles={styles} onLayout={onMeasure} />
-
-      {slotW <= 0 ? (
-        <Text
-          style={styles.label}
+      <View
+        style={[styles.viewport, slotW > 0 ? { width: slotW } : null]}
+        accessibilityRole="header"
+        accessibilityLabel={navLabel}
+      >
+        <Animated.Text
+          style={[styles.label, slotW > 0 ? { width: slotW } : null, labelStyle]}
           numberOfLines={1}
-          accessibilityRole="header"
-          accessibilityLabel={navLabel}
         >
           {navLabel}
-        </Text>
-      ) : (
-        <View
-          style={[styles.viewport, { width: slotW }]}
-          accessibilityRole="header"
-          accessibilityLabel={navLabel}
-        >
-          <Animated.View style={[styles.strip, stripStyle]}>
-            <StripCell
-              textSV={showPrev}
-              defaultValue={prevLabel}
-              style={[styles.label, styles.labelInput, slotStyle]}
-            />
-            <StripCell
-              textSV={showCurr}
-              defaultValue={navLabel}
-              style={[styles.label, styles.labelInput, slotStyle]}
-            />
-            <StripCell
-              textSV={showNext}
-              defaultValue={nextLabel}
-              style={[styles.label, styles.labelInput, slotStyle]}
-            />
-          </Animated.View>
-        </View>
-      )}
+        </Animated.Text>
+      </View>
     </View>
-  );
-}
-
-function StripCell({
-  textSV,
-  defaultValue,
-  style,
-}: {
-  textSV: SharedValue<string>;
-  defaultValue: string;
-  style: StyleProp<TextStyle>;
-}) {
-  // Reanimated drives `text` on the UI thread; cast keeps RN 0.88 / Reanimated 4 typings happy.
-  const animatedProps = useAnimatedProps(
-    () =>
-      ({
-        text: textSV.value,
-      }) as Partial<{ text: string }>
-  );
-
-  return (
-    <AnimatedLabelInput
-      animatedProps={animatedProps as never}
-      defaultValue={defaultValue}
-      editable={false}
-      caretHidden
-      showSoftInputOnFocus={false}
-      underlineColorAndroid="transparent"
-      multiline={false}
-      numberOfLines={1}
-      pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no"
-      style={style}
-    />
   );
 }
 
@@ -304,22 +180,11 @@ function createStyles(colors: ThemeColors) {
       flexShrink: 0,
       overflow: 'hidden',
     },
-    strip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
     label: {
       color: colors.ink,
       ...typography.month,
       textAlign: 'left',
       fontFamily: fonts.bodyStrong,
-    },
-    labelInput: {
-      padding: 0,
-      margin: 0,
-      // TextInput defaults add Android padding that shifts glyphs vs Text.
-      includeFontPadding: false,
-      textAlignVertical: 'center',
     },
   });
 }

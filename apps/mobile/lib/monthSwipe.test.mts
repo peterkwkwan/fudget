@@ -7,8 +7,6 @@ import {
   MONTH_FILL_FADE_MS,
   MONTH_SWIPE_DISTANCE_PX,
   adjacentMonthFocuses,
-  isPagerAtPageOffset,
-  isPagerSettleRecenter,
   monthContentKey,
   monthStepDirection,
   monthStepFromCardSwipe,
@@ -126,21 +124,4 @@ test('shiftYearMonth steps across year boundaries', () => {
     year: 2026,
     month: 6,
   });
-});
-
-test('isPagerAtPageOffset detects settled ±width snaps', () => {
-  const width = 390;
-  assert.equal(isPagerAtPageOffset(-width, width), true);
-  assert.equal(isPagerAtPageOffset(width, width), true);
-  assert.equal(isPagerAtPageOffset(0, width), false);
-  assert.equal(isPagerAtPageOffset(-width / 2, width), false);
-});
-
-test('isPagerSettleRecenter is only offset → center', () => {
-  const width = 390;
-  assert.equal(isPagerSettleRecenter(-width, 0, width), true);
-  assert.equal(isPagerSettleRecenter(width, 0, width), true);
-  assert.equal(isPagerSettleRecenter(-width / 2, 0, width), false);
-  assert.equal(isPagerSettleRecenter(-width, -width, width), false);
-  assert.equal(isPagerSettleRecenter(0, 0, width), false);
 });

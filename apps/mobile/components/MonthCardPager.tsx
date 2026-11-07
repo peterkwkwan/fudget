@@ -1,4 +1,4 @@
-import { useMemo, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useMemo, forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useRef, type ReactNode } from 'react';
 import {
   StyleSheet,
   View,
@@ -47,12 +47,13 @@ type MonthCardPagerProps = {
    */
   contentReady: boolean;
   /**
-   * Optional external shared values for the sliding track. When provided,
-   * the navbar month strip shares the same translateX / width and recycles
-   * its cells on settle (no remap twitch).
+   * Optional external shared values for the sliding track + fill fade.
+   * Navbar month label shares these so it exits with the swipe and stays
+   * blank until contentReady (no prev/next peek).
    */
   translateX?: SharedValue<number>;
   pagerWidth?: SharedValue<number>;
+  fillOpacity?: SharedValue<number>;
 };
 
 export type MonthCardPagerHandle = {
@@ -66,8 +67,8 @@ const easeOut = Easing.out(Easing.cubic);
  * Blank-then-fill month pager.
  * Drag left/right: current body translates + fades out; paper-white blanks
  * slide in. After settle, focus commits and content fills when ready
- * (one-shot fade-in). Optional shared translateX drives the navbar month
- * strip (UI-thread recycle on recenter). Chevron ‹ › uses the same step path.
+ * (one-shot fade-in). Optional shared motion drives the navbar month label
+ * (exit with swipe, blank until fill). Chevron ‹ › uses the same step path.
  */
 export const MonthCardPager = forwardRef<
   MonthCardPagerHandle,
@@ -82,6 +83,7 @@ export const MonthCardPager = forwardRef<
     contentReady,
     translateX: translateXProp,
     pagerWidth: pagerWidthProp,
+    fillOpacity: fillOpacityProp,
   },
   ref
 ) {
@@ -89,9 +91,10 @@ export const MonthCardPager = forwardRef<
   const styles = useMemo(() => createStyles(colors), [colors]);
   const widthInternal = useSharedValue(0);
   const translateInternal = useSharedValue(0);
-  const fillOpacity = useSharedValue(contentReady ? 1 : 0);
+  const fillInternal = useSharedValue(contentReady ? 1 : 0);
   const widthSV = pagerWidthProp ?? widthInternal;
   const translateX = translateXProp ?? translateInternal;
+  const fillOpacity = fillOpacityProp ?? fillInternal;
 
   const ignoreFocusAnimRef = useRef(false);
   const prevFocusRef = useRef(focus);
@@ -178,8 +181,10 @@ export const MonthCardPager = forwardRef<
     });
   }, [enabled, focus.year, focus.month, translateX, widthSV]);
 
-  // Blank until ready; one-shot fade-in. Focus change resets immediately.
-  useEffect(() => {
+  // Blank until ready (before paint); one-shot fade-in when filled.
+  // useLayoutEffect so the shared navbar label stays absent on the same
+  // frame as the page — no one-frame flash of the new month name.
+  useLayoutEffect(() => {
     if (!contentReady) {
       fillOpacity.value = 0;
       return;

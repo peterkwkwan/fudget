@@ -35,12 +35,11 @@ import {
 import { useTheme } from '@/lib/ThemeProvider';
 import { useThemedStyles } from '@/lib/useThemedStyles';
 
-/** Shared with MonthCardPager so the header month slides with the cards. */
+/** Shared with MonthCardPager — label exits with swipe, blanks until fill. */
 export type PeriodSwipeMotion = {
   translateX: SharedValue<number>;
   pagerWidth: SharedValue<number>;
-  prevLabel: string;
-  nextLabel: string;
+  fillOpacity: SharedValue<number>;
 };
 
 export type PeriodSelectorProps = {
@@ -63,8 +62,8 @@ export type PeriodSelectorProps = {
   onCustomStartChange?: (date: Date) => void;
   onCustomEndChange?: (date: Date) => void;
   /**
-   * When set (Monthly + card pager), finger-follow the month strip. Settle
-   * recycles show* strings on the UI thread — no remap twitch.
+   * When set (Monthly + card pager), current month label exits with the
+   * swipe (no prev/next peek) and stays blank until contentReady.
    */
   swipeMotion?: PeriodSwipeMotion | null;
   /**
@@ -237,11 +236,10 @@ export function PeriodSelector({
             <View style={styles.monthSlot}>
               {swipeMotion ? (
                 <MonthSwipeNavLabel
-                  prevLabel={swipeMotion.prevLabel}
                   navLabel={navLabel}
-                  nextLabel={swipeMotion.nextLabel}
                   translateX={swipeMotion.translateX}
                   pagerWidth={swipeMotion.pagerWidth}
+                  fillOpacity={swipeMotion.fillOpacity}
                 />
               ) : (
                 <FixedMonthNavLabel label={navLabel} />
