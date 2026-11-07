@@ -116,9 +116,28 @@ export function useTransactionList(focus?: PeriodFocus) {
   useFocusEffect(
     useCallback(() => {
       void queryClient.invalidateQueries({ queryKey: transactionKeys.list() });
-      if (OFFLINE_TXNS_ENABLED) {
-        void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-      }
+      if (!OFFLINE_TXNS_ENABLED) return;
+      void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
+      // Plan: Transactions focus pushes then pulls while online so a stuck
+      // outbox (and “Saved on phone”) can clear without backgrounding.
+      void signedInUserId()
+        .then((userId) => syncNow(userId))
+        .then((result) => {
+          void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
+          if (
+            !result.skipped &&
+            (result.pushed > 0 ||
+              result.pulled > 0 ||
+              result.dropped > 0 ||
+              result.failed > 0)
+          ) {
+            invalidateTransactionsAndStats(queryClient);
+          }
+        })
+        .catch(() => {
+          logOffline('sync on transactions focus failed', { op: 'sync' });
+          void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
+        });
     }, [queryClient])
   );
 

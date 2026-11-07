@@ -4,12 +4,9 @@
  */
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 
-/** Connected, and not known to be unreachable. Unknown reachability still counts as online. */
-export function isStateOnline(state: NetInfoState): boolean {
-  if (state.isConnected !== true) return false;
-  if (state.isInternetReachable === false) return false;
-  return true;
-}
+import { isStateOnline } from './netState';
+
+export { isStateOnline } from './netState';
 
 export async function isDeviceOnline(): Promise<boolean> {
   const state = await NetInfo.fetch();

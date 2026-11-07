@@ -10,9 +10,15 @@ import { syncNow } from '@/lib/offline/syncEngine';
 import { offlineUxKeys } from '@/lib/offline/ux';
 import { transactionKeys } from '@/lib/transactions';
 
+/** Retry a failed flush while the app stays foreground (plan: drain when online). */
+const RETRY_MS = 10_000;
+
 /**
  * Foreground and reconnect sync. No-op while OFFLINE_TXNS_ENABLED is false,
  * so NetInfo is not subscribed and the device DB is not opened.
+ *
+ * Also retries on a timer after a failed push so “Saved on phone — sync will
+ * retry” does not stick forever while the user stays in the app online.
  */
 export function useOfflineTransactionSync() {
   const { session } = useAuth();
@@ -25,7 +31,22 @@ export function useOfflineTransactionSync() {
     let cancelled = false;
     let inFlight = false;
     let again = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let unsubNet = () => {};
+
+    const clearRetry = () => {
+      if (retryTimer == null) return;
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    };
+
+    const scheduleRetry = () => {
+      if (cancelled || retryTimer != null) return;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        if (!cancelled) run();
+      }, RETRY_MS);
+    };
 
     const run = () => {
       if (cancelled) return;
@@ -49,12 +70,14 @@ export function useOfflineTransactionSync() {
           }
           if (result.failed > 0) {
             logOffline('sync push failed', { op: 'push' });
+            scheduleRetry();
           }
         })
         .catch(() => {
           logOffline('sync failed', { op: 'sync' });
           if (!cancelled) {
             void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
+            scheduleRetry();
           }
         })
         .finally(() => {
@@ -69,14 +92,21 @@ export function useOfflineTransactionSync() {
     run();
 
     const onChange = (state: AppStateStatus) => {
-      if (state === 'active') run();
+      if (state === 'active') {
+        clearRetry();
+        run();
+      }
     };
     const appSub = AppState.addEventListener('change', onChange);
 
-    unsubNet = subscribeOnline(() => run());
+    unsubNet = subscribeOnline(() => {
+      clearRetry();
+      run();
+    });
 
     return () => {
       cancelled = true;
+      clearRetry();
       appSub.remove();
       unsubNet();
     };
