@@ -358,15 +358,37 @@ export default function PlannerScreen() {
     );
   }
 
+  /** Read-only twin of own account card — no Edit, no navigation. */
   function renderPartnerVehicleRow(v: PlannerVehicle) {
     return (
-      <View key={v.id} style={styles.partnerRow}>
-        <StrongText style={styles.partnerRowTitle} numberOfLines={1}>
-          {v.name}
-        </StrongText>
-        <CaptionText style={styles.muted}>
-          {VEHICLE_TYPE_LABELS[v.vehicle_type]} · {format(v.balance)}
-        </CaptionText>
+      <View
+        key={v.id}
+        style={styles.plannerCard}
+        accessibilityLabel={`${v.name} account, read-only`}
+      >
+        <View style={styles.plannerCardTop}>
+          <View style={styles.accountSymbol}>
+            <LandmarkIcon color={colors.green[700]} size={19} />
+          </View>
+          <View style={styles.accountCopy}>
+            <StrongText style={styles.plannerCardTitle} numberOfLines={2}>
+              {v.name}
+            </StrongText>
+            <CaptionText style={styles.muted}>
+              {VEHICLE_TYPE_LABELS[v.vehicle_type]} ·{' '}
+              {v.growth_mode === 'grow' ? 'Grows' : 'Shrinks'} · {v.annual_rate}%{' '}
+              yearly
+            </CaptionText>
+          </View>
+          <CaptionText style={styles.readOnlyBadge}>Read-only</CaptionText>
+        </View>
+        <StrongText style={styles.accountBalance}>{format(v.balance)}</StrongText>
+        {v.plan_amount != null && v.plan_cadence ? (
+          <CaptionText style={styles.muted}>
+            Plan {format(v.plan_amount)}{' '}
+            {PLAN_CADENCE_LABELS[v.plan_cadence].toLowerCase()}
+          </CaptionText>
+        ) : null}
       </View>
     );
   }
@@ -449,21 +471,59 @@ export default function PlannerScreen() {
     );
   }
 
+  /** Read-only twin of own goal card — no Edit, no navigation. */
   function renderPartnerGoalRow(g: PlannerGoal) {
     const saved = goalEffectiveSaved({
       currentSaved: g.current_saved,
       vehicleIds: g.vehicle_ids,
       vehicles: progressVehicles,
     });
+    const linkedGrowth = linkedGrowthVehicles(g, progressVehicles);
+    const pace = goalPace({
+      targetAmount: g.target_amount,
+      currentSaved: saved,
+      targetDate: g.target_date,
+      createdAt: g.created_at,
+      linkedVehicles: linkedGrowth.map(toProjectInput),
+      planAmount: g.plan_amount,
+      planCadence: g.plan_cadence,
+    });
+    const linkedAccounts = progressVehicles
+      .filter((v) => g.vehicle_ids.includes(v.id))
+      .map((v) => ({
+        id: v.id,
+        name: v.name,
+        tappable: false,
+      }));
     return (
-      <View key={g.id} style={styles.partnerRow}>
-        <StrongText style={styles.partnerRowTitle} numberOfLines={1}>
-          {g.name}
-        </StrongText>
-        <CaptionText style={styles.muted}>
-          {GOAL_TYPE_LABELS[g.goal_type]} · {format(saved)} of{' '}
-          {format(g.target_amount)}
+      <View
+        key={g.id}
+        style={styles.plannerCard}
+        accessibilityLabel={`${g.name} goal, read-only`}
+      >
+        <View style={styles.plannerCardTop}>
+          <StrongText
+            style={[styles.plannerCardTitle, styles.partnerGoalTitle]}
+            numberOfLines={2}
+          >
+            {g.name}
+          </StrongText>
+          <CaptionText style={styles.readOnlyBadge}>Read-only</CaptionText>
+        </View>
+        <CaptionText
+          style={[styles.muted, { color: paceColor(pace.status, colors) }]}
+        >
+          {GOAL_TYPE_LABELS[g.goal_type]} · {pace.progressPct}% ·{' '}
+          {paceLabel(pace.status)}
         </CaptionText>
+        <CaptionText style={styles.muted}>
+          {format(saved)} of {format(g.target_amount)}
+        </CaptionText>
+        <LinkedAccountLinks
+          accounts={linkedAccounts}
+          label="Linked accounts:"
+          onPressAccount={() => {}}
+        />
       </View>
     );
   }
@@ -983,6 +1043,15 @@ function createStyles(colors: ThemeColors) {
     fontFamily: fonts.bodyStrong,
     fontSize: 13,
   },
+  readOnlyBadge: {
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyStrong,
+    fontSize: 12,
+  },
+  partnerGoalTitle: {
+    flex: 1,
+    paddingRight: space.sm,
+  },
   scopeBlock: {
     gap: space.sm,
     marginBottom: space.xs,
@@ -1015,11 +1084,6 @@ function createStyles(colors: ThemeColors) {
     fontSize: 13,
     lineHeight: 18,
   },
-  partnerRow: {
-    gap: 2,
-    paddingVertical: 6,
-  },
-  partnerRowTitle: { color: colors.ink },
 });
 }
 
