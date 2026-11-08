@@ -8,12 +8,22 @@ import {
 } from 'react-native';
 
 import { CaptionText, TitleText } from '@/components/StyledText';
+import { PartnerCategoryTotalRow } from '@/components/stats/PartnerCategoryTotalRow';
 import { TransactionRow } from '@/components/TransactionRow';
 import type { TransactionType } from '@/constants/categories';
 import { space, typography, type ThemeColors } from '@/constants/theme';
-import { useTheme } from '@/lib/ThemeProvider';
+import { usePartnerLink } from '@/hooks/usePartner';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
-import { useCategoryDrilldown } from '@/hooks/useStats';
+import {
+  useCategoryDrilldown,
+  usePartnerCategoryTotal,
+} from '@/hooks/useStats';
+import { STATS_OFFLINE_COPY } from '@/lib/offline/ux';
+import {
+  buildCategoryDrilldownEntries,
+  type CategoryListEntry,
+} from '@/lib/pairCategoryList';
+import { useTheme } from '@/lib/ThemeProvider';
 
 function asString(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? '';
@@ -30,6 +40,7 @@ export default function CategoryDrilldownScreen() {
     start?: string;
     end?: string;
     periodLabel?: string;
+    scope?: string;
   }>();
 
   const category = asString(params.category);
@@ -37,15 +48,26 @@ export default function CategoryDrilldownScreen() {
   const startIso = asString(params.start);
   const endIso = asString(params.end);
   const periodLabel = asString(params.periodLabel);
+  const pairScope = asString(params.scope) === 'pair';
 
   const start = useMemo(() => new Date(startIso), [startIso]);
   const end = useMemo(() => new Date(endIso), [endIso]);
 
-  const { pendingIds, categoryFixIds } = useOfflineGates();
+  const { pendingIds, categoryFixIds, offline } = useOfflineGates();
+  const partnerLink = usePartnerLink();
   const boundsValid =
     !Number.isNaN(start.getTime()) &&
     !Number.isNaN(end.getTime()) &&
     Boolean(category);
+
+  const isPaired = partnerLink.data?.status === 'active';
+  const linkPending =
+    pairScope &&
+    !offline &&
+    partnerLink.isLoading &&
+    partnerLink.data == null;
+  const partnerEnabled =
+    pairScope && boundsValid && isPaired && !offline && !linkPending;
 
   const { data, isLoading, isError, error, refetch, isRefetching } =
     useCategoryDrilldown({
@@ -55,6 +77,51 @@ export default function CategoryDrilldownScreen() {
       end,
       enabled: boundsValid,
     });
+
+  const partner = usePartnerCategoryTotal({
+    type,
+    category,
+    start,
+    end,
+    enabled: partnerEnabled,
+  });
+
+  const entries = useMemo(
+    () =>
+      buildCategoryDrilldownEntries({
+        transactions: data ?? [],
+        type,
+        category,
+        partnerName: partnerLink.data?.partnerDisplayName,
+        partnerTotal: partnerEnabled ? (partner.data ?? null) : null,
+      }),
+    [
+      data,
+      type,
+      category,
+      partnerLink.data?.partnerDisplayName,
+      partnerEnabled,
+      partner.data,
+    ]
+  );
+
+  const partnerBlocking =
+    partnerEnabled &&
+    partner.isLoading &&
+    partner.data == null &&
+    !partner.isError;
+  const showSpinner = boundsValid && (isLoading || linkPending || partnerBlocking);
+  const partnerFailed = partnerEnabled && partner.isError;
+  const partnerUnresolved = pairScope && (offline || partnerFailed);
+
+  const footer =
+    pairScope && offline ? (
+      <CaptionText style={styles.footer}>{STATS_OFFLINE_COPY}</CaptionText>
+    ) : partnerFailed ? (
+      <CaptionText style={styles.footer}>
+        Couldn’t load your partner’s category total.
+      </CaptionText>
+    ) : null;
 
   return (
     <>
@@ -75,7 +142,7 @@ export default function CategoryDrilldownScreen() {
               Go back to Stats and open a category again.
             </CaptionText>
           </View>
-        ) : isLoading ? (
+        ) : showSpinner ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.green[700]} />
           </View>
@@ -88,33 +155,96 @@ export default function CategoryDrilldownScreen() {
           </View>
         ) : (
           <FlatList
-            data={data ?? []}
-            keyExtractor={(item) => item.id}
+            data={entries}
+            keyExtractor={(item) =>
+              item.kind === 'transaction' ? item.transaction.id : item.id
+            }
             renderItem={({ item }) => (
-              <TransactionRow
-                transaction={item}
-                pending={pendingIds.has(item.id)}
-                categoryFix={categoryFixIds.has(item.id)}
-                onPress={() => router.push(`/transaction/${item.id}`)}
+              <CategoryListRow
+                item={item}
+                partnerName={partnerLink.data?.partnerDisplayName}
+                category={category}
+                pendingIds={pendingIds}
+                categoryFixIds={categoryFixIds}
+                onOpen={(id) => router.push(`/transaction/${id}`)}
               />
             )}
-            refreshing={isRefetching}
-            onRefresh={() => void refetch()}
+            refreshing={isRefetching || partner.isRefetching}
+            onRefresh={() => {
+              void refetch();
+              if (partnerEnabled) void partner.refetch();
+            }}
             contentContainerStyle={
-              (data?.length ?? 0) === 0 ? styles.emptyList : undefined
+              entries.length === 0 ? styles.emptyList : undefined
             }
+            ListFooterComponent={entries.length > 0 ? footer ?? undefined : undefined}
             ListEmptyComponent={
               <View style={styles.empty}>
-                <TitleText style={styles.emptyTitle}>No matching entries</TitleText>
-                <CaptionText style={styles.emptyBody}>
-                  Nothing in {category} for this period.
-                </CaptionText>
+                {partnerUnresolved ? (
+                  <>
+                    <TitleText style={styles.emptyTitle}>
+                      {offline
+                        ? 'Partner total needs a connection'
+                        : 'Couldn’t load partner total'}
+                    </TitleText>
+                    <CaptionText style={styles.emptyBody}>
+                      {offline
+                        ? STATS_OFFLINE_COPY
+                        : `Couldn’t load your partner’s total for ${category}.`}
+                    </CaptionText>
+                  </>
+                ) : (
+                  <>
+                    <TitleText style={styles.emptyTitle}>
+                      No matching entries
+                    </TitleText>
+                    <CaptionText style={styles.emptyBody}>
+                      Nothing in {category} for this period.
+                    </CaptionText>
+                  </>
+                )}
               </View>
             }
           />
         )}
       </View>
     </>
+  );
+}
+
+function CategoryListRow({
+  item,
+  partnerName,
+  category,
+  pendingIds,
+  categoryFixIds,
+  onOpen,
+}: {
+  item: CategoryListEntry;
+  partnerName: string | null | undefined;
+  category: string;
+  pendingIds: Set<string>;
+  categoryFixIds: Set<string>;
+  onOpen: (id: string) => void;
+}) {
+  if (item.kind === 'partner') {
+    return (
+      <PartnerCategoryTotalRow
+        partnerName={partnerName}
+        category={category}
+        amount={item.sum}
+        type={item.type}
+      />
+    );
+  }
+
+  return (
+    <TransactionRow
+      transaction={item.transaction}
+      pending={pendingIds.has(item.transaction.id)}
+      categoryFix={categoryFixIds.has(item.transaction.id)}
+      onPress={() => onOpen(item.transaction.id)}
+    />
   );
 }
 
@@ -157,6 +287,11 @@ function createStyles(colors: ThemeColors) {
     fontSize: 14,
     lineHeight: 20,
   },
+  footer: {
+    color: colors.inkMuted,
+    textAlign: 'center',
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+  },
 });
 }
-

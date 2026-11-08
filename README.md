@@ -197,7 +197,7 @@ Do these once so sign-in works end-to-end on a physical Android device or emulat
 
 9. **Smoke test**  
    Open the app → Continue with Google → **Transactions** tab → **+** → set **Repeat** (e.g. weekdays) → Save → confirm rows (· Recurring) and **Upcoming repeats** bar → tap bar to manage rules (edit future / stop series). One-off Add without Repeat still works. **Stats** tab: default **This month**, etc. **Account** → Recurring rules also opens manage. Soft-delete one instance; stop series from the rule screen. Bottom tabs are Transactions / Stats / Account (raised **+** FAB).  
-   **M4:** Account → Partner → Create code on device A; Enter code on device B → both show paired. Stats → **Pair** shows combined category totals (no drill-down). Unlink → Pair scope gone immediately. Confirm clients never list partner transaction rows.
+   **M4:** Account → Partner → Create code on device A; Enter code on device B → both show paired. Stats → **Pair** shows combined category totals. Tapping a category lists your own transactions and one line for your partner’s category total (never their individual rows). Unlink → Pair scope gone immediately. Confirm clients never list partner transaction rows.
 
 Voice lands in M5.
 
@@ -216,4 +216,4 @@ Voice lands in M5.
 
 - Only `EXPO_PUBLIC_*` keys belong in the mobile app (anon key is public by design; RLS protects data).
 - Never commit service role keys, OAuth client secrets, or `.env` files.
-- Partner transaction privacy (no partner rows on device) is enforced in later milestones via server aggregates + RLS.
+- Partner transaction privacy (no partner rows on device) is enforced via server aggregates + RLS. Pair category drill-down lists only the caller’s rows and asks `stats_partner_category_total` for the partner’s sum and count.

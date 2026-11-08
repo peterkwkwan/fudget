@@ -270,8 +270,8 @@ export function StatsMonthBody({
         </CaptionText>
       ) : pairLive ? (
         <CaptionText style={styles.scopeHint}>
-          Combined totals with {partnerName}. Category sums only — no
-          individual transactions.
+          Combined totals with {partnerName}. Open a category to see your
+          transactions; {partnerName} shows as one total.
         </CaptionText>
       ) : null}
     </View>
@@ -350,7 +350,7 @@ export function StatsMonthBody({
           data={categories.data ?? []}
           type={pieType}
           onSelect={
-            !active || pairLive
+            !active
               ? undefined
               : (row) => {
                   router.push({
@@ -361,6 +361,7 @@ export function StatsMonthBody({
                       start: period.start.toISOString(),
                       end: period.end.toISOString(),
                       periodLabel: period.label,
+                      ...(pairLive ? { scope: 'pair' } : {}),
                     },
                   });
                 }

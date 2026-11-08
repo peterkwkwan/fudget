@@ -19,6 +19,7 @@ import {
   fetchAggregateCategoryTotals,
   fetchAggregateTotals,
   fetchAggregateTrend,
+  fetchPartnerCategoryTotal,
   fetchPersonalCategoryTotals,
   fetchPersonalTotals,
   fetchPersonalTrend,
@@ -222,6 +223,42 @@ export function useAggregateTrend(
     queryFn: () => fetchAggregateTrend(metric, start, end, bucket),
     enabled,
     select: (raw): TrendSlot[] => alignTrendSlots(period, timeZone, raw),
+  });
+}
+
+/**
+ * Partner category total for Pair drill-down. Online only — callers
+ * disable while offline or unpaired. Returns sum and count, never rows.
+ */
+export function usePartnerCategoryTotal(params: {
+  type: TransactionType;
+  category: string;
+  start: Date;
+  end: Date;
+  enabled?: boolean;
+}) {
+  const startIso = Number.isNaN(params.start.getTime())
+    ? ''
+    : params.start.toISOString();
+  const endIso = Number.isNaN(params.end.getTime())
+    ? ''
+    : params.end.toISOString();
+
+  return useQuery({
+    queryKey: statsKeys.partnerCategory(
+      params.type,
+      params.category,
+      startIso,
+      endIso
+    ),
+    queryFn: () =>
+      fetchPartnerCategoryTotal({
+        type: params.type,
+        category: params.category,
+        start: params.start,
+        end: params.end,
+      }),
+    enabled: params.enabled !== false && Boolean(params.category),
   });
 }
 

@@ -1,5 +1,9 @@
 import type { TransactionType } from '@/constants/categories';
 import { isOnOrBeforeLocalToday } from '@/lib/dates';
+import {
+  parsePartnerCategoryTotal,
+  type PartnerCategoryTotal,
+} from '@/lib/pairCategoryList';
 import type { TrendBucket } from '@/lib/periods';
 import { listTransactions, type Transaction } from '@/lib/transactions';
 
@@ -162,6 +166,35 @@ export async function fetchAggregateCategoryTotals(
   );
 }
 
+/**
+ * Partner share of one category. Sum and count only — never txn rows.
+ * Caller lists their own rows separately.
+ */
+export async function fetchPartnerCategoryTotal(params: {
+  type: TransactionType;
+  category: string;
+  start: Date;
+  end: Date;
+}): Promise<PartnerCategoryTotal> {
+  const { data, error } = await supabase.rpc('stats_partner_category_total', {
+    p_type: params.type,
+    p_category: params.category,
+    p_start: params.start.toISOString(),
+    p_end: params.end.toISOString(),
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { sum?: unknown; count?: unknown }
+    | null
+    | undefined;
+
+  return parsePartnerCategoryTotal(row);
+}
+
 /** Pair period totals — aggregates only. */
 export async function fetchAggregateTotals(
   start: Date,
@@ -255,6 +288,20 @@ export const statsKeys = {
       startIso,
       endIso,
       bucket,
+    ] as const,
+  partnerCategory: (
+    type: TransactionType,
+    category: string,
+    startIso: string,
+    endIso: string
+  ) =>
+    [
+      ...statsKeys.aggregate(),
+      'partner-category',
+      type,
+      category,
+      startIso,
+      endIso,
     ] as const,
   drilldown: (
     type: TransactionType,
