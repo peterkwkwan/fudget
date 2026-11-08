@@ -4,7 +4,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { isStateOnline } from './netState.ts';
+import {
+  isStateOnline,
+  shouldDrainOnConnectivity,
+  shouldRetrySync,
+} from './netState.ts';
 
 describe('isStateOnline', () => {
   it('is online when the link is up, even if reachability is false', () => {
@@ -43,6 +47,47 @@ describe('isStateOnline', () => {
         isConnected: null,
         isInternetReachable: true,
       }),
+      false
+    );
+  });
+});
+
+describe('sync drain while the radio is up', () => {
+  it('drains on the first online snapshot, not only after an offline gap', () => {
+    assert.equal(shouldDrainOnConnectivity(null, true), true);
+    assert.equal(shouldDrainOnConnectivity(false, true), true);
+    assert.equal(shouldDrainOnConnectivity(true, true), false);
+    assert.equal(shouldDrainOnConnectivity(null, false), false);
+    assert.equal(shouldDrainOnConnectivity(true, false), false);
+  });
+
+  it('retries a skipped fetch unless the listener knows the radio is down', () => {
+    assert.equal(
+      shouldRetrySync({ skipped: true, failed: 0, listenerOnline: null }),
+      true
+    );
+    assert.equal(
+      shouldRetrySync({ skipped: true, failed: 0, listenerOnline: true }),
+      true
+    );
+    assert.equal(
+      shouldRetrySync({ skipped: true, failed: 0, listenerOnline: false }),
+      false
+    );
+    assert.equal(
+      shouldRetrySync({ skipped: false, failed: 1, listenerOnline: true }),
+      true
+    );
+    assert.equal(
+      shouldRetrySync({ skipped: false, failed: 1, listenerOnline: null }),
+      true
+    );
+    assert.equal(
+      shouldRetrySync({ skipped: false, failed: 1, listenerOnline: false }),
+      false
+    );
+    assert.equal(
+      shouldRetrySync({ skipped: false, failed: 0, listenerOnline: true }),
       false
     );
   });
