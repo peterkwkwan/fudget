@@ -15,7 +15,8 @@ export async function isDeviceOnline(): Promise<boolean> {
 
 /**
  * Current online value, then every change.
- * Used by the Phase 3 banner. Sync still uses `subscribeOnline`.
+ * The banner and the foreground drain share this so a one-shot `fetch()`
+ * cannot disagree with the radio the UI is already showing.
  */
 export function subscribeConnectivity(
   onChange: (online: boolean) => void

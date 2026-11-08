@@ -5,7 +5,11 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useAuth } from '@/lib/auth';
 import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
 import { logOffline } from '@/lib/offline/log';
-import { subscribeOnline } from '@/lib/offline/net';
+import { subscribeConnectivity } from '@/lib/offline/net';
+import {
+  shouldDrainOnConnectivity,
+  shouldRetrySync,
+} from '@/lib/offline/netState';
 import { syncNow } from '@/lib/offline/syncEngine';
 import { offlineUxKeys } from '@/lib/offline/ux';
 import { transactionKeys } from '@/lib/transactions';
@@ -17,8 +21,10 @@ const RETRY_MS = 10_000;
  * Foreground and reconnect sync. No-op while OFFLINE_TXNS_ENABLED is false,
  * so NetInfo is not subscribed and the device DB is not opened.
  *
- * Also retries on a timer after a failed push so “Saved on phone — sync will
- * retry” does not stick forever while the user stays in the app online.
+ * Also retries on a timer after a failed or skipped push so “Saved on phone —
+ * sync will retry” does not stick while the phone stays online. The drain
+ * trusts the connectivity listener when that listener says the link is up,
+ * because `NetInfo.fetch()` can still report offline and cancel the timer.
  */
 export function useOfflineTransactionSync() {
   const { session } = useAuth();
@@ -32,6 +38,8 @@ export function useOfflineTransactionSync() {
     let inFlight = false;
     let again = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    /** null until the first connectivity snapshot. */
+    let listenerOnline: boolean | null = null;
     let unsubNet = () => {};
 
     const clearRetry = () => {
@@ -54,22 +62,34 @@ export function useOfflineTransactionSync() {
         again = true;
         return;
       }
+      clearRetry();
       inFlight = true;
-      void syncNow(userId)
+      // Listener already says the radio is up. Do not ask fetch() again —
+      // a stale offline answer skips the drain and leaves the failure banner up.
+      const trustLink = listenerOnline === true;
+      void syncNow(userId, trustLink ? { isOnline: async () => true } : undefined)
         .then((result) => {
           if (cancelled) return;
           void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-          if (result.skipped) return;
           if (
-            result.pushed > 0 ||
-            result.pulled > 0 ||
-            result.dropped > 0 ||
-            result.failed > 0
+            !result.skipped &&
+            (result.pushed > 0 ||
+              result.pulled > 0 ||
+              result.dropped > 0 ||
+              result.failed > 0)
           ) {
             void queryClient.invalidateQueries({ queryKey: transactionKeys.all });
           }
           if (result.failed > 0) {
             logOffline('sync push failed', { op: 'push' });
+          }
+          if (
+            shouldRetrySync({
+              skipped: result.skipped,
+              failed: result.failed,
+              listenerOnline,
+            })
+          ) {
             scheduleRetry();
           }
         })
@@ -77,7 +97,15 @@ export function useOfflineTransactionSync() {
           logOffline('sync failed', { op: 'sync' });
           if (!cancelled) {
             void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-            scheduleRetry();
+            if (
+              shouldRetrySync({
+                skipped: false,
+                failed: 1,
+                listenerOnline,
+              })
+            ) {
+              scheduleRetry();
+            }
           }
         })
         .finally(() => {
@@ -89,20 +117,21 @@ export function useOfflineTransactionSync() {
         });
     };
 
-    run();
-
     const onChange = (state: AppStateStatus) => {
-      if (state === 'active') {
-        clearRetry();
-        run();
-      }
+      if (state === 'active') run();
     };
     const appSub = AppState.addEventListener('change', onChange);
 
-    unsubNet = subscribeOnline(() => {
-      clearRetry();
-      run();
+    unsubNet = subscribeConnectivity((online) => {
+      const kick = shouldDrainOnConnectivity(listenerOnline, online);
+      listenerOnline = online;
+      if (kick) run();
     });
+
+    // Cold start: try once even if the first snapshot is slow. A not-ready
+    // fetch is a skip, and the timer above keeps going until the listener
+    // reports a real offline.
+    run();
 
     return () => {
       cancelled = true;
