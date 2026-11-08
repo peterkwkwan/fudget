@@ -30,6 +30,7 @@ import {
   statsKeys,
   type StatsMetric,
 } from '@/lib/stats';
+import { isPeriodStatsReady } from '@/lib/statsCacheReady';
 import { supabase } from '@/lib/supabase';
 import {
   listTransactions,
@@ -210,8 +211,47 @@ export function prefetchStatsMonth(
 }
 
 /**
- * Whether the focused Stats month can paint in one shot:
- * totals + categories present (Quiet empty counts as ready — zero txns).
+ * Offline: a loaded mirror (even with zero rows) can paint Quiet month.
+ * Online: only a non-empty mirror skips the placeholder; an empty mirror
+ * waits for the server so we don't flash Quiet month ahead of real stats.
+ */
+function localListCanPaint(
+  queryClient: QueryClient,
+  useLocal: boolean
+): boolean {
+  const rows = queryClient.getQueryData<unknown[]>(transactionKeys.list());
+  if (!Array.isArray(rows)) return false;
+  if (useLocal) return true;
+  return rows.length > 0;
+}
+
+function personalPairCached(
+  queryClient: QueryClient,
+  source: 'local' | 'remote',
+  pieType: TransactionType,
+  startIso: string,
+  endIso: string,
+  timeZone: string
+): boolean {
+  return (
+    queryClient.getQueryData([
+      ...statsKeys.totals(startIso, endIso),
+      source,
+      timeZone,
+    ]) != null &&
+    queryClient.getQueryData([
+      ...statsKeys.category(pieType, startIso, endIso),
+      source,
+      timeZone,
+    ]) != null
+  );
+}
+
+/**
+ * Whether the focused Stats month can paint in one shot.
+ * Ready when this period is already cached (local or remote query, or the
+ * SQLite transaction list). Quiet empty counts as ready — zero txns.
+ * A cache miss stays blank-then-fill until the loading placeholder's data arrives.
  */
 export function isStatsMonthContentReady(
   queryClient: QueryClient,
@@ -230,25 +270,54 @@ export function isStatsMonthContentReady(
   const source = useLocal ? 'local' : 'remote';
 
   if (pairLive && !useLocal) {
-    return (
-      queryClient.getQueryData(statsKeys.aggregateTotals(startIso, endIso)) !=
-        null &&
-      queryClient.getQueryData(
-        statsKeys.aggregateCategory(pieType, startIso, endIso)
-      ) != null
-    );
+    const totalsKey = statsKeys.aggregateTotals(startIso, endIso);
+    const categoryKey = statsKeys.aggregateCategory(pieType, startIso, endIso);
+    return isPeriodStatsReady({
+      periodCached:
+        queryClient.getQueryData(totalsKey) != null &&
+        queryClient.getQueryData(categoryKey) != null,
+      // Partner rows are never on the phone.
+      localListCached: false,
+      failed:
+        queryClient.getQueryState(totalsKey)?.status === 'error' ||
+        queryClient.getQueryState(categoryKey)?.status === 'error',
+    });
   }
 
-  return (
-    queryClient.getQueryData([
-      ...statsKeys.totals(startIso, endIso),
-      source,
-      timeZone,
-    ]) != null &&
-    queryClient.getQueryData([
-      ...statsKeys.category(pieType, startIso, endIso),
-      source,
-      timeZone,
-    ]) != null
-  );
+  const totalsKey = [
+    ...statsKeys.totals(startIso, endIso),
+    source,
+    timeZone,
+  ] as const;
+  const categoryKey = [
+    ...statsKeys.category(pieType, startIso, endIso),
+    source,
+    timeZone,
+  ] as const;
+
+  return isPeriodStatsReady({
+    // Either source can paint. Switching online/offline must not blank a
+    // period that is already on screen or in the SQLite list.
+    periodCached:
+      personalPairCached(
+        queryClient,
+        'local',
+        pieType,
+        startIso,
+        endIso,
+        timeZone
+      ) ||
+      personalPairCached(
+        queryClient,
+        'remote',
+        pieType,
+        startIso,
+        endIso,
+        timeZone
+      ),
+    localListCached: localListCanPaint(queryClient, useLocal),
+    failed:
+      queryClient.getQueryState(totalsKey)?.status === 'error' ||
+      queryClient.getQueryState(categoryKey)?.status === 'error',
+  });
 }

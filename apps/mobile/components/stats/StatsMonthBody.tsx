@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,6 +16,7 @@ import { CategoryBreakdownList } from '@/components/stats/CategoryBreakdownList'
 import { CategoryListSkeleton } from '@/components/stats/CategoryListSkeleton';
 import { CategoryPieChart } from '@/components/stats/CategoryPieChart';
 import { StatsEmptyState } from '@/components/stats/StatsEmptyState';
+import { StatsLoadingPlaceholder } from '@/components/stats/StatsLoadingPlaceholder';
 import { StatsQuietPeers } from '@/components/stats/StatsQuietPeers';
 import {
   PIE_TYPE_OPTIONS,
@@ -147,10 +147,12 @@ export function StatsMonthBody({
   const totals = pairLive ? aggregate.totals : personal.totals;
   const categories = pairLive ? aggregate.categories : personal.categories;
 
+  // Cached preview is placeholderData while the real read finishes.
+  // Don't spin the refresh control over stats that are already on screen.
   const refreshing =
-    totals.isRefetching ||
-    categories.isRefetching ||
-    trend.isRefetching ||
+    (totals.isRefetching && !totals.isPlaceholderData) ||
+    (categories.isRefetching && !categories.isPlaceholderData) ||
+    (trend.isRefetching && !trend.isPlaceholderData) ||
     (!offline && partnerRefetching);
 
   const loading = pairBlocked
@@ -430,9 +432,7 @@ export function StatsMonthBody({
                 <View style={styles.section}>{categoryBody}</View>
               </View>
             ) : (
-              <View style={styles.centered}>
-                <ActivityIndicator size="large" color={colors.green[700]} />
-              </View>
+              <StatsLoadingPlaceholder pieType={pieType} />
             )}
 
             {trendBlock}

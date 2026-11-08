@@ -14,9 +14,10 @@ import {
 } from '@/components/MonthCardPager';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PeriodSelector } from '@/components/stats/PeriodSelector';
+import { StatsLoadingPlaceholder } from '@/components/stats/StatsLoadingPlaceholder';
 import { StatsMonthBody } from '@/components/stats/StatsMonthBody';
 import type { TransactionType } from '@/constants/categories';
-import { type ThemeColors } from '@/constants/theme';
+import { space, type ThemeColors } from '@/constants/theme';
 import { useTheme } from '@/lib/ThemeProvider';
 import { useStatsMonthContentReady } from '@/hooks/useMonthPrefetch';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
@@ -223,6 +224,13 @@ export default function StatsScreen() {
         contentReady={
           preset !== 'month' || pairBlocked || contentReady
         }
+        loadingPlaceholder={
+          preset === 'month' && !pairBlocked ? (
+            <View style={styles.loadingInset}>
+              <StatsLoadingPlaceholder pieType={pieType} />
+            </View>
+          ) : null
+        }
         translateX={swipeTranslateX}
         pagerWidth={swipePagerWidth}
         fillOpacity={swipeFillOpacity}
@@ -236,6 +244,10 @@ function createStyles(colors: ThemeColors) {
   container: {
     flex: 1,
     backgroundColor: colors.canvas,
+  },
+  loadingInset: {
+    paddingHorizontal: space.screen,
+    paddingTop: space.md,
   },
 });
 }

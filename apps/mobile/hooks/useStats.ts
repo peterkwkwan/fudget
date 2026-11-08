@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import type { TransactionType } from '@/constants/categories';
 import { useAuth } from '@/lib/auth';
@@ -25,7 +25,10 @@ import {
   fetchPersonalTrend,
   listCategoryTransactions,
   statsKeys,
+  type CategoryTotal,
+  type PeriodTotals,
   type StatsMetric,
+  type TrendPoint,
 } from '@/lib/stats';
 import {
   aggregateCategoryTotals,
@@ -34,11 +37,102 @@ import {
   filterCategoryTransactions,
   filterStatsTransactions,
 } from '@/lib/statsLocal';
+import type { Transaction } from '@/lib/transactionModel';
+import { transactionKeys } from '@/lib/transactions';
 
 export type StatsScope = 'personal' | 'pair';
 
 /** Empty mirror / no user yet — never leave personal Stats spinning. */
 const EMPTY_PERIOD_TOTALS = aggregatePeriodTotals([]);
+
+/**
+ * Rows that can paint this period immediately.
+ * Offline, a loaded empty mirror is a real Quiet month.
+ * Online, an empty mirror must not pretend the server period is empty
+ * before the RPC returns.
+ * When this is missing, callers fall back to the other source's period
+ * so online/offline doesn't blank stats that are already on screen.
+ */
+function cachedListRows(
+  queryClient: QueryClient,
+  useLocal: boolean
+): Transaction[] | undefined {
+  const rows = queryClient.getQueryData<Transaction[]>(transactionKeys.list());
+  if (rows == null) return undefined;
+  if (!useLocal && rows.length === 0) return undefined;
+  return rows;
+}
+
+function previewPersonalStats(
+  queryClient: QueryClient,
+  args: {
+    useLocal: boolean;
+    pieType: TransactionType;
+    start: Date;
+    end: Date;
+    startIso: string;
+    endIso: string;
+    timeZone: string;
+  }
+): { totals: PeriodTotals; categories: CategoryTotal[] } | null {
+  const rows = cachedListRows(queryClient, args.useLocal);
+  if (rows) {
+    const scoped = filterStatsTransactions(
+      rows,
+      args.start,
+      args.end,
+      args.timeZone
+    );
+    return {
+      totals: aggregatePeriodTotals(scoped),
+      categories: aggregateCategoryTotals(scoped, args.pieType),
+    };
+  }
+  const other = args.useLocal ? 'remote' : 'local';
+  const totals = queryClient.getQueryData<PeriodTotals>([
+    ...statsKeys.totals(args.startIso, args.endIso),
+    other,
+    args.timeZone,
+  ]);
+  const categories = queryClient.getQueryData<CategoryTotal[]>([
+    ...statsKeys.category(args.pieType, args.startIso, args.endIso),
+    other,
+    args.timeZone,
+  ]);
+  if (totals == null || categories == null) return null;
+  return { totals, categories };
+}
+
+function previewPersonalTrend(
+  queryClient: QueryClient,
+  args: {
+    useLocal: boolean;
+    metric: StatsMetric;
+    bucket: TrendBucket;
+    start: Date;
+    end: Date;
+    startIso: string;
+    endIso: string;
+    timeZone: string;
+  }
+): TrendPoint[] | undefined {
+  const rows = cachedListRows(queryClient, args.useLocal);
+  if (rows) {
+    const scoped = filterStatsTransactions(
+      rows,
+      args.start,
+      args.end,
+      args.timeZone
+    );
+    return aggregateTrend(scoped, args.metric, args.bucket, args.timeZone);
+  }
+  const other = args.useLocal ? 'remote' : 'local';
+  return queryClient.getQueryData<TrendPoint[]>([
+    ...statsKeys.trend(args.metric, args.startIso, args.endIso, args.bucket),
+    other,
+    args.timeZone,
+  ]);
+}
 
 /**
  * Offline + flag: personal Stats from the SQLite mirror.
@@ -69,9 +163,25 @@ export function usePersonalStats(period: PeriodBounds, pieType: TransactionType)
   // Local path needs the in-memory auth user — avoid getSession network refresh.
   const localReady = Boolean(userId);
   const enabled = useLocal ? localReady : true;
+  const listUpdatedAt =
+    queryClient.getQueryState(transactionKeys.list())?.dataUpdatedAt ?? 0;
+  const cachedPreview = useMemo(
+    () =>
+      previewPersonalStats(queryClient, {
+        useLocal,
+        pieType,
+        start: period.start,
+        end: period.end,
+        startIso,
+        endIso,
+        timeZone,
+      }),
+    [queryClient, useLocal, pieType, startIso, endIso, timeZone, listUpdatedAt]
+  );
 
   const totals = useQuery({
     queryKey: [...statsKeys.totals(startIso, endIso), source, timeZone],
+    placeholderData: cachedPreview?.totals,
     queryFn: async () => {
       if (!useLocal) {
         return fetchPersonalTotals(period.start, period.end);
@@ -91,6 +201,7 @@ export function usePersonalStats(period: PeriodBounds, pieType: TransactionType)
 
   const categories = useQuery({
     queryKey: [...statsKeys.category(pieType, startIso, endIso), source, timeZone],
+    placeholderData: cachedPreview?.categories,
     queryFn: async () => {
       if (!useLocal) {
         return fetchPersonalCategoryTotals(pieType, period.start, period.end);
@@ -176,6 +287,7 @@ export function usePersonalTrend(
   timeZone: string = 'UTC',
   enabled: boolean = true
 ) {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const useLocal = usePersonalStatsLocal();
   const userId = user?.id;
@@ -185,9 +297,38 @@ export function usePersonalTrend(
   const endIso = end.toISOString();
   const source = useLocal ? 'local' : 'remote';
   const queryEnabled = enabled && (useLocal ? Boolean(userId) : true);
+  const listUpdatedAt =
+    queryClient.getQueryState(transactionKeys.list())?.dataUpdatedAt ?? 0;
+  const cachedTrend = useMemo(
+    () =>
+      queryEnabled
+        ? previewPersonalTrend(queryClient, {
+            useLocal,
+            metric,
+            bucket,
+            start,
+            end,
+            startIso,
+            endIso,
+            timeZone,
+          })
+        : undefined,
+    [
+      queryClient,
+      queryEnabled,
+      useLocal,
+      metric,
+      bucket,
+      startIso,
+      endIso,
+      timeZone,
+      listUpdatedAt,
+    ]
+  );
 
   return useQuery({
     queryKey: [...statsKeys.trend(metric, startIso, endIso, bucket), source, timeZone],
+    placeholderData: cachedTrend,
     queryFn: async () => {
       if (!useLocal) {
         return fetchPersonalTrend(metric, start, end, bucket);

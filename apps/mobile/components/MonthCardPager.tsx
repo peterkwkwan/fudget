@@ -1,4 +1,4 @@
-import { useMemo, forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useMemo, forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   StyleSheet,
   View,
@@ -43,9 +43,15 @@ type MonthCardPagerProps = {
   renderPage: (focus: PeriodFocus) => ReactNode;
   /**
    * True when the focused month body can paint in one shot (full or empty).
-   * Until then the center stays paper-white; then a short fade-in.
+   * Until then the center stays paper-white (or `loadingPlaceholder`);
+   * then a short fade-in. A cache hit stays ready so cached content is not blanked.
    */
   contentReady: boolean;
+  /**
+   * Drawn under the page while it isn't ready, then covered by the fill fade.
+   * Omitted on screens that should stay paper-white (Transactions).
+   */
+  loadingPlaceholder?: ReactNode;
   /**
    * Optional external shared values for the sliding track + fill fade.
    * Navbar month label shares these so it exits with the swipe and stays
@@ -81,6 +87,7 @@ export const MonthCardPager = forwardRef<
     style,
     renderPage,
     contentReady,
+    loadingPlaceholder,
     translateX: translateXProp,
     pagerWidth: pagerWidthProp,
     fillOpacity: fillOpacityProp,
@@ -101,6 +108,35 @@ export const MonthCardPager = forwardRef<
   const onStepRef = useRef(onStep);
   onStepRef.current = onStep;
   const focusKey = monthContentKey(focus);
+  const hasLoadingPlaceholder = loadingPlaceholder != null;
+  // Keep the placeholder under the page through the fill fade, then drop it
+  // so a later swipe of cached content doesn't reveal it.
+  const [holdPlaceholder, setHoldPlaceholder] = useState(
+    () => !contentReady && hasLoadingPlaceholder
+  );
+
+  useLayoutEffect(() => {
+    if (!hasLoadingPlaceholder) {
+      setHoldPlaceholder(false);
+      return;
+    }
+    if (!contentReady) {
+      setHoldPlaceholder(true);
+      return;
+    }
+    const timeout = setTimeout(
+      () => setHoldPlaceholder(false),
+      MONTH_FILL_FADE_MS
+    );
+    return () => clearTimeout(timeout);
+  }, [contentReady, hasLoadingPlaceholder]);
+
+  const placeholderLayer =
+    holdPlaceholder && loadingPlaceholder ? (
+      <View style={styles.loadingPlaceholder} pointerEvents="none">
+        {loadingPlaceholder}
+      </View>
+    ) : null;
 
   const commitStep = useCallback((delta: -1 | 1) => {
     ignoreFocusAnimRef.current = true;
@@ -246,6 +282,7 @@ export const MonthCardPager = forwardRef<
   if (!enabled) {
     return (
       <View style={[styles.clip, style]}>
+        {placeholderLayer}
         <Animated.View
           style={[styles.fillHost, currentStyle]}
           pointerEvents={contentReady ? 'box-none' : 'none'}
@@ -259,6 +296,7 @@ export const MonthCardPager = forwardRef<
   return (
     <GestureDetector gesture={gesture} touchAction="pan-y">
       <View style={[styles.clip, style]} onLayout={onLayout}>
+        {placeholderLayer}
         <Animated.View style={[styles.track, trackStyle]}>
           <View
             style={[styles.page, styles.pagePrev, styles.blank]}
@@ -315,6 +353,13 @@ function createStyles(colors: ThemeColors) {
   },
   blank: {
     backgroundColor: colors.canvas,
+  },
+  loadingPlaceholder: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
 });
 }
