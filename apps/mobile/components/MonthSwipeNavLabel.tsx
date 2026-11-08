@@ -1,5 +1,11 @@
 import { useMemo, useCallback, useLayoutEffect, useState } from 'react';
-import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -26,16 +32,20 @@ type Props = {
    * contentReady). Label exits with the swipe then stays absent until fill.
    */
   fillOpacity: SharedValue<number>;
+  /** Android month/year wheel. Omit on iOS so the label stays a header. */
+  onPress?: () => void;
 };
 
 type FixedLabelProps = {
   label: string;
+  /** Android month/year wheel. Omit on iOS so the label stays a header. */
+  onPress?: () => void;
 };
 
 /**
  * Single month/year label in a longest-label-width slot (Yearly / no swipe).
  */
-export function FixedMonthNavLabel({ label }: FixedLabelProps) {
+export function FixedMonthNavLabel({ label, onPress }: FixedLabelProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [slotW, setSlotW] = useState(0);
@@ -46,20 +56,38 @@ export function FixedMonthNavLabel({ label }: FixedLabelProps) {
     setSlotW((prevW) => (prevW === w ? prevW : w));
   }, []);
 
+  const text = (
+    <Text
+      style={[styles.label, slotW > 0 ? { width: slotW } : null]}
+      numberOfLines={1}
+      accessible={!onPress}
+      accessibilityRole={onPress ? undefined : 'header'}
+      accessibilityLabel={onPress ? undefined : label}
+    >
+      {label}
+    </Text>
+  );
+
   return (
     <View
       style={[styles.wrap, slotW > 0 ? { width: slotW } : null]}
       collapsable={false}
     >
       <LongestNavLabelProbe styles={styles} onLayout={onMeasure} />
-      <Text
-        style={[styles.label, slotW > 0 ? { width: slotW } : null]}
-        numberOfLines={1}
-        accessibilityRole="header"
-        accessibilityLabel={label}
-      >
-        {label}
-      </Text>
+      {onPress ? (
+        <Pressable
+          onPress={onPress}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}. Choose month and year`}
+          accessibilityHint="Opens the month and year picker"
+          style={({ pressed }) => [pressed && styles.pressed]}
+        >
+          {text}
+        </Pressable>
+      ) : (
+        text
+      )}
     </View>
   );
 }
@@ -78,6 +106,7 @@ export function MonthSwipeNavLabel({
   translateX,
   pagerWidth,
   fillOpacity,
+  onPress,
 }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -107,6 +136,17 @@ export function MonthSwipeNavLabel({
     };
   });
 
+  const clipStyle = [styles.viewport, slotW > 0 ? { width: slotW } : null];
+  const labelNode = (
+    <Animated.Text
+      style={[styles.label, slotW > 0 ? { width: slotW } : null, labelStyle]}
+      numberOfLines={1}
+      accessible={onPress ? false : undefined}
+    >
+      {navLabel}
+    </Animated.Text>
+  );
+
   return (
     <View
       style={[styles.wrap, slotW > 0 ? { width: slotW } : null]}
@@ -114,16 +154,22 @@ export function MonthSwipeNavLabel({
     >
       <LongestNavLabelProbe styles={styles} onLayout={onMeasure} />
       <View
-        style={[styles.viewport, slotW > 0 ? { width: slotW } : null]}
-        accessibilityRole="header"
-        accessibilityLabel={navLabel}
+        style={clipStyle}
+        accessible={onPress ? false : undefined}
+        accessibilityRole={onPress ? undefined : 'header'}
+        accessibilityLabel={onPress ? undefined : navLabel}
       >
-        <Animated.Text
-          style={[styles.label, slotW > 0 ? { width: slotW } : null, labelStyle]}
-          numberOfLines={1}
-        >
-          {navLabel}
-        </Animated.Text>
+        {labelNode}
+        {onPress ? (
+          <Pressable
+            onPress={onPress}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`${navLabel}. Choose month and year`}
+            accessibilityHint="Opens the month and year picker"
+            style={styles.hitTarget}
+          />
+        ) : null}
       </View>
     </View>
   );
@@ -180,11 +226,21 @@ function createStyles(colors: ThemeColors) {
       flexShrink: 0,
       overflow: 'hidden',
     },
+    hitTarget: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+    },
     label: {
       color: colors.ink,
       ...typography.month,
       textAlign: 'left',
       fontFamily: fonts.bodyStrong,
+    },
+    pressed: {
+      opacity: 0.75,
     },
   });
 }

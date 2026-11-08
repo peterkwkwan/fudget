@@ -7,6 +7,10 @@ import {
   formatCompactDate,
   formatTrendBucketLabel,
   periodModeLabel,
+  MONTH_NAMES,
+  MONTH_PICKER_FUTURE_YEARS,
+  MONTH_PICKER_PAST_YEARS,
+  monthPickerYears,
   resolvePeriodBounds,
   resolveTrendBounds,
   shiftPeriodFocus,
@@ -229,6 +233,25 @@ describe('periods', () => {
       formatTrendBucketLabel(slots[2]!.bucketStart, 'month', tz),
       'Oct'
     );
+  });
+
+  it('month picker lists every month and a year window around today', () => {
+    assert.equal(MONTH_NAMES.length, 12);
+    assert.equal(MONTH_NAMES[0], 'January');
+    assert.equal(MONTH_NAMES[11], 'December');
+
+    const years = monthPickerYears(2026, 2026);
+    assert.equal(years[0], 2026 - MONTH_PICKER_PAST_YEARS);
+    assert.equal(years[years.length - 1], 2026 + MONTH_PICKER_FUTURE_YEARS);
+    assert.ok(years.includes(2026));
+
+    const early = monthPickerYears(1970, 2026);
+    assert.equal(early[0], 1970);
+    assert.equal(early[early.length - 1], 2026 + MONTH_PICKER_FUTURE_YEARS);
+
+    const late = monthPickerYears(2100, 2026);
+    assert.equal(late[0], 2026 - MONTH_PICKER_PAST_YEARS);
+    assert.equal(late[late.length - 1], 2100);
   });
 
   it('formats trend bucket X labels', () => {

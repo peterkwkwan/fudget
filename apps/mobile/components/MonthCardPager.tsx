@@ -163,10 +163,15 @@ export const MonthCardPager = forwardRef<
     [widthSV]
   );
 
-  // Swipe settle: recenter before paint. External focus (rare): slide like chevron.
+  // Swipe settle: recenter before paint. A one-month external change slides
+  // like a chevron. A picker jump (any other distance) replaces the month
+  // in place so it does not look like a single swipe.
   useLayoutEffect(() => {
     const from = prevFocusRef.current;
     const step = monthStepDirection(from, focus);
+    const months = Math.abs(
+      focus.year * 12 + focus.month - (from.year * 12 + from.month)
+    );
     prevFocusRef.current = focus;
     if (ignoreFocusAnimRef.current) {
       ignoreFocusAnimRef.current = false;
@@ -174,6 +179,10 @@ export const MonthCardPager = forwardRef<
       return;
     }
     if (!enabled || step === 0 || widthSV.value <= 0) return;
+    if (months !== 1) {
+      translateX.value = 0;
+      return;
+    }
     translateX.value = -step * widthSV.value;
     translateX.value = withTiming(0, {
       duration: MONTH_CARD_SNAP_MS,

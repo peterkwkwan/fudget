@@ -24,6 +24,7 @@ import { usePartnerLink } from '@/hooks/usePartner';
 import { type StatsScope } from '@/hooks/useStats';
 import { useAuth } from '@/lib/auth';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
+import { usePeriodFocus } from '@/lib/periodFocus';
 import { PeriodNavHeader } from '@/lib/periodHeader';
 import {
   currentPeriodFocus,
@@ -54,9 +55,7 @@ export default function StatsScreen() {
 
   const [scope, setScope] = useState<StatsScope>('personal');
   const [preset, setPreset] = useState<PeriodPreset>('month');
-  const [focus, setFocus] = useState<PeriodFocus>(() =>
-    currentPeriodFocus(timeZone)
-  );
+  const { focus, setFocus } = usePeriodFocus();
   const [customStart, setCustomStart] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);

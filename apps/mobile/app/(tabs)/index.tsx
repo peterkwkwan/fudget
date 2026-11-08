@@ -41,6 +41,7 @@ import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { setCalendarAddDate } from '@/lib/addTransactionDate';
 import { useAuth } from '@/lib/auth';
 import { userFacingOfflineWriteError } from '@/lib/offline/writeError';
+import { usePeriodFocus } from '@/lib/periodFocus';
 import { PeriodNavHeader } from '@/lib/periodHeader';
 import {
   currentPeriodFocus,
@@ -69,9 +70,7 @@ export default function TransactionsScreen() {
   // Layout mode is chosen in Account → Settings; honor the saved profile value.
   const dateView = parseTransactionsDateView(profile?.transactions_date_view);
 
-  const [focus, setFocus] = useState<PeriodFocus>(() =>
-    currentPeriodFocus(timeZone)
-  );
+  const { focus, setFocus } = usePeriodFocus();
   const [selectedDay, setSelectedDay] = useState(() =>
     defaultSelectedDay(currentPeriodFocus(timeZone), timeZone)
   );

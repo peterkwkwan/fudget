@@ -32,7 +32,7 @@ export const TREND_RPC_BUCKETS = [
   'year',
 ] as const satisfies readonly TrendBucket[];
 
-const MONTH_NAMES = [
+export const MONTH_NAMES = [
   'January',
   'February',
   'March',
@@ -46,6 +46,25 @@ const MONTH_NAMES = [
   'November',
   'December',
 ] as const;
+
+/**
+ * Inclusive year span for the month/year wheel, around “today”.
+ * shortcut: now−40…now+10, widened so the focused year is always listed;
+ * raise these if a book import needs years outside the window.
+ */
+export const MONTH_PICKER_PAST_YEARS = 40;
+export const MONTH_PICKER_FUTURE_YEARS = 10;
+
+/** Years shown in the month/year wheel. Always includes `focusYear`. */
+export function monthPickerYears(focusYear: number, nowYear: number): number[] {
+  let start = nowYear - MONTH_PICKER_PAST_YEARS;
+  let end = nowYear + MONTH_PICKER_FUTURE_YEARS;
+  if (focusYear < start) start = focusYear;
+  if (focusYear > end) end = focusYear;
+  const years: number[] = [];
+  for (let year = start; year <= end; year++) years.push(year);
+  return years;
+}
 
 /** Parts of `date` in an IANA timezone (fallback: device local). */
 function zonedParts(

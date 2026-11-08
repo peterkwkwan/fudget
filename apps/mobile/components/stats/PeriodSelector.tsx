@@ -18,6 +18,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from '@/components/icons';
+import { MonthYearPicker } from '@/components/MonthYearPicker';
 import {
   FixedMonthNavLabel,
   MonthSwipeNavLabel,
@@ -100,11 +101,14 @@ export function PeriodSelector({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState({ top: 0, right: 0 });
   const [picking, setPicking] = useState<'start' | 'end' | null>(null);
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
   const today = startOfDay(new Date());
   const fromDay = startOfDay(customStart ?? today);
   const toDay = startOfDay(customEnd ?? today);
   const effectivePreset = showModeMenu ? preset : 'month';
+  const monthPickerEnabled =
+    Platform.OS === 'android' && effectivePreset === 'month';
 
   const openModeMenu = () => {
     const fallbackTop = insets.top + 52;
@@ -240,9 +244,21 @@ export function PeriodSelector({
                   translateX={swipeMotion.translateX}
                   pagerWidth={swipeMotion.pagerWidth}
                   fillOpacity={swipeMotion.fillOpacity}
+                  onPress={
+                    monthPickerEnabled
+                      ? () => setMonthPickerOpen(true)
+                      : undefined
+                  }
                 />
               ) : (
-                <FixedMonthNavLabel label={navLabel} />
+                <FixedMonthNavLabel
+                  label={navLabel}
+                  onPress={
+                    monthPickerEnabled
+                      ? () => setMonthPickerOpen(true)
+                      : undefined
+                  }
+                />
               )}
             </View>
             <View style={styles.chevronPair}>
@@ -349,6 +365,15 @@ export function PeriodSelector({
           maximumDate={picking === 'start' ? fromMaximum : today}
         />
       ) : null}
+      <MonthYearPicker
+        visible={monthPickerOpen}
+        focus={focus}
+        onCancel={() => setMonthPickerOpen(false)}
+        onConfirm={(next) => {
+          setMonthPickerOpen(false);
+          onFocusChange(next);
+        }}
+      />
       {picking && Platform.OS === 'ios' ? (
         <Pressable
           style={styles.done}

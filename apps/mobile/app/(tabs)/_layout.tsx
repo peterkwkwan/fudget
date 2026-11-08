@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 
 import { FudgetTabBar } from '@/components/FudgetTabBar';
 import { fonts, navHeaderStyleFor } from '@/constants/theme';
+import { PeriodFocusProvider } from '@/lib/periodFocus';
 import { periodBodyScreenOptions } from '@/lib/periodHeader';
 import { useTheme } from '@/lib/ThemeProvider';
 
@@ -9,7 +10,8 @@ export default function TabLayout() {
   const { colors } = useTheme();
 
   return (
-    <Tabs
+    <PeriodFocusProvider>
+      <Tabs
       tabBar={(props) => (
         <FudgetTabBar
           state={props.state}
@@ -68,6 +70,7 @@ export default function TabLayout() {
         name="account"
         options={periodBodyScreenOptions()}
       />
-    </Tabs>
+      </Tabs>
+    </PeriodFocusProvider>
   );
 }
