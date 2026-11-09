@@ -129,8 +129,9 @@ function createStyles(colors: ThemeColors) {
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    // Cells are 1/7 of the row. A column gap makes that overflow, so the
+    // Saturday cell wraps and later dates sit under the wrong weekday.
     rowGap: 1,
-    columnGap: 1,
   },
   dayCell: {
     width: '14.2857%',
