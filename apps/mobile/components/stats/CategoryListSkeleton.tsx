@@ -23,7 +23,8 @@ export function CategoryListSkeleton() {
       {Array.from({ length: ROW_COUNT }, (_, i) => (
         <View key={i} style={styles.row}>
           <View style={styles.top}>
-            <View style={[styles.labelBone, { width: LABEL_WIDTHS[i] }]} />
+            <View style={styles.tileBone} />
+            <View style={[styles.labelBone, { maxWidth: LABEL_WIDTHS[i] }]} />
             <View style={styles.amountBone} />
           </View>
           <View style={styles.track} />
@@ -50,7 +51,15 @@ function createStyles(colors: ThemeColors) {
       justifyContent: 'space-between' as const,
       gap: space.sm,
     },
+    tileBone: {
+      width: 28,
+      height: 30,
+      borderRadius: 8,
+      backgroundColor: colors.surfaceMuted,
+      flexShrink: 0,
+    },
     labelBone: {
+      flex: 1,
       height: 14,
       borderRadius: 4,
       backgroundColor: colors.surfaceMuted,

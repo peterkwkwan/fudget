@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
+import { CategoryIconTile } from '@/components/CategoryIconTile';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import {
   ScrollEdgeHost,
@@ -153,6 +154,7 @@ export default function CategoriesSettingsScreen() {
             </CaptionText>
             {system.map((name) => (
               <View key={name} style={styles.row}>
+                <CategoryIconTile category={name} type={tab} size={28} />
                 <StrongText style={styles.rowText}>{name}</StrongText>
               </View>
             ))}
@@ -196,6 +198,8 @@ export default function CategoriesSettingsScreen() {
             ) : (
               active.map((c) => (
                 <View key={c.id} style={styles.customRow}>
+                  <CategoryIconTile category={c.name} type={c.type} size={28} />
+                  <View style={styles.customBody}>
                   {editingId === c.id ? (
                     <View style={styles.editBlock}>
                       <TextInput
@@ -246,6 +250,7 @@ export default function CategoriesSettingsScreen() {
                       </View>
                     </>
                   )}
+                  </View>
                 </View>
               ))
             )}
@@ -256,6 +261,8 @@ export default function CategoriesSettingsScreen() {
               <CaptionText style={styles.label}>Archived</CaptionText>
               {archived.map((c) => (
                 <View key={c.id} style={styles.customRow}>
+                  <CategoryIconTile category={c.name} type={c.type} size={28} />
+                  <View style={styles.customBody}>
                   <StrongText style={[styles.rowText, styles.archived]}>
                     {c.name}
                   </StrongText>
@@ -275,6 +282,7 @@ export default function CategoriesSettingsScreen() {
                   >
                     <CaptionText style={styles.link}>Restore</CaptionText>
                   </Pressable>
+                  </View>
                 </View>
               ))}
             </View>
@@ -337,11 +345,14 @@ function createStyles(colors: ThemeColors) {
   },
   hint: { color: colors.inkMuted },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
     paddingVertical: space.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  rowText: { color: colors.ink },
+  rowText: { color: colors.ink, flex: 1 },
   archived: { color: colors.inkMuted },
   addRow: { flexDirection: 'row', gap: space.sm, alignItems: 'center' },
   input: {
@@ -367,9 +378,15 @@ function createStyles(colors: ThemeColors) {
   disabled: { opacity: 0.5 },
   empty: { color: colors.inkMuted },
   customRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
     paddingVertical: space.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+  },
+  customBody: {
+    flex: 1,
     gap: space.xs,
   },
   actions: { flexDirection: 'row', gap: space.md },

@@ -49,6 +49,7 @@ export function PartnerCategoryTotalRow({
       <CategoryIconTile
         category={partnerDisplayLabel(partnerName)}
         type={type === 'income' ? 'income' : 'expense'}
+        letterOnly
       />
       <StrongText style={styles.label} numberOfLines={1}>
         {label}

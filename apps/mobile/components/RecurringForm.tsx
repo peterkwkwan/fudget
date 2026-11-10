@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { CategoryGlyph } from '@/components/CategoryGlyph';
 import { CaptionText, StrongText } from '@/components/StyledText';
 import { Text } from '@/components/Themed';
 import {
@@ -229,7 +230,15 @@ export function RecurringForm(props: Props) {
               onPress={() => setCategory(cat)}
               accessibilityRole="button"
               accessibilityState={{ selected }}
+              accessibilityLabel={cat}
             >
+              <CategoryGlyph
+                category={cat}
+                type={type}
+                color={selected ? colors.green[950] : colors.ink}
+                iconSize={14}
+                letterFontSize={13}
+              />
               <Text
                 style={[styles.chipText, selected && styles.chipTextSelected]}
               >
@@ -524,6 +533,9 @@ function createStyles(colors: ThemeColors) {
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   chipSelected: {
     borderColor: colors.green[700],

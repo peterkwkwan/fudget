@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import { CategoryGlyph } from '@/components/CategoryGlyph';
 import { CaptionText, StrongText, TitleText } from '@/components/StyledText';
 import {
   defaultCategory,
@@ -233,7 +234,15 @@ export function BulkEditSheet({
                         disabled={busy}
                         accessibilityRole="button"
                         accessibilityState={{ selected }}
+                        accessibilityLabel={cat}
                       >
+                        <CategoryGlyph
+                          category={cat}
+                          type={sharedType}
+                          color={selected ? colors.green[700] : colors.ink}
+                          iconSize={14}
+                          letterFontSize={13}
+                        />
                         <CaptionText
                           style={[
                             styles.chipText,
@@ -372,6 +381,9 @@ function createStyles(colors: ThemeColors) {
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   chipSelected: {
     borderColor: colors.green[700],

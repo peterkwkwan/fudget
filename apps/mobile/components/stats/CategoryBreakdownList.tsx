@@ -1,5 +1,6 @@
 import { Pressable, View } from 'react-native';
 
+import { CategoryIconTile } from '@/components/CategoryIconTile';
 import { CaptionText, StrongText } from '@/components/StyledText';
 import type { TransactionType } from '@/constants/categories';
 import { colorForCategory } from '@/constants/chartColors';
@@ -44,6 +45,11 @@ export function CategoryBreakdownList({ data, onSelect, type }: Props) {
         const body = (
           <>
             <View style={styles.top}>
+              <CategoryIconTile
+                category={row.category}
+                type={row.type}
+                size={28}
+              />
               <StrongText
                 style={[styles.category, emphasis && styles.categoryEmphasis]}
                 numberOfLines={1}
