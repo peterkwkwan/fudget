@@ -19,7 +19,10 @@ import { StatsMonthBody } from '@/components/stats/StatsMonthBody';
 import type { TransactionType } from '@/constants/categories';
 import { space, type ThemeColors } from '@/constants/theme';
 import { useTheme } from '@/lib/ThemeProvider';
-import { useStatsMonthContentReady } from '@/hooks/useMonthPrefetch';
+import {
+  usePrefetchTransactionMonths,
+  useStatsMonthContentReady,
+} from '@/hooks/useMonthPrefetch';
 import { useOfflineGates } from '@/hooks/useOfflineGates';
 import { usePartnerLink } from '@/hooks/usePartner';
 import { type StatsScope } from '@/hooks/useStats';
@@ -119,6 +122,12 @@ export default function StatsScreen() {
   const showPair = scope === 'pair' && isPaired;
   const pairLive = showPair && !pairStatsBlocked;
   const pairBlocked = showPair && pairStatsBlocked;
+
+  // Warm the SQLite transaction list into React Query so personal months can
+  // paint from the on-phone mirror immediately (same list Transactions uses).
+  // Without this, Stats only had the list if Transactions ran first — each
+  // new month waited on Supabase RPCs even when SQLite already had the rows.
+  usePrefetchTransactionMonths(true);
 
   const contentReady = useStatsMonthContentReady({
     focus,
