@@ -6,17 +6,20 @@ import { useAuth } from '@/lib/auth';
 import { useConnectivity } from '@/hooks/useConnectivity';
 import {
   isStatsMonthContentReady,
+  prefetchStatsMonth,
   prefetchTransactionList,
 } from '@/lib/monthPrefetch';
 import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
+import { adjacentMonthFocuses } from '@/lib/monthSwipe';
 import type { PeriodFocus } from '@/lib/periods';
+import type { StatsMetric } from '@/lib/stats';
 
-/** Offline + flag: personal Stats from SQLite (mirrors usePersonalStats). */
+/**
+ * Flag on: personal Stats settle from SQLite online and offline
+ * (matches usePersonalStats).
+ */
 function usePersonalStatsLocal(): boolean {
-  const { online, ready } = useConnectivity();
-  if (!OFFLINE_TXNS_ENABLED) return false;
-  if (!ready) return true;
-  return !online;
+  return OFFLINE_TXNS_ENABLED;
 }
 
 /**
@@ -82,4 +85,56 @@ export function usePrefetchTransactionMonths(enabled: boolean) {
     if (!enabled) return;
     void prefetchTransactionList(queryClient);
   }, [queryClient, enabled]);
+}
+
+/**
+ * Pair only: warm prev/next aggregate months so a swipe can paint from cache.
+ * Personal months do not need this when the shared list is warm.
+ * Never mirrors partner rows — aggregate RPCs only.
+ */
+export function usePrefetchAdjacentPairStats(args: {
+  focus: PeriodFocus;
+  timeZone: string;
+  pieType: TransactionType;
+  pairLive: boolean;
+  trendMetric?: StatsMetric;
+  enabled: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const { online, ready } = useConnectivity();
+  const {
+    focus,
+    timeZone,
+    pieType,
+    pairLive,
+    trendMetric,
+    enabled,
+  } = args;
+
+  useEffect(() => {
+    if (!enabled || !pairLive || !ready || !online) return;
+    const { prev, next } = adjacentMonthFocuses(focus);
+    for (const adj of [prev, next]) {
+      prefetchStatsMonth(queryClient, {
+        focus: adj,
+        timeZone,
+        pieType,
+        useLocal: false,
+        pairLive: true,
+        pairOnly: true,
+        trendMetric,
+      });
+    }
+  }, [
+    queryClient,
+    enabled,
+    pairLive,
+    ready,
+    online,
+    focus.year,
+    focus.month,
+    timeZone,
+    pieType,
+    trendMetric,
+  ]);
 }

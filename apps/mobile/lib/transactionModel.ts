@@ -11,6 +11,7 @@ import {
   formatDisplayDate,
   isOnOrBeforeLocalToday,
   localDateKey,
+  zonedYmd,
 } from '@/lib/dates';
 import {
   currentPeriodFocus,
@@ -148,6 +149,40 @@ export function inputFromBulkPatch(
   };
 }
 
+/** `year-month` key matching {@link PeriodFocus} (month is 1–12, not padded). */
+export function localMonthFocusKey(
+  isoOrDate: string | Date,
+  timeZone: string
+): string {
+  const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  if (Number.isNaN(d.getTime())) return '';
+  const { year, month } = zonedYmd(d, timeZone);
+  return `${year}-${month}`;
+}
+
+export function periodFocusMonthKey(focus: PeriodFocus): string {
+  return `${focus.year}-${focus.month}`;
+}
+
+/**
+ * Bucket active rows by local calendar month once so month swipe can look up
+ * a bucket instead of scanning the full history on every focus change.
+ */
+export function indexTransactionsByLocalMonth(
+  rows: Transaction[],
+  timeZone: string
+): Map<string, Transaction[]> {
+  const map = new Map<string, Transaction[]>();
+  for (const t of rows) {
+    const key = localMonthFocusKey(t.occurred_at, timeZone);
+    if (!key) continue;
+    const bucket = map.get(key);
+    if (bucket) bucket.push(t);
+    else map.set(key, [t]);
+  }
+  return map;
+}
+
 /**
  * Transactions list: one-offs always; recurring only when local calendar date <= today.
  * Future generated instances stay in DB (90d horizon) but are hidden here.
@@ -165,6 +200,8 @@ export function filterTransactionsVisible(
 
 /**
  * Visible rows whose occurred_at falls in the focused calendar month.
+ * Prefer {@link indexTransactionsByLocalMonth} + {@link filterIndexedMonth}
+ * when the same full list is filtered for many months (swipe).
  */
 export function filterTransactionsForMonth(
   rows: Transaction[],
@@ -181,6 +218,20 @@ export function filterTransactionsForMonth(
     const ms = occurred.getTime();
     return ms >= startMs && ms < endMs;
   });
+}
+
+/**
+ * Visible rows for one focus from a pre-built local-month index.
+ * Avoids a full-list scan on each month change after the index is warm.
+ */
+export function filterIndexedMonth(
+  index: Map<string, Transaction[]>,
+  timeZone: string,
+  focus: PeriodFocus,
+  now: Date = new Date()
+): Transaction[] {
+  const bucket = index.get(periodFocusMonthKey(focus)) ?? [];
+  return filterTransactionsVisible(bucket, timeZone, now);
 }
 
 export type UpcomingRepeatsSummary = {

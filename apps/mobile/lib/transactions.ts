@@ -23,10 +23,14 @@ import {
 import { supabase } from './supabase';
 
 export {
+  filterIndexedMonth,
   filterTransactionsForMonth,
   filterTransactionsVisible,
+  indexTransactionsByLocalMonth,
   inputFromBulkPatch,
+  localMonthFocusKey,
   normalizeTransactionInput,
+  periodFocusMonthKey,
   summarizeUpcomingRepeatsThisMonth,
   validateTransactionInput,
 } from '@/lib/transactionModel';

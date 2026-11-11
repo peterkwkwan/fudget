@@ -31,9 +31,11 @@ import { supabase } from '@/lib/supabase';
 import {
   bulkPatchTransactions,
   createTransaction,
-  filterTransactionsForMonth,
+  filterIndexedMonth,
   getTransaction,
+  indexTransactionsByLocalMonth,
   listTransactions,
+  periodFocusMonthKey,
   softDeleteTransaction,
   softDeleteTransactions,
   summarizeUpcomingRepeatsThisMonth,
@@ -141,29 +143,34 @@ export function useTransactionList(focus?: PeriodFocus) {
     }, [queryClient])
   );
 
-  const visible = useMemo(
+  // Index once per list/timezone; month swipe only looks up a bucket.
+  const monthIndex = useMemo(
     () =>
-      filterTransactionsForMonth(
-        query.data ?? [],
-        timeZone,
-        monthFocus
-      ),
-    [query.data, timeZone, monthFocus.year, monthFocus.month]
+      query.data != null
+        ? indexTransactionsByLocalMonth(query.data, timeZone)
+        : null,
+    [query.data, timeZone]
   );
 
-  const upcoming = useMemo(
-    () =>
-      summarizeUpcomingRepeatsThisMonth(
-        query.data ?? [],
-        timeZone,
-        new Date(),
-        monthFocus
-      ),
-    [query.data, timeZone, monthFocus.year, monthFocus.month]
-  );
+  const visible = useMemo(() => {
+    if (monthIndex == null) return undefined;
+    return filterIndexedMonth(monthIndex, timeZone, monthFocus);
+  }, [monthIndex, timeZone, monthFocus.year, monthFocus.month]);
+
+  const upcoming = useMemo(() => {
+    if (monthIndex == null) return null;
+    const bucket = monthIndex.get(periodFocusMonthKey(monthFocus)) ?? [];
+    return summarizeUpcomingRepeatsThisMonth(
+      bucket,
+      timeZone,
+      new Date(),
+      monthFocus
+    );
+  }, [monthIndex, timeZone, monthFocus.year, monthFocus.month]);
 
   return {
     ...query,
+    /** Focused-month rows; undefined until the shared list has loaded. */
     data: visible,
     allRows: query.data,
     upcoming,

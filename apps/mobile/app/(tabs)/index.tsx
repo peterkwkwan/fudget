@@ -56,7 +56,6 @@ import {
   defaultSelectedDay,
   filterTransactionsForDay,
 } from '@/lib/transactionsDateView';
-import { filterTransactionsForMonth } from '@/lib/transactionModel';
 import type { Transaction } from '@/lib/transactions';
 import { zonedYmd } from '@/lib/dates';
 
@@ -96,7 +95,9 @@ export default function TransactionsScreen() {
   );
 
   const {
+    data: monthRows,
     allRows,
+    upcoming,
     isLoading,
     isError,
     error,
@@ -141,20 +142,16 @@ export default function TransactionsScreen() {
     });
   }, [focus.year, focus.month, timeZone]);
 
-  const monthRows = useMemo(
-    () =>
-      allRows != null
-        ? filterTransactionsForMonth(allRows, timeZone, focus)
-        : [],
-    [allRows, timeZone, focus.year, focus.month]
-  );
+  // Month filter lives in useTransactionList (indexed); do not re-filter here.
+  const monthRowsReady = monthRows ?? [];
 
   const dayRows = useMemo(
-    () => filterTransactionsForDay(monthRows, focus, selectedDay, timeZone),
-    [monthRows, focus, selectedDay, timeZone]
+    () =>
+      filterTransactionsForDay(monthRowsReady, focus, selectedDay, timeZone),
+    [monthRowsReady, focus, selectedDay, timeZone]
   );
 
-  const listForSelection = dateView === 'list' ? monthRows : dayRows;
+  const listForSelection = dateView === 'list' ? monthRowsReady : dayRows;
 
   const selectedRows = useMemo(() => {
     return listForSelection.filter((t) => selectedIds.has(t.id));
@@ -293,7 +290,8 @@ export default function TransactionsScreen() {
     (pageFocus: PeriodFocus) => (
       <TransactionsMonthBody
         focus={pageFocus}
-        allRows={allRows}
+        monthRows={monthRows}
+        upcoming={upcoming}
         listLoading={isLoading}
         isError={isError}
         error={error}
@@ -314,7 +312,8 @@ export default function TransactionsScreen() {
       />
     ),
     [
-      allRows,
+      monthRows,
+      upcoming,
       isLoading,
       isError,
       error,

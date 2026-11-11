@@ -12,6 +12,7 @@ import {
 } from '@/lib/offline/netState';
 import { syncNow } from '@/lib/offline/syncEngine';
 import { offlineUxKeys } from '@/lib/offline/ux';
+import { statsKeys } from '@/lib/stats';
 import { transactionKeys } from '@/lib/transactions';
 
 /** Retry a failed flush while the app stays foreground (plan: drain when online). */
@@ -79,6 +80,10 @@ export function useOfflineTransactionSync() {
               result.failed > 0)
           ) {
             void queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+            // Personal Stats settle from SQLite — refresh when the mirror moves.
+            void queryClient.invalidateQueries({
+              queryKey: statsKeys.personal(),
+            });
           }
           if (result.failed > 0) {
             logOffline('sync push failed', { op: 'push' });

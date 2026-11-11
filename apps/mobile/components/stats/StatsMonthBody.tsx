@@ -126,7 +126,9 @@ export function StatsMonthBody({
     [preset, timeZone, focus, customStart, customEnd]
   );
 
-  const personal = usePersonalStats(period, pieType);
+  // Idle personal hooks while Pair is live — Pair month changes must not
+  // fire personal SQLite reads or focus RPCs in parallel with aggregates.
+  const personal = usePersonalStats(period, pieType, !pairLive);
   const aggregate = useAggregateStats(period, pieType, pairLive);
   const personalTrend = usePersonalTrend(
     period,
@@ -219,6 +221,10 @@ export function StatsMonthBody({
     void totals.refetch();
     void categories.refetch();
     void trend.refetch();
+    // Personal: settle stays SQLite; explicit refresh also warms remote keys.
+    if (!pairLive) {
+      personal.refreshRemote();
+    }
   };
 
   /**

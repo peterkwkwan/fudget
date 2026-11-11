@@ -20,6 +20,7 @@ import type { TransactionType } from '@/constants/categories';
 import { space, type ThemeColors } from '@/constants/theme';
 import { useTheme } from '@/lib/ThemeProvider';
 import {
+  usePrefetchAdjacentPairStats,
   usePrefetchTransactionMonths,
   useStatsMonthContentReady,
 } from '@/hooks/useMonthPrefetch';
@@ -128,6 +129,17 @@ export default function StatsScreen() {
   // Without this, Stats only had the list if Transactions ran first — each
   // new month waited on Supabase RPCs even when SQLite already had the rows.
   usePrefetchTransactionMonths(true);
+
+  // Pair: warm adjacent aggregate months (RPC only; partner rows never land
+  // in SQLite). Personal does not need neighbor prefetch when the list is warm.
+  usePrefetchAdjacentPairStats({
+    focus,
+    timeZone,
+    pieType,
+    pairLive,
+    trendMetric,
+    enabled: preset === 'month' && pairLive,
+  });
 
   const contentReady = useStatsMonthContentReady({
     focus,

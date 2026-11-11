@@ -22,11 +22,9 @@ import { fonts, radius, space, typography, type ThemeColors } from '@/constants/
 import { useTheme } from '@/lib/ThemeProvider';
 import { resolvePeriodBounds, type PeriodFocus } from '@/lib/periods';
 import type { TransactionsDateView } from '@/lib/profile';
-import {
-  filterTransactionsForMonth,
-  summarizeUpcomingRepeatsThisMonth,
-  type Transaction,
-  type UpcomingRepeatsSummary,
+import type {
+  Transaction,
+  UpcomingRepeatsSummary,
 } from '@/lib/transactions';
 import {
   dayNetsInMonth,
@@ -40,8 +38,13 @@ import {
 
 export type TransactionsMonthBodyProps = {
   focus: PeriodFocus;
-  /** Full unfiltered list — null/undefined while the query is still loading. */
-  allRows: Transaction[] | undefined;
+  /**
+   * Already filtered for `focus` by useTransactionList.
+   * Undefined while the shared list is still loading.
+   */
+  monthRows: Transaction[] | undefined;
+  /** Upcoming repeats for `focus` — computed once with the month filter. */
+  upcoming: UpcomingRepeatsSummary | null;
   listLoading: boolean;
   isError: boolean;
   error: unknown;
@@ -69,7 +72,8 @@ export type TransactionsMonthBodyProps = {
  */
 export function TransactionsMonthBody({
   focus,
-  allRows,
+  monthRows,
+  upcoming,
   listLoading,
   isError,
   error,
@@ -98,26 +102,8 @@ export function TransactionsMonthBody({
     [timeZone, focus.year, focus.month]
   );
 
-  const ready = !listLoading && allRows != null;
-
-  const data = useMemo(
-    () =>
-      ready ? filterTransactionsForMonth(allRows, timeZone, focus) : [],
-    [ready, allRows, timeZone, focus.year, focus.month]
-  );
-
-  const upcoming: UpcomingRepeatsSummary | null = useMemo(
-    () =>
-      ready
-        ? summarizeUpcomingRepeatsThisMonth(
-            allRows,
-            timeZone,
-            new Date(),
-            focus
-          )
-        : null,
-    [ready, allRows, timeZone, focus.year, focus.month]
-  );
+  const ready = !listLoading && monthRows != null;
+  const data = monthRows ?? [];
 
   const daySections = useMemo(
     () => groupTransactionsByDay(data, timeZone),

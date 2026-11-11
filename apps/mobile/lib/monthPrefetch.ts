@@ -48,6 +48,11 @@ export type PrefetchStatsMonthsArgs = {
   userId?: string;
   /** Prefetch partner aggregate RPCs when Pair scope is live. */
   pairLive?: boolean;
+  /**
+   * When true with pairLive, only warm aggregate RPCs (no personal).
+   * Used for adjacent Pair month swipe so we do not fire personal RPCs.
+   */
+  pairOnly?: boolean;
   /** Also warm personal trend for the settled month. */
   trendMetric?: StatsMetric;
 };
@@ -89,89 +94,93 @@ export function prefetchStatsMonth(
     useLocal,
     userId,
     pairLive = false,
+    pairOnly = false,
     trendMetric,
   } = args;
   const period = resolvePeriodBounds('month', timeZone, { focus });
   const startIso = period.start.toISOString();
   const endIso = period.end.toISOString();
   const source = useLocal ? 'local' : 'remote';
+  const warmPersonal = !pairOnly;
 
-  void queryClient.prefetchQuery({
-    queryKey: [...statsKeys.totals(startIso, endIso), source, timeZone],
-    queryFn: async () => {
-      if (!useLocal) {
-        return fetchPersonalTotals(period.start, period.end);
-      }
-      if (!userId) return EMPTY_PERIOD_TOTALS;
-      const rows = await localRows(userId);
-      return aggregatePeriodTotals(
-        filterStatsTransactions(rows, period.start, period.end, timeZone)
-      );
-    },
-  });
+  if (warmPersonal) {
+    void queryClient.prefetchQuery({
+      queryKey: [...statsKeys.totals(startIso, endIso), source, timeZone],
+      queryFn: async () => {
+        if (!useLocal) {
+          return fetchPersonalTotals(period.start, period.end);
+        }
+        if (!userId) return EMPTY_PERIOD_TOTALS;
+        const rows = await localRows(userId);
+        return aggregatePeriodTotals(
+          filterStatsTransactions(rows, period.start, period.end, timeZone)
+        );
+      },
+    });
 
-  void queryClient.prefetchQuery({
-    queryKey: [
-      ...statsKeys.category(pieType, startIso, endIso),
-      source,
-      timeZone,
-    ],
-    queryFn: async () => {
-      if (!useLocal) {
-        return fetchPersonalCategoryTotals(pieType, period.start, period.end);
-      }
-      if (!userId) return [];
-      const rows = await localRows(userId);
-      const scoped = filterStatsTransactions(
-        rows,
-        period.start,
-        period.end,
-        timeZone
-      );
-      return aggregateCategoryTotals(scoped, pieType);
-    },
-  });
-
-  if (trendMetric && !(pairLive && !useLocal)) {
-    const bucket = trendBucketForPeriod(
-      period.start,
-      period.end,
-      period.preset
-    );
-    const trendBounds = resolveTrendBounds(period, timeZone);
-    const trendStartIso = trendBounds.start.toISOString();
-    const trendEndIso = trendBounds.end.toISOString();
     void queryClient.prefetchQuery({
       queryKey: [
-        ...statsKeys.trend(
-          trendMetric,
-          trendStartIso,
-          trendEndIso,
-          bucket
-        ),
+        ...statsKeys.category(pieType, startIso, endIso),
         source,
         timeZone,
       ],
       queryFn: async () => {
         if (!useLocal) {
-          return fetchPersonalTrend(
-            trendMetric,
-            trendBounds.start,
-            trendBounds.end,
-            bucket
-          );
+          return fetchPersonalCategoryTotals(pieType, period.start, period.end);
         }
         if (!userId) return [];
         const rows = await localRows(userId);
         const scoped = filterStatsTransactions(
           rows,
-          trendBounds.start,
-          trendBounds.end,
+          period.start,
+          period.end,
           timeZone
         );
-        return aggregateTrend(scoped, trendMetric, bucket, timeZone);
+        return aggregateCategoryTotals(scoped, pieType);
       },
     });
+
+    if (trendMetric && !(pairLive && !useLocal)) {
+      const bucket = trendBucketForPeriod(
+        period.start,
+        period.end,
+        period.preset
+      );
+      const trendBounds = resolveTrendBounds(period, timeZone);
+      const trendStartIso = trendBounds.start.toISOString();
+      const trendEndIso = trendBounds.end.toISOString();
+      void queryClient.prefetchQuery({
+        queryKey: [
+          ...statsKeys.trend(
+            trendMetric,
+            trendStartIso,
+            trendEndIso,
+            bucket
+          ),
+          source,
+          timeZone,
+        ],
+        queryFn: async () => {
+          if (!useLocal) {
+            return fetchPersonalTrend(
+              trendMetric,
+              trendBounds.start,
+              trendBounds.end,
+              bucket
+            );
+          }
+          if (!userId) return [];
+          const rows = await localRows(userId);
+          const scoped = filterStatsTransactions(
+            rows,
+            trendBounds.start,
+            trendBounds.end,
+            timeZone
+          );
+          return aggregateTrend(scoped, trendMetric, bucket, timeZone);
+        },
+      });
+    }
   }
 
   if (pairLive && !useLocal) {
@@ -211,9 +220,9 @@ export function prefetchStatsMonth(
 }
 
 /**
- * Offline: a loaded mirror (even with zero rows) can paint Quiet month.
- * Online: only a non-empty mirror skips the placeholder; an empty mirror
- * waits for the server so we don't flash Quiet month ahead of real stats.
+ * Personal settle is SQLite when useLocal: a loaded mirror (including zero
+ * rows) paints Quiet month online and offline.
+ * Remote-only path (flag off): empty mirror must not flash Quiet ahead of RPC.
  */
 function localListCanPaint(
   queryClient: QueryClient,

@@ -47,9 +47,9 @@ const EMPTY_PERIOD_TOTALS = aggregatePeriodTotals([]);
 
 /**
  * Rows that can paint this period immediately.
- * Offline, a loaded empty mirror is a real Quiet month.
- * Online, an empty mirror must not pretend the server period is empty
- * before the RPC returns.
+ * Local settle (flag on): a loaded empty mirror is a real Quiet month,
+ * online and offline.
+ * Remote-only (flag off): an empty mirror must not flash Quiet ahead of RPC.
  * When this is missing, callers fall back to the other source's period
  * so online/offline doesn't blank stats that are already on screen.
  */
@@ -135,20 +135,82 @@ function previewPersonalTrend(
 }
 
 /**
- * Offline + flag: personal Stats from the SQLite mirror.
- * Until NetInfo's first snapshot, prefer local so a cold offline boot never
- * starts a remote RPC that hangs forever.
+ * Flag on: personal Stats always settle from the SQLite mirror (online and
+ * offline). Remote personal RPCs run on tab focus / pull-to-refresh only.
+ * Flag off: remote RPCs remain the queryFn.
+ * Until NetInfo's first snapshot with the flag off path, prefer not hanging.
  */
 function usePersonalStatsLocal(): boolean {
-  const { online, ready } = useConnectivity();
-  if (!OFFLINE_TXNS_ENABLED) return false;
-  if (!ready) return true;
-  return !online;
+  if (OFFLINE_TXNS_ENABLED) return true;
+  return false;
 }
 
-export function usePersonalStats(period: PeriodBounds, pieType: TransactionType) {
+/** Warm remote personal keys without swapping the on-screen local settle. */
+function prefetchRemotePersonalStats(
+  queryClient: QueryClient,
+  args: {
+    period: PeriodBounds;
+    pieType: TransactionType;
+    timeZone: string;
+    metric?: StatsMetric;
+    bucket?: TrendBucket;
+  }
+) {
+  const startIso = args.period.start.toISOString();
+  const endIso = args.period.end.toISOString();
+  void queryClient.prefetchQuery({
+    queryKey: [...statsKeys.totals(startIso, endIso), 'remote', args.timeZone],
+    queryFn: () => fetchPersonalTotals(args.period.start, args.period.end),
+    staleTime: 0,
+  });
+  void queryClient.prefetchQuery({
+    queryKey: [
+      ...statsKeys.category(args.pieType, startIso, endIso),
+      'remote',
+      args.timeZone,
+    ],
+    queryFn: () =>
+      fetchPersonalCategoryTotals(
+        args.pieType,
+        args.period.start,
+        args.period.end
+      ),
+    staleTime: 0,
+  });
+  if (args.metric && args.bucket) {
+    const trendBounds = resolveTrendBounds(args.period, args.timeZone);
+    void queryClient.prefetchQuery({
+      queryKey: [
+        ...statsKeys.trend(
+          args.metric,
+          trendBounds.start.toISOString(),
+          trendBounds.end.toISOString(),
+          args.bucket
+        ),
+        'remote',
+        args.timeZone,
+      ],
+      queryFn: () =>
+        fetchPersonalTrend(
+          args.metric!,
+          trendBounds.start,
+          trendBounds.end,
+          args.bucket!
+        ),
+      staleTime: 0,
+    });
+  }
+}
+
+export function usePersonalStats(
+  period: PeriodBounds,
+  pieType: TransactionType,
+  /** Idle while Pair is live so Pair month changes do not fire personal work. */
+  enabled: boolean = true
+) {
   const queryClient = useQueryClient();
   const { profile, user } = useAuth();
+  const { online, ready: netReady } = useConnectivity();
   const timeZone = profile?.timezone || deviceTimezone();
   const useLocal = usePersonalStatsLocal();
   const userId = user?.id;
@@ -162,7 +224,7 @@ export function usePersonalStats(period: PeriodBounds, pieType: TransactionType)
   const source = useLocal ? 'local' : 'remote';
   // Local path needs the in-memory auth user — avoid getSession network refresh.
   const localReady = Boolean(userId);
-  const enabled = useLocal ? localReady : true;
+  const queryEnabled = enabled && (useLocal ? localReady : true);
   const listUpdatedAt =
     queryClient.getQueryState(transactionKeys.list())?.dataUpdatedAt ?? 0;
   const cachedPreview = useMemo(
@@ -179,8 +241,10 @@ export function usePersonalStats(period: PeriodBounds, pieType: TransactionType)
     [queryClient, useLocal, pieType, startIso, endIso, timeZone, listUpdatedAt]
   );
 
+  const totalsKey = [...statsKeys.totals(startIso, endIso), source, timeZone];
+
   const totals = useQuery({
-    queryKey: [...statsKeys.totals(startIso, endIso), source, timeZone],
+    queryKey: totalsKey,
     placeholderData: cachedPreview?.totals,
     queryFn: async () => {
       if (!useLocal) {
@@ -196,7 +260,7 @@ export function usePersonalStats(period: PeriodBounds, pieType: TransactionType)
       );
       return aggregatePeriodTotals(scoped);
     },
-    enabled,
+    enabled: queryEnabled,
   });
 
   const categories = useQuery({
@@ -216,16 +280,76 @@ export function usePersonalStats(period: PeriodBounds, pieType: TransactionType)
       );
       return aggregateCategoryTotals(scoped, pieType);
     },
-    enabled,
+    enabled: queryEnabled,
   });
 
   useFocusEffect(
     useCallback(() => {
-      void queryClient.invalidateQueries({ queryKey: statsKeys.personal() });
-    }, [queryClient])
+      if (!enabled) return;
+      if (!useLocal) {
+        void queryClient.invalidateQueries({ queryKey: statsKeys.personal() });
+        return;
+      }
+      // Local settle: only re-read SQLite when the shared list is newer.
+      // Avoid a full personal invalidate on every Stats focus when fresh.
+      const listAt =
+        queryClient.getQueryState(transactionKeys.list())?.dataUpdatedAt ?? 0;
+      const totalsAt =
+        queryClient.getQueryState(totalsKey)?.dataUpdatedAt ?? 0;
+      if (listAt > totalsAt) {
+        void queryClient.invalidateQueries({ queryKey: statsKeys.personal() });
+      }
+      // Personal RPCs on tab focus only (not on every month swipe).
+      if (netReady && online) {
+        prefetchRemotePersonalStats(queryClient, {
+          period,
+          pieType,
+          timeZone,
+        });
+      }
+    }, [
+      enabled,
+      useLocal,
+      queryClient,
+      netReady,
+      online,
+      period,
+      pieType,
+      timeZone,
+      startIso,
+      endIso,
+      source,
+    ])
   );
 
-  return { totals, categories, bucket, startIso, endIso, useLocal };
+  const refreshRemote = useCallback(() => {
+    if (!enabled || !useLocal) return;
+    if (!(netReady && online)) return;
+    prefetchRemotePersonalStats(queryClient, {
+      period,
+      pieType,
+      timeZone,
+    });
+  }, [
+    enabled,
+    useLocal,
+    netReady,
+    online,
+    queryClient,
+    period,
+    pieType,
+    timeZone,
+  ]);
+
+  return {
+    totals,
+    categories,
+    bucket,
+    startIso,
+    endIso,
+    useLocal,
+    refreshRemote,
+  };
 }
 
 /**
