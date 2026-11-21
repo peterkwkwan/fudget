@@ -140,7 +140,8 @@ export function prefetchStatsMonth(
       },
     });
 
-    if (trendMetric && !(pairLive && !useLocal)) {
+    // Skip personal trend when Pair is live — aggregates cover the chart.
+    if (trendMetric && !pairLive) {
       const bucket = trendBucketForPeriod(
         period.start,
         period.end,
@@ -183,7 +184,9 @@ export function prefetchStatsMonth(
     }
   }
 
-  if (pairLive && !useLocal) {
+  // Pair aggregates are always RPC (partner rows never land in SQLite).
+  // Gate on pairLive only — useLocal is about personal settle, not aggregates.
+  if (pairLive) {
     void queryClient.prefetchQuery({
       queryKey: statsKeys.aggregateTotals(startIso, endIso),
       queryFn: () => fetchAggregateTotals(period.start, period.end),
@@ -278,7 +281,10 @@ export function isStatsMonthContentReady(
   const endIso = period.end.toISOString();
   const source = useLocal ? 'local' : 'remote';
 
-  if (pairLive && !useLocal) {
+  // Pair paints from aggregate RPCs only. Do not fall through to the personal
+  // list branch when OFFLINE_TXNS_ENABLED makes useLocal true — that caused
+  // early fade-in then inner skeletons while aggregates were still cold.
+  if (pairLive) {
     const totalsKey = statsKeys.aggregateTotals(startIso, endIso);
     const categoryKey = statsKeys.aggregateCategory(pieType, startIso, endIso);
     return isPeriodStatsReady({

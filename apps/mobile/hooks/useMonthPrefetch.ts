@@ -88,9 +88,9 @@ export function usePrefetchTransactionMonths(enabled: boolean) {
 }
 
 /**
- * Pair only: warm prev/next aggregate months so a swipe can paint from cache.
- * Personal months do not need this when the shared list is warm.
- * Never mirrors partner rows — aggregate RPCs only.
+ * Pair only: warm the focused aggregate month (on enter / focus change) plus
+ * prev/next so a swipe can paint from cache. Personal months do not need this
+ * when the shared list is warm. Never mirrors partner rows — aggregate RPCs only.
  */
 export function usePrefetchAdjacentPairStats(args: {
   focus: PeriodFocus;
@@ -114,9 +114,9 @@ export function usePrefetchAdjacentPairStats(args: {
   useEffect(() => {
     if (!enabled || !pairLive || !ready || !online) return;
     const { prev, next } = adjacentMonthFocuses(focus);
-    for (const adj of [prev, next]) {
+    for (const monthFocus of [focus, prev, next]) {
       prefetchStatsMonth(queryClient, {
-        focus: adj,
+        focus: monthFocus,
         timeZone,
         pieType,
         useLocal: false,

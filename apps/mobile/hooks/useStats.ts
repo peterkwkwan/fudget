@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import type { TransactionType } from '@/constants/categories';
 import { useAuth } from '@/lib/auth';
@@ -243,6 +243,11 @@ export function usePersonalStats(
 
   const totalsKey = [...statsKeys.totals(startIso, endIso), source, timeZone];
 
+  // Period / pieType via ref so month swipes do not rebuild the focus
+  // callback (and re-fire unused remote prefetch + cold-month invalidate).
+  const focusArgsRef = useRef({ period, pieType, timeZone, totalsKey });
+  focusArgsRef.current = { period, pieType, timeZone, totalsKey };
+
   const totals = useQuery({
     queryKey: totalsKey,
     placeholderData: cachedPreview?.totals,
@@ -290,36 +295,30 @@ export function usePersonalStats(
         void queryClient.invalidateQueries({ queryKey: statsKeys.personal() });
         return;
       }
+      const {
+        period: focusPeriod,
+        pieType: focusPieType,
+        timeZone: focusTimeZone,
+        totalsKey: focusTotalsKey,
+      } = focusArgsRef.current;
       // Local settle: only re-read SQLite when the shared list is newer.
       // Avoid a full personal invalidate on every Stats focus when fresh.
       const listAt =
         queryClient.getQueryState(transactionKeys.list())?.dataUpdatedAt ?? 0;
       const totalsAt =
-        queryClient.getQueryState(totalsKey)?.dataUpdatedAt ?? 0;
+        queryClient.getQueryState(focusTotalsKey)?.dataUpdatedAt ?? 0;
       if (listAt > totalsAt) {
         void queryClient.invalidateQueries({ queryKey: statsKeys.personal() });
       }
       // Personal RPCs on tab focus only (not on every month swipe).
       if (netReady && online) {
         prefetchRemotePersonalStats(queryClient, {
-          period,
-          pieType,
-          timeZone,
+          period: focusPeriod,
+          pieType: focusPieType,
+          timeZone: focusTimeZone,
         });
       }
-    }, [
-      enabled,
-      useLocal,
-      queryClient,
-      netReady,
-      online,
-      period,
-      pieType,
-      timeZone,
-      startIso,
-      endIso,
-      source,
-    ])
+    }, [enabled, useLocal, queryClient, netReady, online])
   );
 
   const refreshRemote = useCallback(() => {

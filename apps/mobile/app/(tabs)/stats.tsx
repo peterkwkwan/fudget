@@ -130,8 +130,9 @@ export default function StatsScreen() {
   // new month waited on Supabase RPCs even when SQLite already had the rows.
   usePrefetchTransactionMonths(true);
 
-  // Pair: warm adjacent aggregate months (RPC only; partner rows never land
-  // in SQLite). Personal does not need neighbor prefetch when the list is warm.
+  // Pair: warm focused + adjacent aggregate months (RPC only; partner rows
+  // never land in SQLite). Personal does not need neighbor prefetch when the
+  // list is warm.
   usePrefetchAdjacentPairStats({
     focus,
     timeZone,
