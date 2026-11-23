@@ -31,7 +31,6 @@ import { TransactionsMonthBody } from '@/components/TransactionsMonthBody';
 import { TxnSelectionHeader } from '@/components/TxnSelectionHeader';
 import { radius, space, type ThemeColors } from '@/constants/theme';
 import { useTheme } from '@/lib/ThemeProvider';
-import { usePrefetchTransactionMonths } from '@/hooks/useMonthPrefetch';
 import {
   useBulkPatchTransactions,
   useBulkSoftDeleteTransactions,
@@ -105,8 +104,7 @@ export default function TransactionsScreen() {
     isRefetching,
   } = useTransactionList(focus);
 
-  // Shared list feeds the focused month; keep it warm.
-  usePrefetchTransactionMonths(true);
+  // Shared list is already loaded by useTransactionList — no redundant prefetch.
 
   const contentReady = !isLoading && allRows != null;
 
@@ -294,6 +292,7 @@ export default function TransactionsScreen() {
         focus={pageFocus}
         monthRows={monthRows}
         upcoming={upcoming}
+        dayRows={dayRows}
         listLoading={isLoading}
         isError={isError}
         error={error}
@@ -316,6 +315,7 @@ export default function TransactionsScreen() {
     [
       monthRows,
       upcoming,
+      dayRows,
       isLoading,
       isError,
       error,

@@ -62,9 +62,32 @@ export function localDateKey(
   return ymdKey(zonedYmd(d, timeZone));
 }
 
+/** Reused across sticky headers / forms — building Intl is expensive. */
+const displayDateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function displayDateFormatterFor(
+  timeZone: string
+): Intl.DateTimeFormat | null {
+  const cached = displayDateFormatters.get(timeZone);
+  if (cached) return cached;
+  try {
+    // Preferences: full weekday + month + day, no year — e.g. `Monday, October 22`.
+    const fmt = new Intl.DateTimeFormat(undefined, {
+      timeZone,
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+    displayDateFormatters.set(timeZone, fmt);
+    return fmt;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Transactions / form date label in account timezone.
- * Short weekday + month, day only — e.g. `Thu, October 22` (no year).
+ * Full weekday + month, day only — e.g. `Monday, October 22` (no year).
  */
 export function formatDisplayDate(
   isoOrDate: string | Date,
@@ -74,17 +97,16 @@ export function formatDisplayDate(
   if (Number.isNaN(d.getTime())) {
     return typeof isoOrDate === 'string' ? isoOrDate : '';
   }
-  const opts: Intl.DateTimeFormatOptions = {
-    timeZone,
-    weekday: 'short',
-    month: 'long',
-    day: 'numeric',
-  };
+  const fmt = displayDateFormatterFor(timeZone);
+  if (fmt) return fmt.format(d);
   try {
-    return d.toLocaleDateString(undefined, opts);
+    return new Intl.DateTimeFormat(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    }).format(d);
   } catch {
-    const { timeZone: _ignored, ...fallback } = opts;
-    return d.toLocaleDateString(undefined, fallback);
+    return typeof isoOrDate === 'string' ? isoOrDate : '';
   }
 }
 

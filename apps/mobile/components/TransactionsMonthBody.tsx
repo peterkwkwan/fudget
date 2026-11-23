@@ -20,6 +20,7 @@ import { TransactionsEmptyMonth } from '@/components/TransactionsEmptyMonth';
 import { UpcomingRepeatsBar } from '@/components/UpcomingRepeatsBar';
 import { fonts, radius, space, typography, type ThemeColors } from '@/constants/theme';
 import { useTheme } from '@/lib/ThemeProvider';
+import { monthContentKey } from '@/lib/monthSwipe';
 import { resolvePeriodBounds, type PeriodFocus } from '@/lib/periods';
 import type { TransactionsDateView } from '@/lib/profile';
 import type {
@@ -28,7 +29,6 @@ import type {
 } from '@/lib/transactions';
 import {
   dayNetsInMonth,
-  filterTransactionsForDay,
   formatDayNet,
   formatFocusDayHeading,
   groupTransactionsByDay,
@@ -45,6 +45,11 @@ export type TransactionsMonthBodyProps = {
   monthRows: Transaction[] | undefined;
   /** Upcoming repeats for `focus` — computed once with the month filter. */
   upcoming: UpcomingRepeatsSummary | null;
+  /**
+   * Calendar selected-day rows from the screen (single filter).
+   * Empty when dateView is list.
+   */
+  dayRows: Transaction[];
   listLoading: boolean;
   isError: boolean;
   error: unknown;
@@ -74,6 +79,7 @@ export function TransactionsMonthBody({
   focus,
   monthRows,
   upcoming,
+  dayRows,
   listLoading,
   isError,
   error,
@@ -96,6 +102,8 @@ export function TransactionsMonthBody({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { edges, scrollProps } = useScrollEdges();
+  // Remount list on month change so scroll offset does not carry over.
+  const listKey = monthContentKey(focus);
 
   const period = useMemo(
     () => resolvePeriodBounds('month', timeZone, { focus }),
@@ -118,14 +126,6 @@ export function TransactionsMonthBody({
         ? dayNetsInMonth(data, focus, timeZone)
         : new Map<number, number>(),
     [dateView, data, focus, timeZone]
-  );
-
-  const dayRows = useMemo(
-    () =>
-      dateView === 'calendar'
-        ? filterTransactionsForDay(data, focus, selectedDay, timeZone)
-        : [],
-    [dateView, data, focus, selectedDay, timeZone]
   );
 
   const selectedDayHeading = useMemo(
@@ -273,6 +273,7 @@ export function TransactionsMonthBody({
     <ScrollEdgeHost edges={edges}>
       {dateView === 'list' ? (
         <SectionList
+          key={listKey}
           sections={daySections}
           keyExtractor={(item) => item.id}
           {...scrollProps}
@@ -301,6 +302,7 @@ export function TransactionsMonthBody({
         />
       ) : (
         <FlatList
+          key={listKey}
           data={dayRows}
           keyExtractor={(item) => item.id}
           {...scrollProps}

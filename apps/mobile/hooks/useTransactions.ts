@@ -4,9 +4,11 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { useAuth } from '@/lib/auth';
+import { localDateKey, startOfTomorrow } from '@/lib/dates';
 import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
 import { requestOfflineSync } from '@/lib/offline/syncRequest';
 import { offlineUxKeys } from '@/lib/offline/ux';
@@ -43,6 +45,44 @@ import {
   type TransactionBulkPatch,
   type TransactionInput,
 } from '@/lib/transactions';
+
+/**
+ * Local civil day key that ticks at midnight and on foreground return so
+ * recurring visibility / upcoming do not stay stuck on yesterday’s “today”.
+ */
+function useLocalTodayKey(timeZone: string): string {
+  const [todayKey, setTodayKey] = useState(() =>
+    localDateKey(new Date(), timeZone)
+  );
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const refresh = () => {
+      const now = new Date();
+      const next = localDateKey(now, timeZone);
+      setTodayKey((prev) => (prev === next ? prev : next));
+      if (timer != null) clearTimeout(timer);
+      const delay = Math.max(
+        1_000,
+        startOfTomorrow(timeZone, now).getTime() - Date.now() + 50
+      );
+      timer = setTimeout(refresh, delay);
+    };
+
+    refresh();
+    const onChange = (state: AppStateStatus) => {
+      if (state === 'active') refresh();
+    };
+    const sub = AppState.addEventListener('change', onChange);
+    return () => {
+      if (timer != null) clearTimeout(timer);
+      sub.remove();
+    };
+  }, [timeZone]);
+
+  return todayKey;
+}
 
 function invalidateTransactionsAndStats(
   queryClient: ReturnType<typeof useQueryClient>
@@ -110,6 +150,9 @@ export function useTransactionList(focus?: PeriodFocus) {
     }, [queryClient, userId])
   );
 
+  // Civil “today” for recurring visibility — refreshes at midnight / foreground.
+  const todayKey = useLocalTodayKey(timeZone);
+
   // Index once per list/timezone; month swipe only looks up a bucket.
   const monthIndex = useMemo(
     () =>
@@ -121,11 +164,14 @@ export function useTransactionList(focus?: PeriodFocus) {
 
   const visible = useMemo(() => {
     if (monthIndex == null) return undefined;
-    return filterIndexedMonth(monthIndex, timeZone, monthFocus);
-  }, [monthIndex, timeZone, monthFocus.year, monthFocus.month]);
+    // todayKey is the memo gate; new Date() is read when it changes.
+    void todayKey;
+    return filterIndexedMonth(monthIndex, timeZone, monthFocus, new Date());
+  }, [monthIndex, timeZone, monthFocus.year, monthFocus.month, todayKey]);
 
   const upcoming = useMemo(() => {
     if (monthIndex == null) return null;
+    void todayKey;
     const bucket = monthIndex.get(periodFocusMonthKey(monthFocus)) ?? [];
     return summarizeUpcomingRepeatsThisMonth(
       bucket,
@@ -133,7 +179,7 @@ export function useTransactionList(focus?: PeriodFocus) {
       new Date(),
       monthFocus
     );
-  }, [monthIndex, timeZone, monthFocus.year, monthFocus.month]);
+  }, [monthIndex, timeZone, monthFocus.year, monthFocus.month, todayKey]);
 
   return {
     ...query,

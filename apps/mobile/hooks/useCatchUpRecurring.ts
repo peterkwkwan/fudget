@@ -3,12 +3,30 @@ import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { useAuth } from '@/lib/auth';
+import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
+import { logOffline } from '@/lib/offline/log';
+import { syncNow } from '@/lib/offline/syncEngine';
 import { catchUpRecurring, recurringKeys } from '@/lib/recurring';
 import { statsKeys } from '@/lib/stats';
 import { transactionKeys } from '@/lib/transactions';
 
 /** Let Transactions finish first paint before the edge invoke. */
 const COLD_START_DEFER_MS = 1_500;
+
+/**
+ * Pull catch-up inserts into the SQLite mirror before list invalidate.
+ * `syncNow` is single-flight: the first await may join a cycle that started
+ * before inserts. A second await runs a fresh push/pull that includes them.
+ */
+async function pullAfterCatchUpInserts(userId: string): Promise<void> {
+  if (!OFFLINE_TXNS_ENABLED) return;
+  try {
+    await syncNow(userId);
+    await syncNow(userId);
+  } catch {
+    logOffline('catch-up pull failed', { op: 'pull' });
+  }
+}
 
 /**
  * On sign-in and each return to foreground, ask the server to fill missing
@@ -24,6 +42,7 @@ export function useCatchUpRecurring() {
 
   useEffect(() => {
     if (!session) return;
+    const userId = session.user.id;
 
     let cancelled = false;
     let coldTimer: ReturnType<typeof setTimeout> | null = null;
@@ -34,6 +53,9 @@ export function useCatchUpRecurring() {
       try {
         const result = await catchUpRecurring();
         if (result.ok && (result.inserted ?? 0) > 0) {
+          // Offline list reads SQLite — pull new remote instances first.
+          await pullAfterCatchUpInserts(userId);
+          if (cancelled) return;
           void queryClient.invalidateQueries({ queryKey: transactionKeys.all });
           void queryClient.invalidateQueries({ queryKey: statsKeys.all });
           void queryClient.invalidateQueries({ queryKey: recurringKeys.all });
