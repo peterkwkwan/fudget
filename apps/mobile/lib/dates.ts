@@ -9,8 +9,12 @@ function pad2(n: number): string {
 
 export type LocalYmd = { year: number; month: number; day: number };
 
-/** Civil Y-M-D parts of an instant in `timeZone`. */
-export function zonedYmd(date: Date, timeZone: string): LocalYmd {
+/** Reused across day-key / month filter paths — building Intl is expensive. */
+const ymdFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function ymdFormatterFor(timeZone: string): Intl.DateTimeFormat | null {
+  const cached = ymdFormatters.get(timeZone);
+  if (cached) return cached;
   try {
     const fmt = new Intl.DateTimeFormat('en-US', {
       timeZone,
@@ -18,21 +22,31 @@ export function zonedYmd(date: Date, timeZone: string): LocalYmd {
       month: 'numeric',
       day: 'numeric',
     });
-    const parts = fmt.formatToParts(date);
-    const get = (type: string) =>
-      Number(parts.find((p) => p.type === type)?.value ?? 0);
-    return {
-      year: get('year'),
-      month: get('month'),
-      day: get('day'),
-    };
+    ymdFormatters.set(timeZone, fmt);
+    return fmt;
   } catch {
+    return null;
+  }
+}
+
+/** Civil Y-M-D parts of an instant in `timeZone`. */
+export function zonedYmd(date: Date, timeZone: string): LocalYmd {
+  const fmt = ymdFormatterFor(timeZone);
+  if (!fmt) {
     return {
       year: date.getFullYear(),
       month: date.getMonth() + 1,
       day: date.getDate(),
     };
   }
+  const parts = fmt.formatToParts(date);
+  const get = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+  };
 }
 
 export function ymdKey(ymd: LocalYmd): string {

@@ -147,8 +147,10 @@ export default function TransactionsScreen() {
 
   const dayRows = useMemo(
     () =>
-      filterTransactionsForDay(monthRowsReady, focus, selectedDay, timeZone),
-    [monthRowsReady, focus, selectedDay, timeZone]
+      dateView === 'list'
+        ? []
+        : filterTransactionsForDay(monthRowsReady, focus, selectedDay, timeZone),
+    [dateView, monthRowsReady, focus, selectedDay, timeZone]
   );
 
   const listForSelection = dateView === 'list' ? monthRowsReady : dayRows;

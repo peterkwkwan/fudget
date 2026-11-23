@@ -105,24 +105,35 @@ export function TransactionsMonthBody({
   const ready = !listLoading && monthRows != null;
   const data = monthRows ?? [];
 
+  // Skip unused List/Calendar aggregations for the inactive dateView.
   const daySections = useMemo(
-    () => groupTransactionsByDay(data, timeZone),
-    [data, timeZone]
+    () =>
+      dateView === 'list' ? groupTransactionsByDay(data, timeZone) : [],
+    [dateView, data, timeZone]
   );
 
   const dayNets = useMemo(
-    () => dayNetsInMonth(data, focus, timeZone),
-    [data, focus, timeZone]
+    () =>
+      dateView === 'calendar'
+        ? dayNetsInMonth(data, focus, timeZone)
+        : new Map<number, number>(),
+    [dateView, data, focus, timeZone]
   );
 
   const dayRows = useMemo(
-    () => filterTransactionsForDay(data, focus, selectedDay, timeZone),
-    [data, focus, selectedDay, timeZone]
+    () =>
+      dateView === 'calendar'
+        ? filterTransactionsForDay(data, focus, selectedDay, timeZone)
+        : [],
+    [dateView, data, focus, selectedDay, timeZone]
   );
 
   const selectedDayHeading = useMemo(
-    () => formatFocusDayHeading(focus, selectedDay, timeZone),
-    [focus, selectedDay, timeZone]
+    () =>
+      dateView === 'calendar'
+        ? formatFocusDayHeading(focus, selectedDay, timeZone)
+        : '',
+    [dateView, focus, selectedDay, timeZone]
   );
 
   const monthHasTransactions = data.length > 0;

@@ -63,6 +63,20 @@ function cachedListRows(
   return rows;
 }
 
+/**
+ * Local personal queryFns: reuse warm `transactionKeys.list()` when present
+ * so month swipes skip a full SQLite re-read. Fall back to the mirror if the
+ * shared list has not loaded yet.
+ */
+async function localRowsForPersonalQuery(
+  queryClient: QueryClient,
+  userId: string
+): Promise<Transaction[]> {
+  const cached = queryClient.getQueryData<Transaction[]>(transactionKeys.list());
+  if (cached != null) return cached;
+  return listLocalTransactions(userId);
+}
+
 function previewPersonalStats(
   queryClient: QueryClient,
   args: {
@@ -256,7 +270,7 @@ export function usePersonalStats(
         return fetchPersonalTotals(period.start, period.end);
       }
       if (!userId) return EMPTY_PERIOD_TOTALS;
-      const rows = await listLocalTransactions(userId);
+      const rows = await localRowsForPersonalQuery(queryClient, userId);
       const scoped = filterStatsTransactions(
         rows,
         period.start,
@@ -276,7 +290,7 @@ export function usePersonalStats(
         return fetchPersonalCategoryTotals(pieType, period.start, period.end);
       }
       if (!userId) return [];
-      const rows = await listLocalTransactions(userId);
+      const rows = await localRowsForPersonalQuery(queryClient, userId);
       const scoped = filterStatsTransactions(
         rows,
         period.start,
@@ -457,7 +471,7 @@ export function usePersonalTrend(
         return fetchPersonalTrend(metric, start, end, bucket);
       }
       if (!userId) return [];
-      const rows = await listLocalTransactions(userId);
+      const rows = await localRowsForPersonalQuery(queryClient, userId);
       const scoped = filterStatsTransactions(rows, start, end, timeZone);
       return aggregateTrend(scoped, metric, bucket, timeZone);
     },
@@ -533,6 +547,7 @@ export function useCategoryDrilldown(params: {
   end: Date;
   enabled?: boolean;
 }) {
+  const queryClient = useQueryClient();
   const { profile, user } = useAuth();
   const timeZone = profile?.timezone || deviceTimezone();
   const useLocal = usePersonalStatsLocal();
@@ -563,7 +578,7 @@ export function useCategoryDrilldown(params: {
         });
       }
       if (!userId) return [];
-      const rows = await listLocalTransactions(userId);
+      const rows = await localRowsForPersonalQuery(queryClient, userId);
       return filterCategoryTransactions(rows, {
         type: params.type,
         category: params.category,
