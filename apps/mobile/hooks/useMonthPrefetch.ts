@@ -91,31 +91,25 @@ export function usePrefetchTransactionMonths(enabled: boolean) {
 }
 
 /**
- * Pair only: warm the focused aggregate month (on enter / focus change) plus
- * prev/next so a swipe can paint from cache. Personal months do not need this
- * when the shared list is warm. Never mirrors partner rows — aggregate RPCs only.
+ * Pair only: warm the focused aggregate month plus prev/next so the first
+ * Personal→Pair enter (and month swipes under Pair) can paint from cache.
+ * Call while still on Personal when paired+online — do not wait for
+ * scope==='pair'. Never mirrors partner rows — aggregate RPCs only.
  */
 export function usePrefetchAdjacentPairStats(args: {
   focus: PeriodFocus;
   timeZone: string;
   pieType: TransactionType;
-  pairLive: boolean;
   trendMetric?: StatsMetric;
+  /** True when paired and on a month Stats surface (scope may still be Personal). */
   enabled: boolean;
 }) {
   const queryClient = useQueryClient();
   const { online, ready } = useConnectivity();
-  const {
-    focus,
-    timeZone,
-    pieType,
-    pairLive,
-    trendMetric,
-    enabled,
-  } = args;
+  const { focus, timeZone, pieType, trendMetric, enabled } = args;
 
   useEffect(() => {
-    if (!enabled || !pairLive || !ready || !online) return;
+    if (!enabled || !ready || !online) return;
     const { prev, next } = adjacentMonthFocuses(focus);
     for (const monthFocus of [focus, prev, next]) {
       prefetchStatsMonth(queryClient, {
@@ -131,7 +125,6 @@ export function usePrefetchAdjacentPairStats(args: {
   }, [
     queryClient,
     enabled,
-    pairLive,
     ready,
     online,
     focus.year,

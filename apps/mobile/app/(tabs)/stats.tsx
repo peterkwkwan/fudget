@@ -130,16 +130,16 @@ export default function StatsScreen() {
   // new month waited on Supabase RPCs even when SQLite already had the rows.
   usePrefetchTransactionMonths(true);
 
-  // Pair: warm focused + adjacent aggregate months (RPC only; partner rows
-  // never land in SQLite). Personal does not need neighbor prefetch when the
-  // list is warm.
+  // Pair: warm focused + adjacent aggregate months while still on Personal
+  // when paired (RPC only; partner rows never land in SQLite). First Pair
+  // enter then hits cache instead of blanking. Personal paint still uses the
+  // shared list — this does not re-enable personal under live Pair.
   usePrefetchAdjacentPairStats({
     focus,
     timeZone,
     pieType,
-    pairLive,
     trendMetric,
-    enabled: preset === 'month' && pairLive,
+    enabled: preset === 'month' && isPaired,
   });
 
   const contentReady = useStatsMonthContentReady({
@@ -181,7 +181,6 @@ export default function StatsScreen() {
         pairLive={pairLive}
         pairBlocked={pairBlocked}
         offline={offline}
-        partnerRefetching={partnerLink.isRefetching}
         partnerLoading={partnerLink.isLoading}
         onPartnerRefetch={onPartnerRefetch}
         formatSigned={formatSigned}
@@ -202,7 +201,6 @@ export default function StatsScreen() {
       pairLive,
       pairBlocked,
       offline,
-      partnerLink.isRefetching,
       partnerLink.isLoading,
       onPartnerRefetch,
       formatSigned,

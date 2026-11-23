@@ -257,10 +257,22 @@ export function usePersonalStats(
 
   const totalsKey = [...statsKeys.totals(startIso, endIso), source, timeZone];
 
-  // Period / pieType via ref so month swipes do not rebuild the focus
-  // callback (and re-fire unused remote prefetch + cold-month invalidate).
-  const focusArgsRef = useRef({ period, pieType, timeZone, totalsKey });
-  focusArgsRef.current = { period, pieType, timeZone, totalsKey };
+  // Period / pieType / enabled via ref so month swipes and Personal↔Pair
+  // scope flips do not rebuild the focus callback (faux tab re-enter).
+  const focusArgsRef = useRef({
+    period,
+    pieType,
+    timeZone,
+    totalsKey,
+    enabled,
+  });
+  focusArgsRef.current = {
+    period,
+    pieType,
+    timeZone,
+    totalsKey,
+    enabled,
+  };
 
   const totals = useQuery({
     queryKey: totalsKey,
@@ -304,17 +316,19 @@ export function usePersonalStats(
 
   useFocusEffect(
     useCallback(() => {
-      if (!enabled) return;
-      if (!useLocal) {
-        void queryClient.invalidateQueries({ queryKey: statsKeys.personal() });
-        return;
-      }
       const {
         period: focusPeriod,
         pieType: focusPieType,
         timeZone: focusTimeZone,
         totalsKey: focusTotalsKey,
+        enabled: focusEnabled,
       } = focusArgsRef.current;
+      // Scope flip (Pair→Personal) is not a new tab focus — skip.
+      if (!focusEnabled) return;
+      if (!useLocal) {
+        void queryClient.invalidateQueries({ queryKey: statsKeys.personal() });
+        return;
+      }
       // Local settle: only re-read SQLite when the shared list is newer.
       // Avoid a full personal invalidate on every Stats focus when fresh.
       const listAt =
@@ -332,7 +346,7 @@ export function usePersonalStats(
           timeZone: focusTimeZone,
         });
       }
-    }, [enabled, useLocal, queryClient, netReady, online])
+    }, [useLocal, queryClient, netReady, online])
   );
 
   const refreshRemote = useCallback(() => {
@@ -379,6 +393,11 @@ export function useAggregateStats(
   const startIso = period.start.toISOString();
   const endIso = period.end.toISOString();
 
+  // Read enabled from a ref so Personal→Pair (enabled flip while Stats stays
+  // focused) does not rebuild this callback and invalidate on every toggle.
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+
   const totals = useQuery({
     queryKey: statsKeys.aggregateTotals(startIso, endIso),
     queryFn: () => fetchAggregateTotals(period.start, period.end),
@@ -394,9 +413,9 @@ export function useAggregateStats(
 
   useFocusEffect(
     useCallback(() => {
-      if (!enabled) return;
+      if (!enabledRef.current) return;
       void queryClient.invalidateQueries({ queryKey: statsKeys.aggregate() });
-    }, [queryClient, enabled])
+    }, [queryClient])
   );
 
   return { totals, categories, startIso, endIso };

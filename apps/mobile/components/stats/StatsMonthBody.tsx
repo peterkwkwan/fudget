@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -72,7 +72,6 @@ export type StatsMonthBodyProps = {
   pairLive: boolean;
   pairBlocked: boolean;
   offline: boolean;
-  partnerRefetching: boolean;
   partnerLoading: boolean;
   onPartnerRefetch: () => void;
   formatSigned: (n: number) => string;
@@ -102,7 +101,6 @@ export function StatsMonthBody({
   pairLive,
   pairBlocked,
   offline,
-  partnerRefetching,
   partnerLoading,
   onPartnerRefetch,
   formatSigned,
@@ -149,13 +147,9 @@ export function StatsMonthBody({
   const totals = pairLive ? aggregate.totals : personal.totals;
   const categories = pairLive ? aggregate.categories : personal.categories;
 
-  // Cached preview is placeholderData while the real read finishes.
-  // Don't spin the refresh control over stats that are already on screen.
-  const refreshing =
-    (totals.isRefetching && !totals.isPlaceholderData) ||
-    (categories.isRefetching && !categories.isPlaceholderData) ||
-    (trend.isRefetching && !trend.isPlaceholderData) ||
-    (!offline && partnerRefetching);
+  // RefreshControl only for an explicit user pull — not ambient isRefetching
+  // from scope toggle, stale remount, or partner background refetch.
+  const [userPulling, setUserPulling] = useState(false);
 
   const loading = pairBlocked
     ? false
@@ -213,14 +207,21 @@ export function StatsMonthBody({
     focus.month === currentFocus.month;
 
   const onRefresh = () => {
-    if (!active) return;
+    if (!active || userPulling) return;
+    setUserPulling(true);
+    const finish = () => setUserPulling(false);
     if (!offline) {
       onPartnerRefetch();
     }
-    if (pairBlocked) return;
-    void totals.refetch();
-    void categories.refetch();
-    void trend.refetch();
+    if (pairBlocked) {
+      finish();
+      return;
+    }
+    void Promise.all([
+      totals.refetch(),
+      categories.refetch(),
+      trend.refetch(),
+    ]).finally(finish);
     // Personal: settle stays SQLite; explicit refresh also warms remote keys.
     if (!pairLive) {
       personal.refreshRemote();
@@ -392,7 +393,7 @@ export function StatsMonthBody({
         {...scrollProps}
         refreshControl={
           <RefreshControl
-            refreshing={active && refreshing}
+            refreshing={active && userPulling}
             onRefresh={onRefresh}
             tintColor={colors.green[700]}
           />
