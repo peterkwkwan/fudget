@@ -33,7 +33,10 @@ export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
 
-/** Keep native splash up until fonts + auth session are ready. */
+/**
+ * Keep native splash up until fonts + auth session are ready.
+ * Profile sync is not part of this gate (see AuthProvider).
+ */
 function SplashController({ fontsReady }: { fontsReady: boolean }) {
   const { loading } = useAuth();
 

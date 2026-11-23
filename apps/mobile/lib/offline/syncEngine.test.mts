@@ -207,6 +207,38 @@ describe('sync ordering', () => {
     assert.equal((await listOpenOutbox(db, 'user-a')).length, 0);
   });
 
+  it('coalesces concurrent syncNow calls for the same user', async () => {
+    const db = await freshDb();
+    let pulls = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const remote = stubRemote({
+      async listTransactionsSince() {
+        pulls += 1;
+        await gate;
+        return [];
+      },
+    });
+    const options = {
+      db,
+      remote,
+      isOnline: async () => true,
+      now: () => '2026-10-27T13:00:00.000Z',
+    };
+
+    const first = syncNow('user-a', options);
+    const second = syncNow('user-a', options);
+    release();
+    const [a, b] = await Promise.all([first, second]);
+
+    assert.equal(pulls, 1);
+    assert.equal(a.skipped, false);
+    assert.equal(b.skipped, false);
+    assert.equal(a, b);
+  });
+
   it('does not push or pull while offline', async () => {
     const db = await freshDb();
     const calls: string[] = [];

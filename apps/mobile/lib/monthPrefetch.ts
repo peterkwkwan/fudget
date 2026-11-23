@@ -31,7 +31,6 @@ import {
   type StatsMetric,
 } from '@/lib/stats';
 import { isPeriodStatsReady } from '@/lib/statsCacheReady';
-import { supabase } from '@/lib/supabase';
 import {
   listTransactions,
   transactionKeys,
@@ -62,22 +61,18 @@ async function localRows(userId: string | undefined) {
   return listLocalTransactions(userId);
 }
 
-async function signedInUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw new Error(error.message);
-  const userId = data.session?.user.id;
-  if (!userId) throw new Error('You must be signed in.');
-  return userId;
-}
-
 /** Ensure the shared transactions list is in cache (client filters by month). */
 export function prefetchTransactionList(
-  queryClient: QueryClient
+  queryClient: QueryClient,
+  userId?: string
 ): Promise<unknown> {
   return queryClient.prefetchQuery({
     queryKey: transactionKeys.list(),
     queryFn: OFFLINE_TXNS_ENABLED
-      ? () => signedInUserId().then((userId) => listLocalTransactions(userId))
+      ? () => {
+          if (!userId) throw new Error('You must be signed in.');
+          return listLocalTransactions(userId);
+        }
       : listTransactions,
   });
 }

@@ -80,11 +80,14 @@ export function useStatsMonthContentReady(args: {
  */
 export function usePrefetchTransactionMonths(enabled: boolean) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id;
 
   useEffect(() => {
     if (!enabled) return;
-    void prefetchTransactionList(queryClient);
-  }, [queryClient, enabled]);
+    if (OFFLINE_TXNS_ENABLED && !userId) return;
+    void prefetchTransactionList(queryClient, userId);
+  }, [queryClient, enabled, userId]);
 }
 
 /**

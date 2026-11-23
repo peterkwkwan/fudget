@@ -7,9 +7,15 @@ import { catchUpRecurring, recurringKeys } from '@/lib/recurring';
 import { statsKeys } from '@/lib/stats';
 import { transactionKeys } from '@/lib/transactions';
 
+/** Let Transactions finish first paint before the edge invoke. */
+const COLD_START_DEFER_MS = 1_500;
+
 /**
  * On sign-in and each return to foreground, ask the server to fill missing
  * recurring instances for this user (covers missed cron).
+ *
+ * Cold start waits a short delay so the catch-up does not race the first
+ * local list / sync. Foreground returns still run promptly.
  */
 export function useCatchUpRecurring() {
   const { session } = useAuth();
@@ -19,8 +25,11 @@ export function useCatchUpRecurring() {
   useEffect(() => {
     if (!session) return;
 
+    let cancelled = false;
+    let coldTimer: ReturnType<typeof setTimeout> | null = null;
+
     async function run() {
-      if (inFlight.current) return;
+      if (cancelled || inFlight.current) return;
       inFlight.current = true;
       try {
         const result = await catchUpRecurring();
@@ -36,7 +45,12 @@ export function useCatchUpRecurring() {
       }
     }
 
-    void run();
+    // Defer off the cold-start critical path (list + sync).
+    // RN 0.88 removed InteractionManager; a short timeout is enough here.
+    coldTimer = setTimeout(() => {
+      coldTimer = null;
+      if (!cancelled) void run();
+    }, COLD_START_DEFER_MS);
 
     const onChange = (state: AppStateStatus) => {
       if (state === 'active') {
@@ -46,6 +60,8 @@ export function useCatchUpRecurring() {
 
     const sub = AppState.addEventListener('change', onChange);
     return () => {
+      cancelled = true;
+      if (coldTimer != null) clearTimeout(coldTimer);
       sub.remove();
     };
   }, [session, queryClient]);

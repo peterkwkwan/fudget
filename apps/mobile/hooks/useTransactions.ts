@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
@@ -27,7 +27,6 @@ import {
 import { deviceTimezone } from '@/lib/profile';
 import { plannerVehicleKeys } from '@/lib/plannerVehicles';
 import { statsKeys } from '@/lib/stats';
-import { supabase } from '@/lib/supabase';
 import {
   bulkPatchTransactions,
   createTransaction,
@@ -56,14 +55,16 @@ function invalidateTransactionsAndStats(
 }
 
 /** Online path only invalidates. Flag on: also push then pull. */
-function settleTransactionWrite(queryClient: ReturnType<typeof useQueryClient>) {
+function settleTransactionWrite(
+  queryClient: ReturnType<typeof useQueryClient>,
+  userId: string | undefined
+) {
   invalidateTransactionsAndStats(queryClient);
-  if (!OFFLINE_TXNS_ENABLED) return;
+  if (!OFFLINE_TXNS_ENABLED || !userId) return;
   // Local row is already saved. Refresh the badge immediately, then again
   // after the flush so a failed push can show the soft retry line.
   void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-  void signedInUserId()
-    .then((userId) => syncNow(userId))
+  void syncNow(userId)
     .then((result) => {
       void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
       if (
@@ -82,15 +83,6 @@ function settleTransactionWrite(queryClient: ReturnType<typeof useQueryClient>) 
     });
 }
 
-/** Signed-in user id for the offline repository. */
-async function signedInUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw new Error(error.message);
-  const userId = data.session?.user.id;
-  if (!userId) throw new Error('You must be signed in.');
-  return userId;
-}
-
 function requireUserId(userId: string | undefined): string {
   if (!userId) throw new Error('You must be signed in to change a transaction.');
   return userId;
@@ -103,27 +95,34 @@ function requireUserId(userId: string | undefined): string {
  */
 export function useTransactionList(focus?: PeriodFocus) {
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const userId = user?.id;
   const timeZone = profile?.timezone || deviceTimezone();
   const monthFocus = focus ?? currentPeriodFocus(timeZone);
+  // Root useOfflineTransactionSync owns the cold-start sync. Skip the first
+  // focus kick so we do not queue a second push/pull against the same DB.
+  const skipFirstFocusSync = useRef(true);
 
   const query = useQuery({
     queryKey: transactionKeys.list(),
     // Flag off: same stable listTransactions reference as the online path.
     queryFn: OFFLINE_TXNS_ENABLED
-      ? () => signedInUserId().then((userId) => listLocalTransactions(userId))
+      ? () => listLocalTransactions(requireUserId(userId))
       : listTransactions,
+    enabled: OFFLINE_TXNS_ENABLED ? Boolean(userId) : true,
   });
 
   useFocusEffect(
     useCallback(() => {
       void queryClient.invalidateQueries({ queryKey: transactionKeys.list() });
-      if (!OFFLINE_TXNS_ENABLED) return;
+      if (!OFFLINE_TXNS_ENABLED || !userId) return;
       void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-      // Plan: Transactions focus pushes then pulls while online so a stuck
-      // outbox (and “Saved on phone”) can clear without backgrounding.
-      void signedInUserId()
-        .then((userId) => syncNow(userId))
+      if (skipFirstFocusSync.current) {
+        skipFirstFocusSync.current = false;
+        return;
+      }
+      // Later revisits: push then pull so a stuck outbox can clear.
+      void syncNow(userId)
         .then((result) => {
           void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
           if (
@@ -140,7 +139,7 @@ export function useTransactionList(focus?: PeriodFocus) {
           logOffline('sync on transactions focus failed', { op: 'sync' });
           void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
         });
-    }, [queryClient])
+    }, [queryClient, userId])
   );
 
   // Index once per list/timezone; month swipe only looks up a bucket.
@@ -180,13 +179,16 @@ export function useTransactionList(focus?: PeriodFocus) {
 }
 
 export function useTransaction(id: string | undefined) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   return useQuery({
     queryKey: transactionKeys.detail(id ?? ''),
     queryFn: () =>
       OFFLINE_TXNS_ENABLED
-        ? signedInUserId().then((userId) => getLocalTransaction(userId, id!))
+        ? getLocalTransaction(requireUserId(userId), id!)
         : getTransaction(id!),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && (OFFLINE_TXNS_ENABLED ? Boolean(userId) : true),
   });
 }
 
@@ -211,7 +213,7 @@ export function useCreateTransaction() {
       );
     },
     onSuccess: () => {
-      settleTransactionWrite(queryClient);
+      settleTransactionWrite(queryClient, user?.id);
     },
   });
 }
@@ -228,7 +230,7 @@ export function useUpdateTransaction(id: string) {
       return updateTransaction(id, input);
     },
     onSuccess: () => {
-      settleTransactionWrite(queryClient);
+      settleTransactionWrite(queryClient, user?.id);
     },
   });
 }
@@ -245,7 +247,7 @@ export function useSoftDeleteTransaction() {
       return softDeleteTransaction(txnId);
     },
     onSuccess: () => {
-      settleTransactionWrite(queryClient);
+      settleTransactionWrite(queryClient, user?.id);
     },
   });
 }
@@ -262,7 +264,7 @@ export function useBulkSoftDeleteTransactions() {
       return softDeleteTransactions(ids);
     },
     onSuccess: () => {
-      settleTransactionWrite(queryClient);
+      settleTransactionWrite(queryClient, user?.id);
     },
   });
 }
@@ -289,7 +291,7 @@ export function useBulkPatchTransactions() {
       return bulkPatchTransactions(rows, patch);
     },
     onSuccess: () => {
-      settleTransactionWrite(queryClient);
+      settleTransactionWrite(queryClient, user?.id);
     },
   });
 }

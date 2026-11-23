@@ -101,12 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    // Splash waits on fonts + session only. Profile network sync runs in
+    // the background so a slow radio does not hold the native splash.
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session);
-      void syncProfile(data.session?.user ?? null).finally(() => {
-        if (mounted) setLoading(false);
-      });
+      setLoading(false);
+      void syncProfile(data.session?.user ?? null);
     });
 
     const {

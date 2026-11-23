@@ -308,8 +308,14 @@ export async function pullRemote(
   };
 }
 
-/** Online sync cycle. Always pushes, then pulls. Offline returns without either. */
-export async function syncNow(
+/**
+ * One in-flight sync per user. Cold start used to race root + Transactions
+ * focus into two overlapping push/pulls; callers now share the same promise.
+ * After it settles, the next call runs a fresh cycle.
+ */
+const syncInFlight = new Map<string, Promise<SyncNowResult>>();
+
+async function runSyncNow(
   userId: string,
   options?: SyncEngineOptions
 ): Promise<SyncNowResult> {
@@ -349,6 +355,23 @@ export async function syncNow(
     keptLocal: pull.keptLocal,
     lastPulledAt: pull.lastPulledAt,
   };
+}
+
+/** Online sync cycle. Always pushes, then pulls. Offline returns without either. */
+export async function syncNow(
+  userId: string,
+  options?: SyncEngineOptions
+): Promise<SyncNowResult> {
+  const existing = syncInFlight.get(userId);
+  if (existing) return existing;
+
+  const pending = runSyncNow(userId, options).finally(() => {
+    if (syncInFlight.get(userId) === pending) {
+      syncInFlight.delete(userId);
+    }
+  });
+  syncInFlight.set(userId, pending);
+  return pending;
 }
 
 /** Replace the Planner account cache from the server (best-effort). */
