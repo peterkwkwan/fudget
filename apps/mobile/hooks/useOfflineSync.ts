@@ -10,6 +10,10 @@ import {
   shouldDrainOnConnectivity,
   shouldRetrySync,
 } from '@/lib/offline/netState';
+import {
+  registerOfflineSyncKick,
+  setOfflineSyncing,
+} from '@/lib/offline/syncRequest';
 import { syncNow } from '@/lib/offline/syncEngine';
 import { offlineUxKeys } from '@/lib/offline/ux';
 import { statsKeys } from '@/lib/stats';
@@ -26,6 +30,9 @@ const RETRY_MS = 10_000;
  * sync will retry” does not stick while the phone stays online. The drain
  * trusts the connectivity listener when that listener says the link is up,
  * because `NetInfo.fetch()` can still report offline and cancel the timer.
+ *
+ * Write and Transactions-focus paths call `requestOfflineSync()` so a failed
+ * flush arms this same timer (they no longer run a one-shot syncNow alone).
  */
 export function useOfflineTransactionSync() {
   const { session } = useAuth();
@@ -65,6 +72,7 @@ export function useOfflineTransactionSync() {
       }
       clearRetry();
       inFlight = true;
+      setOfflineSyncing(true);
       // Listener already says the radio is up. Do not ask fetch() again —
       // a stale offline answer skips the drain and leaves the failure banner up.
       const trustLink = listenerOnline === true;
@@ -93,6 +101,7 @@ export function useOfflineTransactionSync() {
               skipped: result.skipped,
               failed: result.failed,
               listenerOnline,
+              openRemaining: result.openRemaining,
             })
           ) {
             scheduleRetry();
@@ -107,6 +116,7 @@ export function useOfflineTransactionSync() {
                 skipped: false,
                 failed: 1,
                 listenerOnline,
+                openRemaining: 1,
               })
             ) {
               scheduleRetry();
@@ -118,6 +128,8 @@ export function useOfflineTransactionSync() {
           if (again && !cancelled) {
             again = false;
             run();
+          } else {
+            setOfflineSyncing(false);
           }
         });
     };
@@ -133,6 +145,8 @@ export function useOfflineTransactionSync() {
       if (kick) run();
     });
 
+    const unregisterKick = registerOfflineSyncKick(run);
+
     // Cold start: try once even if the first snapshot is slow. A not-ready
     // fetch is a skip, and the timer above keeps going until the listener
     // reports a real offline.
@@ -141,6 +155,8 @@ export function useOfflineTransactionSync() {
     return () => {
       cancelled = true;
       clearRetry();
+      setOfflineSyncing(false);
+      unregisterKick();
       appSub.remove();
       unsubNet();
     };

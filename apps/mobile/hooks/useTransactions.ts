@@ -8,8 +8,7 @@ import { useCallback, useMemo, useRef } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
-import { logOffline } from '@/lib/offline/log';
-import { syncNow } from '@/lib/offline/syncEngine';
+import { requestOfflineSync } from '@/lib/offline/syncRequest';
 import { offlineUxKeys } from '@/lib/offline/ux';
 import {
   bulkPatchLocalTransactions,
@@ -61,26 +60,11 @@ function settleTransactionWrite(
 ) {
   invalidateTransactionsAndStats(queryClient);
   if (!OFFLINE_TXNS_ENABLED || !userId) return;
-  // Local row is already saved. Refresh the badge immediately, then again
-  // after the flush so a failed push can show the soft retry line.
+  // Local row is already saved. Kick the shared foreground drain so a failed
+  // flush arms the 10s retry (a one-shot syncNow here used to leave the
+  // “Saved on phone” banner stuck with no timer).
   void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-  void syncNow(userId)
-    .then((result) => {
-      void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-      if (
-        !result.skipped &&
-        (result.pushed > 0 ||
-          result.pulled > 0 ||
-          result.dropped > 0 ||
-          result.failed > 0)
-      ) {
-        invalidateTransactionsAndStats(queryClient);
-      }
-    })
-    .catch(() => {
-      logOffline('sync after write failed', { op: 'sync' });
-      void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-    });
+  requestOfflineSync();
 }
 
 function requireUserId(userId: string | undefined): string {
@@ -121,24 +105,8 @@ export function useTransactionList(focus?: PeriodFocus) {
         skipFirstFocusSync.current = false;
         return;
       }
-      // Later revisits: push then pull so a stuck outbox can clear.
-      void syncNow(userId)
-        .then((result) => {
-          void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-          if (
-            !result.skipped &&
-            (result.pushed > 0 ||
-              result.pulled > 0 ||
-              result.dropped > 0 ||
-              result.failed > 0)
-          ) {
-            invalidateTransactionsAndStats(queryClient);
-          }
-        })
-        .catch(() => {
-          logOffline('sync on transactions focus failed', { op: 'sync' });
-          void queryClient.invalidateQueries({ queryKey: offlineUxKeys.all });
-        });
+      // Later revisits: shared drain so a stuck outbox can clear (and arms retry).
+      requestOfflineSync();
     }, [queryClient, userId])
   );
 

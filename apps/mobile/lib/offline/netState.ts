@@ -37,12 +37,20 @@ export function shouldDrainOnConnectivity(
  * (and the status bar) already show a live radio. Treating that skip as
  * "stop" left "Saved on phone — sync will retry" on screen with 4G up.
  * A listener that knows we are offline waits for the next online edge.
+ *
+ * Also keep draining while open outbox rows remain (stale/partial pushes or
+ * a write-path failure that the hook did not observe directly).
  */
 export function shouldRetrySync(input: {
   skipped: boolean;
   failed: number;
   listenerOnline: boolean | null;
+  openRemaining?: number;
 }): boolean {
   if (input.listenerOnline === false) return false;
-  return input.failed > 0 || input.skipped;
+  return (
+    input.failed > 0 ||
+    input.skipped ||
+    (input.openRemaining ?? 0) > 0
+  );
 }

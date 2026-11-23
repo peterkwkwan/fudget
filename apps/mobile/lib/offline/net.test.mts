@@ -90,5 +90,23 @@ describe('sync drain while the radio is up', () => {
       shouldRetrySync({ skipped: false, failed: 0, listenerOnline: true }),
       false
     );
+    assert.equal(
+      shouldRetrySync({
+        skipped: false,
+        failed: 0,
+        listenerOnline: true,
+        openRemaining: 2,
+      }),
+      true
+    );
+    assert.equal(
+      shouldRetrySync({
+        skipped: false,
+        failed: 0,
+        listenerOnline: false,
+        openRemaining: 2,
+      }),
+      false
+    );
   });
 });

@@ -447,10 +447,12 @@ describe('custom categories', () => {
         enabled: true,
         online: true,
         openCount: status.openCount,
+        failedCount: status.failedCount,
         lastSyncError: open[0].last_error,
       }),
       CATEGORY_FIX_COPY
     );
+    assert.equal(status.failedCount, 1);
   });
 
   it('adds the category cache when upgrading a v1 database', async () => {

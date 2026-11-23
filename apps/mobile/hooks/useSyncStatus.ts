@@ -10,6 +10,7 @@ import { readOfflineUxStatus } from '@/lib/offline/uxStatus';
 const EMPTY: OfflineUxStatus = {
   pendingIds: [],
   openCount: 0,
+  failedCount: 0,
   lastSyncError: null,
   categoryFixIds: [],
 };
@@ -45,6 +46,7 @@ export function useSyncStatus() {
     pendingIds,
     categoryFixIds,
     openCount: data.openCount,
+    failedCount: data.failedCount,
     lastSyncError: data.lastSyncError,
   };
 }

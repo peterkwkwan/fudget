@@ -1,6 +1,12 @@
+import { useEffect, useState } from 'react';
+
 import { useConnectivity } from '@/hooks/useConnectivity';
 import { useSyncStatus } from '@/hooks/useSyncStatus';
 import { OFFLINE_TXNS_ENABLED } from '@/lib/offline/flag';
+import {
+  getOfflineSyncing,
+  subscribeOfflineSyncing,
+} from '@/lib/offline/syncRequest';
 import {
   blockedActionHint,
   blockedOnlineAction,
@@ -15,6 +21,7 @@ import {
 export function useOfflineGates() {
   const { online } = useConnectivity();
   const sync = useSyncStatus();
+  const [syncing, setSyncing] = useState(getOfflineSyncing);
   const enabled = OFFLINE_TXNS_ENABLED;
   const offline = enabled && !online;
   const outboxPending = enabled && sync.openCount > 0;
@@ -24,6 +31,12 @@ export function useOfflineGates() {
     outboxPending,
     blockOnPending: true,
   });
+
+  useEffect(() => {
+    return subscribeOfflineSyncing(() => {
+      setSyncing(getOfflineSyncing());
+    });
+  }, []);
 
   return {
     /** Flag on and NetInfo says offline. */
@@ -37,7 +50,9 @@ export function useOfflineGates() {
       enabled,
       online,
       openCount: sync.openCount,
+      failedCount: sync.failedCount,
       lastSyncError: sync.lastSyncError,
+      syncing,
     }),
     /** Account / Settings top banner while offline. */
     settingsBanner: settingsOfflineBannerCopy({ enabled, online }),

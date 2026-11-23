@@ -55,6 +55,8 @@ export type OfflineUxStatus = {
   pendingIds: string[];
   /** Open outbox rows (pending or failed). */
   openCount: number;
+  /** Open outbox rows stuck in `failed` (not merely pending). */
+  failedCount: number;
   lastSyncError: string | null;
   /** Open rows whose push failed because the category is no longer allowed. */
   categoryFixIds: string[];
@@ -63,18 +65,30 @@ export type OfflineUxStatus = {
 /**
  * Banner on Transactions and Add/Edit.
  * Hidden when the flag is off, and when online with an empty outbox.
+ *
+ * “Saved on phone — sync will retry” only when a flush left failed outbox
+ * rows and a drain is not in flight. A stale sync_meta.last_sync_error with
+ * pending-only rows (or an active sync) must show “Syncing…” — otherwise the
+ * retry line false-positives while Peter is online and the outbox is draining.
  */
 export function offlineBannerCopy(input: {
   enabled: boolean;
   online: boolean;
   openCount: number;
   lastSyncError: string | null;
+  /** Open rows with status=failed. Defaults to “has lastSyncError” for older callers. */
+  failedCount?: number;
+  /** Foreground drain currently running. */
+  syncing?: boolean;
 }): string | null {
   if (!input.enabled) return null;
   if (!input.online) return OFFLINE_BANNER_COPY;
   if (input.openCount === 0) return null;
   if (isInvalidCategoryError(input.lastSyncError)) return CATEGORY_FIX_COPY;
-  if (input.lastSyncError) return SAVED_ON_PHONE_COPY;
+  if (input.syncing) return SYNCING_COPY;
+  const failed =
+    input.failedCount ?? (input.lastSyncError != null ? 1 : 0);
+  if (failed > 0) return SAVED_ON_PHONE_COPY;
   return SYNCING_COPY;
 }
 

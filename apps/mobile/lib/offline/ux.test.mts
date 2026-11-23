@@ -124,12 +124,13 @@ describe('offline banner', () => {
     );
   });
 
-  it('says sync will retry when an online flush left rows queued', () => {
+  it('says sync will retry when an online flush left failed rows queued', () => {
     assert.equal(
       offlineBannerCopy({
         enabled: true,
         online: true,
         openCount: 1,
+        failedCount: 1,
         lastSyncError: 'network',
       }),
       SAVED_ON_PHONE_COPY
@@ -142,7 +143,35 @@ describe('offline banner', () => {
         enabled: true,
         online: true,
         openCount: 2,
+        failedCount: 0,
         lastSyncError: null,
+      }),
+      SYNCING_COPY
+    );
+  });
+
+  it('says syncing for pending-only rows even with a stale last_sync_error', () => {
+    assert.equal(
+      offlineBannerCopy({
+        enabled: true,
+        online: true,
+        openCount: 1,
+        failedCount: 0,
+        lastSyncError: 'stale network error',
+      }),
+      SYNCING_COPY
+    );
+  });
+
+  it('says syncing while a drain is in flight even if rows failed last time', () => {
+    assert.equal(
+      offlineBannerCopy({
+        enabled: true,
+        online: true,
+        openCount: 1,
+        failedCount: 1,
+        lastSyncError: 'network',
+        syncing: true,
       }),
       SYNCING_COPY
     );
@@ -292,6 +321,7 @@ describe('pending sync status', () => {
 
     const status = await readOfflineUxStatus(db, 'user-a');
     assert.equal(status.openCount, 1);
+    assert.equal(status.failedCount, 0);
     assert.equal(status.lastSyncError, 'timeout');
     assert.ok(status.pendingIds.includes('local-only'));
     assert.ok(status.pendingIds.includes('other'));

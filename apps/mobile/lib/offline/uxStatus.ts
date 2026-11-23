@@ -24,6 +24,7 @@ export async function readOfflineUxStatus(
   return {
     pendingIds: [...pendingIds],
     openCount: open.length,
+    failedCount: open.filter((row) => row.status === 'failed').length,
     lastSyncError: meta?.last_sync_error ?? null,
     categoryFixIds: open
       .filter((row) => isInvalidCategoryError(row.last_error))

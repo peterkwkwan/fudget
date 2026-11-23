@@ -92,6 +92,8 @@ export type SyncNowResult = {
   pulled: number;
   keptLocal: number;
   lastPulledAt: string | null;
+  /** Open outbox rows left after this cycle (0 when skipped before opening the DB). */
+  openRemaining: number;
 };
 
 type PushOneStatus = 'acked' | 'failed' | 'dropped' | 'stale';
@@ -329,6 +331,7 @@ async function runSyncNow(
       pulled: 0,
       keptLocal: 0,
       lastPulledAt: null,
+      openRemaining: 0,
     };
   }
 
@@ -346,6 +349,7 @@ async function runSyncNow(
       last_sync_error: push.firstError,
     });
   }
+  const openRemaining = (await listOpenOutbox(db, userId)).length;
   return {
     skipped: false,
     pushed: push.pushed,
@@ -354,6 +358,7 @@ async function runSyncNow(
     pulled: pull.applied,
     keptLocal: pull.keptLocal,
     lastPulledAt: pull.lastPulledAt,
+    openRemaining,
   };
 }
 
